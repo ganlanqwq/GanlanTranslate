@@ -5,7 +5,7 @@
 Unicode true
 !define APP_NAME "甘岚翻译"
 !define APP_SHORT_NAME "GanlanTranslate"
-!define APP_VERSION "1.0.1"
+!define APP_VERSION "1.0.2"
 !define APP_PUBLISHER "甘岚"
 !define APP_EXE "GanlanTranslate.exe"
 !define VR_EXE "GanlanTranslateVR.exe"
