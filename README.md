@@ -7,7 +7,9 @@
 一款依靠 AI、高度可自定义、高性能、全能好用的开源翻译软件。
 你说的话实时翻译后发到 VRChat 聊天框；别人说的话、画面上的文字，也能翻译给你看。
 
-[下载最新版](https://github.com/ganlanqwq/GanlanTranslate/releases/latest) · [English](#english) · [MIT 许可证](LICENSE.md)
+**简体中文** · [English](README.en.md) · [日本語](README.ja.md)
+
+[下载最新版](https://github.com/ganlanqwq/GanlanTranslate/releases/latest) · [MIT 许可证](LICENSE.md)
 
 <img src="images/screenshot.jpg" alt="甘岚翻译主界面" width="860">
 
@@ -219,26 +221,3 @@ python -m venv .venv
 ## 许可证
 
 [MIT](LICENSE.md)
-
----
-
-## English
-
-**Ganlan Translate** is a real-time speech translator built for VRChat. It has three modes that you can run separately or together:
-
-- **Self translation**: recognizes your microphone and sends the translation to the VRChat chatbox over OSC. Streaming LLM translation shows the meaning before you finish the sentence. It only listens while your VRChat mic is unmuted.
-- **Translate others**: captures only the VRChat process audio, labels speakers A–Z by voice, detects the source language (about 176 languages) and shows the translation in an overlay.
-- **Translate screen**: press a hotkey (default `Ctrl+Alt+F8`) to capture the VRChat window, read the text with a vision model and translate each block.
-
-There is also a SteamVR companion with wrist subtitles and a dashboard page, custom hot words and translation terms, presets, and a UI in Chinese, English, Japanese and Korean.
-
-**Quick start**
-
-1. Download `GanlanTranslate-Setup-<version>.exe` from [Releases](https://github.com/ganlanqwq/GanlanTranslate/releases/latest) and install it (Windows 10/11, 64-bit).
-2. Enter an Alibaba Cloud Model Studio (DashScope) API key for speech and image recognition (tick "International" for keys from the international site), plus any OpenAI-compatible LLM endpoint for translation.
-3. In VRChat, open the Action Menu → `Options` → `OSC` → `Enable`.
-4. Set your target languages, then start the modes you need from the service card.
-
-API keys stay on your PC and are never saved into preset files. Audio, screenshots and text are only sent to the services you configure.
-
-The self-translation flow is based on [Yakutan](https://github.com/febilly/Yakutan) by febilly. Licensed under [MIT](LICENSE.md).
