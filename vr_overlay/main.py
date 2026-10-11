@@ -167,22 +167,39 @@ def from_hmd34(m) -> np.ndarray:
     return out
 
 
+def _rotation(axis: str, degrees: float) -> np.ndarray:
+    a = math.radians(degrees)
+    c, s = math.cos(a), math.sin(a)
+    if axis == 'x':
+        return np.array([[1, 0, 0], [0, c, -s], [0, s, c]])
+    if axis == 'y':
+        return np.array([[c, 0, s], [0, 1, 0], [-s, 0, c]])
+    return np.array([[c, -s, 0], [s, c, 0], [0, 0, 1]])
+
+
 def wrist_transform(side: str, s: Settings) -> np.ndarray:
     """手柄坐标系里手表的位置。
 
     手柄坐标：+X 右，+Y 上，-Z 朝前（指向手指方向），+Z 朝手腕。
     正常握持时左手背朝 -X，右手背朝 +X。卡片法线朝手背，文字的「右」：
     左手指向手指（-Z），右手指向手肘（+Z）——这样手心朝下抬腕看时，文字正着读。
+
+    角度（菜单页「调整位置和角度」）：
+    - wrist_roll：绕手臂（手柄 Z 轴）转，位置也跟着绕手臂转。
+    - wrist_pitch / wrist_yaw / wrist_spin：卡片绕自己的横轴 / 竖轴 / 法线转，位置不动。
+    两只手用同一组数，左手的 roll / yaw / spin 取反，效果左右镜像对称（pitch 本来就对称）。
     """
     sign = -1.0 if side == 'left' else 1.0
     normal = np.array([sign, 0.0, 0.0])
     right = np.array([0.0, 0.0, -1.0 if side == 'left' else 1.0])
     up = np.cross(normal, right)
     rot = np.column_stack([right, up, normal])
-    # 绕手臂（Z 轴）再转
-    a = math.radians(float(s.get('wrist_roll')) * -sign)
-    rz = np.array([[math.cos(a), -math.sin(a), 0], [math.sin(a), math.cos(a), 0], [0, 0, 1]])
-    rot = rz @ rot
+    rz = _rotation('z', float(s.get('wrist_roll')) * -sign)
+    # 卡片自己的坐标：x 右、y 上、z 法线（朝眼睛）
+    local = (_rotation('y', float(s.get('wrist_yaw')) * -sign)
+             @ _rotation('x', float(s.get('wrist_pitch')))
+             @ _rotation('z', float(s.get('wrist_spin')) * -sign))
+    rot = rz @ rot @ local
     pos = np.array([sign * float(s.get('wrist_out')), float(s.get('wrist_up')), float(s.get('wrist_along'))])
     pos = rz @ pos
     m = np.eye(4)
@@ -209,6 +226,8 @@ class OverlayApp:
         self.dash_hits = []
         self.dash_hover = None
         self.dash_menu = None      # 正在展开的下拉菜单：('lang', mode) / ('ui_lang',)
+        self.dash_page = 'main'    # 菜单页右边：'main' = 手腕显示 + 画面翻译；'wrist' = 调整位置和角度
+        self.adjust_group = 0      # 调整页翻到第几组（位置 / 角度 / 显示）
         self.dash_rendered = None
         self.dash_visible = False
         self.poses = (openvr.TrackedDevicePose_t * openvr.k_unMaxTrackedDeviceCount)()
@@ -352,7 +371,7 @@ class OverlayApp:
         hover = self.dash_hover if self._d3d is not None else None
         key = (self.link.version, self.settings.version, hover, self.dash_menu, self.link.connected,
                self.link.display_mode, bool(self.link.current_toast()), tuple(sorted(self.scroll.items())),
-               len(self.others_history))
+               len(self.others_history), self.dash_page, self.adjust_group)
         if not force and key == self.dash_rendered:
             return
         # 带上攒下来的他人历史，菜单页的翻页位置（第几条 / 共几条）才和手腕卡片一致
@@ -361,7 +380,8 @@ class OverlayApp:
         data = dict(self.settings.data)
         data['ui_language'] = self.ui_language(payload)
         img, self.dash_hits = render.render_dashboard(payload, self._link_state(), data, hover=hover,
-                                                      open_menu=self.dash_menu, scroll=dict(self.scroll))
+                                                      open_menu=self.dash_menu, scroll=dict(self.scroll),
+                                                      page=self.dash_page, adjust_group=self.adjust_group)
         if self._upload(self.dash, img):
             self.dash_rendered = key
 
@@ -589,6 +609,11 @@ class OverlayApp:
             link.set_language(action[1], action[2])
         elif kind == 'page':
             self.page(action[1], action[2])
+        elif kind == 'dash_page':
+            self.dash_page = action[1]
+        elif kind == 'adjust_group':
+            last = len(render.WRIST_ADJUST_GROUPS) - 1
+            self.adjust_group = max(0, min(last, self.adjust_group + int(action[1])))
         elif kind == 'ui_lang':
             self.settings.set('ui_language', action[1])
         elif kind == 'wrist':

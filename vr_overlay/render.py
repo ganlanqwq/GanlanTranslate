@@ -127,7 +127,7 @@ def draw_text(draw: ImageDraw.ImageDraw, xy, text: str, size: int, fill, bold: b
 
 
 def _tokens(text: str):
-    """拆成可换行的片段：中日韩每个字一段，拉丁单词连同后面的空格一段。"""
+    """拆成可换行的片段：中日文每个字一段，拉丁单词、韩文词（韩文按空格换行）连同后面的空格一段。"""
     token = ''
     for ch in text:
         if ch == '\n':
@@ -135,7 +135,7 @@ def _tokens(text: str):
                 yield token
                 token = ''
             yield '\n'
-        elif ord(ch) > 0x2E80:   # 中日韩
+        elif ord(ch) > 0x2E80 and not _is_hangul(ch):   # 中日
             if token:
                 yield token
                 token = ''
@@ -502,17 +502,20 @@ def _card(d, col, top, bottom, title, subtitle, reserve=48):
 DASH_FONT_SCALE = 0.86
 
 
-def render_dashboard(payload: dict, link_state: dict, settings: dict, hover=None, open_menu=None, scroll=None):
-    """scroll：{'others': n, 'screen': n}，菜单页里翻到哪了（手腕卡片显示同一个位置）。"""
+def render_dashboard(payload: dict, link_state: dict, settings: dict, hover=None, open_menu=None, scroll=None,
+                     page='main', adjust_group=0):
+    """scroll：{'others': n, 'screen': n}，菜单页里翻到哪了（手腕卡片显示同一个位置）。
+    page：右边一栏显示什么，'main' = 手腕显示 + 画面翻译，'wrist' = 调整手腕卡片的位置和角度；
+    adjust_group：调整页翻到第几组（WRIST_ADJUST_GROUPS）。"""
     global _font_scale
     _font_scale = DASH_FONT_SCALE
     try:
-        return _render_dashboard(payload, link_state, settings, hover, open_menu, scroll or {})
+        return _render_dashboard(payload, link_state, settings, hover, open_menu, scroll or {}, page, adjust_group)
     finally:
         _font_scale = 1.0
 
 
-def _render_dashboard(payload: dict, link_state: dict, settings: dict, hover, open_menu, scroll):
+def _render_dashboard(payload: dict, link_state: dict, settings: dict, hover, open_menu, scroll, page, adjust_group):
     ui_lang = normalize(settings.get('ui_language') or 'zh-CN')
     t = translator(ui_lang)
     img = Image.new('RGBA', (DASH_W, DASH_H), BG)
@@ -527,8 +530,11 @@ def _render_dashboard(payload: dict, link_state: dict, settings: dict, hover, op
     if logo is not None:
         img.alpha_composite(logo, (32, 24))
     _modes_card(d, hits, t, payload, modes, busy, open_menu, scroll)
-    wrist_bottom = _wrist_card(d, hits, t, settings)
-    _screen_card(d, hits, t, payload, modes, busy, wrist_bottom + 16, scroll.get('screen', 0))
+    if page == 'wrist':
+        _wrist_adjust_card(d, hits, t, settings, adjust_group)
+    else:
+        wrist_bottom = _wrist_card(d, hits, t, settings)
+        _screen_card(d, hits, t, payload, modes, busy, wrist_bottom + 16, scroll.get('screen', 0))
     if open_menu and open_menu in hits.anchors:
         img, menu_hits = _popup(img, hover, open_menu, hits.anchors[open_menu], payload, ui_lang)
         # 菜单项优先；点菜单外面任何地方只关菜单
@@ -693,8 +699,9 @@ def _pager(d, hits, t, mode, payload, scroll, area):
 
 
 def _wrist_card(d, hits, t, settings):
+    """手腕显示：左右手各显示什么、抬腕才显示，位置和角度在另一页（_wrist_adjust_card）里调。"""
     x0, x1 = COL_R
-    bottom = TOP + 396
+    bottom = TOP + 240
     y = _card(d, COL_R, TOP, bottom, t('card.wrist'), t('card.wrist.sub'))
     for side in ('left', 'right'):
         current = settings.get(f'{side}_wrist')
@@ -711,29 +718,99 @@ def _wrist_card(d, hits, t, settings):
     label = t('btn.gaze.on') if gaze else t('btn.gaze.off')
     box = (x0 + 24, y, x0 + 48 + int(text_width(label, 17, True)) + 16, y + 42)
     pill(d, box, label, 17, active=gaze, hover=hits.add(box, ('toggle', 'gaze_only')))
-    rw = int(text_width(t('btn.resetPose'), 17, True)) + 40
+    rw = int(text_width(t('btn.adjustWrist'), 17, True)) + 48
     box = (x1 - 24 - rw, y, x1 - 24, y + 42)
-    pill(d, box, t('btn.resetPose'), 17, hover=hits.add(box, ('reset_wrist',)))
-    y += 58
-    rows = [
-        ('wrist_width', 'adj.size', 0.01, lambda v: f'{v * 100:.0f} cm'),
-        ('wrist_along', 'adj.along', 0.01, lambda v: f'{v * 100:.0f} cm'),
-        ('wrist_out', 'adj.out', 0.005, lambda v: f'{v * 100:.1f} cm'),
-        ('wrist_roll', 'adj.roll', 10.0, lambda v: f'{v:.0f}°'),
-        ('wrist_alpha', 'adj.alpha', 0.05, lambda v: f'{v * 100:.0f}%'),
-        ('wrist_font_scale', 'adj.font', 0.1, lambda v: f'{v * 100:.0f}%'),
-    ]
-    for i, (key, label_key, step, fmt) in enumerate(rows):
-        cx = x0 + 24 + (i % 2) * 260
-        cy = y + (i // 2) * 52
-        draw_text(d, (cx, cy + 9), fit(t(label_key), 17, 54, True), 17, INK_2, bold=True)
-        box = (cx + 58, cy, cx + 98, cy + 42)
-        pill(d, box, '−', 22, hover=hits.add(box, ('adjust', key, -step)))
-        value = fmt(float(settings.get(key) or 0))
-        draw_text(d, (cx + 138 - text_width(value, 18) / 2, cy + 9), value, 18, INK)
-        box = (cx + 178, cy, cx + 218, cy + 42)
-        pill(d, box, '+', 22, hover=hits.add(box, ('adjust', key, step)))
+    pill(d, box, t('btn.adjustWrist'), 17, primary=True, hover=hits.add(box, ('dash_page', 'wrist')))
     return bottom
+
+
+def _cm(v):
+    return f'{v * 100:.1f} cm'
+
+
+def _deg(v):
+    return f'{v:.0f}°'
+
+
+def _pct(v):
+    return f'{v * 100:.0f}%'
+
+
+# 调整页的每一行：(设置键, 名字, 细调一步, 粗调一步, 数值格式, 按钮上步长的显示倍数)
+WRIST_ADJUST_GROUPS = [
+    ('group.position', [
+        ('wrist_along', 'adj.along', 0.005, 0.02, _cm, 100),
+        ('wrist_up', 'adj.up', 0.005, 0.02, _cm, 100),
+        ('wrist_out', 'adj.out', 0.005, 0.02, _cm, 100),
+    ]),
+    ('group.angle', [
+        ('wrist_roll', 'adj.roll', 5.0, 30.0, _deg, 1),
+        ('wrist_pitch', 'adj.pitch', 5.0, 30.0, _deg, 1),
+        ('wrist_yaw', 'adj.yaw', 5.0, 30.0, _deg, 1),
+        ('wrist_spin', 'adj.spin', 5.0, 30.0, _deg, 1),
+    ]),
+    ('group.display', [
+        ('wrist_width', 'adj.size', 0.005, 0.02, _cm, 100),
+        ('wrist_alpha', 'adj.alpha', 0.05, 0.2, _pct, 100),
+        ('wrist_font_scale', 'adj.font', 0.1, 0.3, _pct, 100),
+    ]),
+]
+
+
+def _wrist_adjust_card(d, hits, t, settings, group_index=0):
+    """调整手腕卡片，按组翻页（岚：按钮太多就做成翻页，上下翻）：位置（前后 / 上下 / 贴近）、
+    角度（绕手臂 + 卡片自己的三个轴，可以转一整圈）、显示（大小 / 透明 / 字号）。
+    每行上面是名字和数值，下面「−粗 −细 ＋细 ＋粗」。改了马上生效（settings.version 一变 main 就重新挂到手柄上）。"""
+    x0, x1 = COL_R
+    y = _card(d, COL_R, TOP, BOTTOM, t('card.wristAdjust'), '', reserve=160)
+    bw = int(text_width(t('btn.done'), 18, True)) + 64
+    box = (x1 - 24 - bw, TOP + 14, x1 - 24, TOP + 56)
+    pill(d, box, t('btn.done'), 18, primary=True, hover=hits.add(box, ('dash_page', 'main')))
+
+    left, right = x0 + 24, x1 - 24
+    count = len(WRIST_ADJUST_GROUPS)
+    group_index = max(0, min(int(group_index or 0), count - 1))
+    group_key, rows = WRIST_ADJUST_GROUPS[group_index]
+
+    # 翻页行：组名 …… ▲ 第几页/共几页 ▼
+    bh = 48
+    down = (right - 64, y, right, y + bh)
+    up = (down[0] - 84 - 64, y, down[0] - 84, y + bh)
+    for box, is_up, enabled in ((up, True, group_index > 0), (down, False, group_index < count - 1)):
+        action = ('adjust_group', -1 if is_up else 1)
+        arrow_button(d, box, is_up, enabled, hover=hits.add(box, action) if enabled else False)
+    text = f'{group_index + 1}/{count}'
+    draw_text(d, ((up[2] + down[0] - text_width(text, 18, True)) / 2, y + (bh - line_height(18)) / 2 + 1),
+              text, 18, INK_2, bold=True)
+    draw_text(d, (left, y + (bh - line_height(24)) / 2), fit(t(group_key), 24, up[0] - left - 12, True), 24,
+              PRIMARY, bold=True)
+    y += bh + 18
+    d.line((left, y - 9, right, y - 9), fill=LINE, width=2)
+
+    gap = 10
+    btn_w = (right - left - gap * 3) / 4
+    for key, label_key, fine, coarse, fmt, shown in rows:
+        draw_text(d, (left, y + 4), fit(t(label_key), 19, right - left - 140, True), 19, INK_2, bold=True)
+        value = fmt(float(settings.get(key) or 0))
+        draw_text(d, (right - text_width(value, 20, True), y + 3), value, 20, INK, bold=True)
+        by = y + 36
+        for i, step in enumerate((-coarse, -fine, fine, coarse)):
+            bx0 = left + i * (btn_w + gap)
+            box = (int(bx0), by, int(bx0 + btn_w), by + 48)
+            label = ('+' if step > 0 else '−') + f'{abs(step) * shown:g}'
+            pill(d, box, label, 18, hover=hits.add(box, ('adjust', key, step)), radius=16)
+        y += 36 + 48 + 22
+
+    # 底部：位置复位 + 提示
+    rw = int(text_width(t('btn.resetPose'), 17, True)) + 40
+    by = BOTTOM - 20 - 40
+    box = (left, by, left + rw, by + 40)
+    pill(d, box, t('btn.resetPose'), 17, hover=hits.add(box, ('reset_wrist',)))
+    hint = wrap(t('card.wristAdjust.hint'), 15, right - box[2] - 16, max_lines=2)
+    hy = by + (40 - len(hint) * line_height(15)) / 2
+    for ln in hint:
+        draw_text(d, (box[2] + 16, hy), ln, 15, INK_3)
+        hy += line_height(15)
 
 
 def _screen_card(d, hits, t, payload, modes, busy, top, scroll=0):

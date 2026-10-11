@@ -27,7 +27,10 @@ DEFAULTS = {
     'wrist_along': 0.12,      # 沿手臂往手肘方向离手柄原点多远（米）
     'wrist_out': 0.045,       # 往手背方向偏多少（米）
     'wrist_up': -0.01,        # 上下（米）
-    'wrist_roll': 0.0,        # 绕手臂再转多少度
+    'wrist_roll': 0.0,        # 绕手臂再转多少度（连位置一起绕手臂转）
+    'wrist_pitch': 0.0,       # 卡片绕自己的横轴转：正 = 上边往眼睛这边倾
+    'wrist_yaw': 0.0,         # 卡片绕自己的竖轴转（左右倾斜）
+    'wrist_spin': 0.0,        # 卡片在自己的平面里转
     'wrist_alpha': 0.95,
     'wrist_font_scale': 1.0,  # 手腕卡片正文字号倍数
     'gaze_only': True,        # 抬腕看向手表时才显示
@@ -36,13 +39,16 @@ DEFAULTS = {
 
 LIMITS = {
     'wrist_width': (0.06, 0.25),
-    'wrist_along': (-0.10, 0.30),
-    'wrist_out': (-0.10, 0.15),
-    'wrist_up': (-0.10, 0.10),
-    'wrist_roll': (-180.0, 180.0),
+    'wrist_along': (-0.20, 0.40),
+    'wrist_out': (-0.15, 0.25),
+    'wrist_up': (-0.20, 0.20),
     'wrist_alpha': (0.3, 1.0),
     'wrist_font_scale': (0.7, 1.6),
 }
+
+# 角度不设上下限，超过 180° 接着转到 -180°（可以转一整圈）
+ANGLE_KEYS = ('wrist_roll', 'wrist_pitch', 'wrist_yaw', 'wrist_spin')
+POSE_KEYS = ('wrist_width', 'wrist_along', 'wrist_out', 'wrist_up') + ANGLE_KEYS
 
 
 class Settings:
@@ -86,6 +92,8 @@ class Settings:
             number = float(value)
         except (TypeError, ValueError):
             return default
+        if key in ANGLE_KEYS:
+            return round((number + 180.0) % 360.0 - 180.0, 4)
         low, high = LIMITS.get(key, (number, number))
         return round(min(high, max(low, number)), 4)
 
@@ -106,7 +114,7 @@ class Settings:
 
     def reset_wrist_pose(self) -> None:
         with self._lock:
-            for key in ('wrist_width', 'wrist_along', 'wrist_out', 'wrist_up', 'wrist_roll'):
+            for key in POSE_KEYS:
                 self.data[key] = DEFAULTS[key]
             self.version += 1
         self.save()
