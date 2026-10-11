@@ -1,8 +1,8 @@
 """甘岚翻译 VR 附属程序（SteamVR overlay）。
 
 - 第一次运行时把自己注册进 SteamVR 并开启自动启动，之后 SteamVR 一启动就会拉起它。
-- 两个手腕各挂一张卡片（跟着左右手柄），显示 自我 / 他人 / 屏幕 的译文。
-- SteamVR 菜单里有一页「甘岚翻译」：启停模式、改译文语言、手腕设置、翻译画面、界面语言。
+- 两个手腕各挂一张卡片（跟着左右手柄），显示 自我 / 他人 / 屏幕 的译文。卡片只显示、不能点（见 _create_overlays）。
+- SteamVR 菜单里有一页「甘岚翻译」：启停模式、改译文语言、翻页、手腕设置、翻译画面、界面语言。
   （桌面 / VR 只在主程序网页里切，附属程序本来就是给 VR 用的。）
 - 数据由主程序（ui/app.py + vr_bridge.py）在 VR 模式下推过来；操作走主程序的 HTTP 接口。
 
@@ -52,7 +52,7 @@ THUMB_PATH = os.path.join(DATA_DIR, 'thumbnail.png')
 ICON_PATH = os.path.join(HERE, 'icon.png')
 LOG_PATH = os.path.join(DATA_DIR, 'overlay.log')
 FRAME_INTERVAL = 1 / 30
-SCROLL_RESET_SECONDS = 30    # 翻过的手腕卡片多久没碰就回到最新
+SCROLL_RESET_SECONDS = 30    # 菜单页里翻过页，多久没再点就回到最新
 OTHERS_HISTORY_MAX = 40      # 附属程序自己攒的他人历史条数（主程序每次只推最近几条）
 DASH_WIDTH_M = 2.6
 
@@ -218,12 +218,11 @@ class OverlayApp:
         self._upload_retry_at = {}   # overlay -> 失败后什么时候再试
         self._last_upload_warn = 0.0
         self._last_loop_error = 0.0
-        # 手腕卡片的按钮：翻页、屏幕「识别」
-        self.wrist_scroll = {'left': 0, 'right': 0}
-        self.wrist_hits = {'left': [], 'right': []}
-        self.wrist_hover = {'left': None, 'right': None}
-        self._last_touch = {'left': 0.0, 'right': 0.0}
-        self._wrist_interactive = {'left': None, 'right': None}   # 当前是否开着激光交互
+        # 翻页按模式记（菜单页里每个模式自己的 ▲ ▼），哪只手腕显示这个模式就翻哪只：
+        # 他人往旧翻了几条 / 屏幕往下翻了几段
+        self.scroll = {'others': 0, 'screen': 0}
+        self._last_page = {'others': 0.0, 'screen': 0.0}
+        self._screen_signature = None
         self.others_history = []          # 他人历史（按 ts 合并主程序推来的最近几条）
         self._history_version = -1
         self._vr_textures = {}       # overlay -> openvr.Texture_t（指向 self._d3d 里的贴图）
@@ -251,12 +250,11 @@ class OverlayApp:
             ov.setOverlayWidthInMeters(handle, float(self.settings.get('wrist_width')))
             ov.setOverlayAlpha(handle, 0.0)
             ov.setOverlaySortOrder(handle, 10)
-            # 手腕卡片的按钮用 SteamVR 激光点（扳机），指着卡片推摇杆也能翻页
-            ov.setOverlayInputMethod(handle, openvr.VROverlayInputMethod_Mouse)
-            wrist_scale = openvr.HmdVector2_t()
-            wrist_scale.v[0], wrist_scale.v[1] = render.WRIST_W, render.WRIST_H
-            ov.setOverlayMouseScale(handle, wrist_scale)
-            ov.setOverlayFlag(handle, openvr.VROverlayFlags_SendVRDiscreteScrollEvents, True)
+            # 手腕卡片不接收输入。2.5.2 起卡片上有激光按钮，开了 MakeOverlaysInteractiveIfVisible：
+            # 卡片一露出来 SteamVR 就把手柄输入从 VRChat 拿走给激光用，VRChat 就进 AFK
+            # （2026-10-11 岚：手翻过来就 AFK）。所以翻页、识别都只放在菜单页里。
+            ov.setOverlayInputMethod(handle, openvr.VROverlayInputMethod_None)
+            ov.setOverlayFlag(handle, openvr.VROverlayFlags_MakeOverlaysInteractiveIfVisible, False)
             self.wrists[side] = handle
         main_handle, thumb = ov.createDashboardOverlay(f'{APP_KEY}.dashboard', '甘岚翻译')
         self.dash = main_handle
@@ -353,14 +351,17 @@ class OverlayApp:
         # 退回 SetOverlayRaw 时每次换图都会闪，激光扫过按钮就不画高亮了，只在点击、内容变化时重画
         hover = self.dash_hover if self._d3d is not None else None
         key = (self.link.version, self.settings.version, hover, self.dash_menu, self.link.connected,
-               self.link.display_mode, bool(self.link.current_toast()))
+               self.link.display_mode, bool(self.link.current_toast()), tuple(sorted(self.scroll.items())),
+               len(self.others_history))
         if not force and key == self.dash_rendered:
             return
-        payload = self.link.snapshot()
+        # 带上攒下来的他人历史，菜单页的翻页位置（第几条 / 共几条）才和手腕卡片一致
+        payload = self._wrist_payload(self.link.snapshot())
+        self._clamp_scroll(payload)
         data = dict(self.settings.data)
         data['ui_language'] = self.ui_language(payload)
         img, self.dash_hits = render.render_dashboard(payload, self._link_state(), data, hover=hover,
-                                                      open_menu=self.dash_menu)
+                                                      open_menu=self.dash_menu, scroll=dict(self.scroll))
         if self._upload(self.dash, img):
             self.dash_rendered = key
 
@@ -379,9 +380,9 @@ class OverlayApp:
         if now - self._last_wrist_render < 0.1:
             return
         self._last_wrist_render = now
-        for side in self.wrists:
-            if self.wrist_scroll[side] and now - self._last_touch[side] > SCROLL_RESET_SECONDS:
-                self.wrist_scroll[side] = 0
+        for mode, last in self._last_page.items():
+            if self.scroll[mode] and now - last > SCROLL_RESET_SECONDS:
+                self.scroll[mode] = 0
         payload = self.link.snapshot()
         connected = self.link.connected
         for side in self.wrists:
@@ -391,22 +392,32 @@ class OverlayApp:
             self._render_wrist(side, payload, connected)
 
     def update_history(self) -> None:
-        """主程序每次只推最近几条他人字幕，这里按 ts 攒起来，手腕卡片才能往回翻。"""
+        """主程序每次只推最近几条他人字幕，这里按 ts 攒起来，才能往回翻。"""
         if self._history_version == self.link.version:
             return
         self._history_version = self.link.version
-        lines = (self.link.snapshot().get('others') or {}).get('lines') or []
+        snapshot = self.link.snapshot()
+        screen_items = (snapshot.get('screen') or {}).get('items') or []
+        signature = tuple(item.get('original', '') for item in screen_items)
+        if signature != self._screen_signature:
+            self._screen_signature = signature
+            self.scroll['screen'] = 0   # 新的一次画面翻译从第一段看起
+        lines = (snapshot.get('others') or {}).get('lines') or []
         if not lines:
             return
         if any(not line.get('ts') for line in lines):
             return   # 旧版主程序不带 ts，就只用它推来的几条
         index = {line.get('ts'): i for i, line in enumerate(self.others_history)}
+        added = 0
         for line in lines:
             i = index.get(line.get('ts'))
             if i is None:
                 self.others_history.append(dict(line))
+                added += 1
             else:
                 self.others_history[i] = dict(line)
+        if added and self.scroll['others']:
+            self.scroll['others'] += added   # 往回翻着的时候来了新的，看的还是原来那几条
         self.others_history.sort(key=lambda line: line.get('ts') or 0)
         del self.others_history[:-OTHERS_HISTORY_MAX]
 
@@ -427,15 +438,12 @@ class OverlayApp:
         ui_lang = self.ui_language(payload)
         font_scale = float(self.settings.get('wrist_font_scale') or 1.0)
         limit = render.wrist_scroll_limit(content, payload)
-        self.wrist_scroll[side] = max(0, min(self.wrist_scroll[side], limit))
-        key = (content, self.link.version, connected, ui_lang, font_scale, self.wrist_scroll[side],
-               self.wrist_hover[side], len(self.others_history))
+        scroll = max(0, min(self.scroll.get(content, 0), limit))
+        key = (content, self.link.version, connected, ui_lang, font_scale, scroll, len(self.others_history))
         if key == self.wrist_rendered[side]:
             return
-        img, hits = render.render_wrist(content, payload, connected, side, ui_lang, font_scale=font_scale,
-                                        scroll=self.wrist_scroll[side], hover=self.wrist_hover[side])
-        self.wrist_hits[side] = hits
-        self._set_wrist_interactive(side, bool(hits))
+        img = render.render_wrist(content, payload, connected, side, ui_lang, font_scale=font_scale,
+                                  scroll=scroll)
         if self._upload(self.wrists[side], img):
             self.wrist_rendered[side] = key
 
@@ -502,64 +510,22 @@ class OverlayApp:
                     self.overlay.hideOverlay(handle)
                 self.wrist_alpha[side] = new
 
-    # ---------- 手腕卡片的激光交互 ----------
+    # ---------- 翻页（菜单页） ----------
 
-    def _set_wrist_interactive(self, side: str, enabled: bool) -> None:
-        """有按钮的卡片才开激光：MakeOverlaysInteractiveIfVisible 让卡片露出来时 SteamVR 激光能指它。
-        自我卡片没按钮就不开，免得抬腕看字幕时激光挡着、扳机被它吃掉。"""
-        if self._wrist_interactive[side] == enabled:
+    def _clamp_scroll(self, payload: dict) -> None:
+        for mode in self.scroll:
+            limit = render.wrist_scroll_limit(mode, payload)
+            self.scroll[mode] = max(0, min(self.scroll[mode], limit))
+
+    def page(self, mode: str, direction: str) -> None:
+        """菜单页里模式自己的 ▲ ▼。他人：▲ 看更早的、▼ 看更新的；屏幕：▲ 往上、▼ 往下。"""
+        if mode not in self.scroll:
             return
-        self._wrist_interactive[side] = enabled
-        if not enabled:
-            self.wrist_hover[side] = None
-        try:
-            self.overlay.setOverlayFlag(self.wrists[side],
-                                        openvr.VROverlayFlags_MakeOverlaysInteractiveIfVisible, enabled)
-        except Exception as exc:
-            log.warning('手腕卡片激光交互设置失败: %r', exc)
-
-    def _poll_wrist_events(self, event) -> None:
-        for side, handle in self.wrists.items():
-            while True:
-                ok, event = self.overlay.pollNextOverlayEvent(handle, event)
-                if not ok:
-                    break
-                et = event.eventType
-                if et in (openvr.VREvent_MouseMove, openvr.VREvent_MouseButtonDown):
-                    u = event.data.mouse.x
-                    v = render.WRIST_H - event.data.mouse.y   # OpenVR 鼠标坐标原点在左下
-                    hit = self._wrist_hit(side, u, v)
-                    if et == openvr.VREvent_MouseMove:
-                        self.wrist_hover[side] = hit
-                    elif hit is not None:
-                        self._last_touch[side] = time.time()
-                        self.on_wrist_action(side, hit)
-                elif et == openvr.VREvent_FocusLeave:
-                    self.wrist_hover[side] = None
-                elif et == openvr.VREvent_ScrollDiscrete:
-                    dy = event.data.scroll.ydelta
-                    if dy:
-                        self._last_touch[side] = time.time()
-                        self.on_wrist_action(side, ('wheel', 1 if dy > 0 else -1))
-
-    def _wrist_hit(self, side, u, v):
-        for x0, y0, x1, y1, action in self.wrist_hits[side]:
-            if x0 - 8 <= u <= x1 + 8 and y0 - 8 <= v <= y1 + 8:
-                return action
-        return None
-
-    def on_wrist_action(self, side: str, action) -> None:
-        log.info('手腕点击 %s %s', side, action)
-        if action[0] == 'scroll':
-            self.wrist_scroll[side] = max(0, self.wrist_scroll[side] + int(action[1]))
-        elif action[0] == 'wheel':
-            # 摇杆往上推：他人看更早的，屏幕往上翻
-            up = int(action[1]) > 0
-            content = self.settings.get(f'{side}_wrist')
-            delta = (1 if up else -1) if content == 'others' else (-1 if up else 1)
-            self.wrist_scroll[side] = max(0, self.wrist_scroll[side] + delta)
-        elif action[0] == 'screen_translate':
-            self.link.screen_translate()
+        up = direction == 'up'
+        delta = (1 if up else -1) if mode == 'others' else (-1 if up else 1)
+        self.scroll[mode] = max(0, self.scroll[mode] + delta)
+        self._clamp_scroll(self._wrist_payload(self.link.snapshot()))
+        self._last_page[mode] = time.time()
 
     # ---------- 事件 ----------
 
@@ -594,7 +560,6 @@ class OverlayApp:
                 self.dash_visible = False
                 self.dash_hover = None
                 self.dash_menu = None
-        self._poll_wrist_events(event)
         return True
 
     def _hit(self, x, y):
@@ -622,6 +587,8 @@ class OverlayApp:
             (link.start_modes if action[1] == 'start' else link.stop_modes)(modes)
         elif kind == 'lang':
             link.set_language(action[1], action[2])
+        elif kind == 'page':
+            self.page(action[1], action[2])
         elif kind == 'ui_lang':
             self.settings.set('ui_language', action[1])
         elif kind == 'wrist':

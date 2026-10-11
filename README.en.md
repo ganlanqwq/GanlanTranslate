@@ -60,7 +60,7 @@ Also included:
 
 - In the main window, set **Display** to **VR** and click **Launch** to start the VR companion. After that it starts automatically every time you open SteamVR.
 - One subtitle card on each wrist, shown only when you raise your wrist. Position, size, opacity and font size are all adjustable.
-- Point the SteamVR laser at the buttons on a card to scroll back through history or trigger a screen translation.
+- To look back through history, use the page buttons of **Others** or **Screen** on the Ganlan Translate page of the SteamVR dashboard; the wrist card follows. The wrist cards themselves can't be clicked, so turning your wrist to read them won't put VRChat into AFK.
 - Ganlan Translate has its own page in the SteamVR dashboard: start and stop the three modes, change each mode's translation language, and choose what the wrists show.
 
 ### Words

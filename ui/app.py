@@ -75,7 +75,7 @@ except ImportError:  # pragma: no cover
 from resource_path import get_resource_path
 
 # 版本号：网页页脚和「详情」页显示，和 installer.nsi 的 APP_VERSION 保持一致
-APP_VERSION = '1.0'
+APP_VERSION = '1.0.1'
 
 # 配置Flask使用正确的模板和静态文件路径
 template_folder = get_resource_path('ui/templates')

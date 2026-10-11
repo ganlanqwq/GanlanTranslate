@@ -16,7 +16,7 @@ import urllib.error
 import urllib.request
 from typing import Optional
 
-APP_VERSION = '1.0'
+APP_VERSION = '1.0.1'
 
 
 class AlreadyRunning(RuntimeError):

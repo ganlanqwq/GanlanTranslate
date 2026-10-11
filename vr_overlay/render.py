@@ -1,6 +1,6 @@
 """用 PIL 画手腕卡片和 SteamVR 菜单页。配色照主程序网页（style.css 的令牌）。
 
-每个画面函数返回 (RGBA 图, 可点区域列表)。可点区域是 (x0, y0, x1, y1, action)，
+手腕卡片只显示，返回 RGBA 图。菜单页返回 (RGBA 图, 可点区域列表)，可点区域是 (x0, y0, x1, y1, action)，
 action 是元组，交给 main.py 处理。
 """
 
@@ -223,6 +223,18 @@ def dropdown(draw, box, label, size, is_open=False, hover=False):
               joint='curve')
 
 
+def arrow_button(draw, box, up, enabled=True, hover=False):
+    """▲ / ▼ 按钮，不能按时箭头变灰。"""
+    x0, y0, x1, y1 = box
+    rounded(draw, box, (y1 - y0) // 2, fill=GREEN_50 if hover else SURFACE,
+            outline=GREEN_600 if hover else LINE_STRONG, width=2)
+    cx, cy = (x0 + x1) / 2, (y0 + y1) / 2
+    s = 10
+    pts = [(cx - s, cy + s * 0.55), (cx + s, cy + s * 0.55), (cx, cy - s * 0.75)] if up else \
+          [(cx - s, cy - s * 0.55), (cx + s, cy - s * 0.55), (cx, cy + s * 0.75)]
+    draw.polygon(pts, fill=INK_2 if enabled else LINE_STRONG)
+
+
 def status_dot(draw, center, radius, color):
     cx, cy = center
     draw.ellipse((cx - radius, cy - radius, cx + radius, cy + radius), fill=color)
@@ -257,7 +269,6 @@ def fit(text: str, size: int, max_width: float, bold: bool = False) -> str:
 WRIST_W, WRIST_H = 640, 400
 WRIST_PAD = 30
 WRIST_BODY_TOP, WRIST_BODY_BOTTOM = 100, WRIST_H - 26
-WRIST_BTN_W = 96   # 右边按钮列（SteamVR 激光点，12cm 宽的卡片上约 1.8cm）
 
 
 def wrist_scroll_limit(content: str, payload: dict) -> int:
@@ -270,11 +281,23 @@ def wrist_scroll_limit(content: str, payload: dict) -> int:
     return 0
 
 
-def render_wrist(content: str, payload: dict, connected: bool, side: str, ui_lang: str = 'zh-CN',
-                 font_scale: float = 1.0, scroll: int = 0, hover=None):
-    """返回 (图, 可点区域)。可点区域给 SteamVR 激光用（main.OverlayApp._poll_wrist_events）。
+def page_position(content: str, payload: dict, scroll: int):
+    """(第几条, 共几条)。他人是正在看的最新一条，屏幕是正在看的第一段。"""
+    section = payload.get(content) or {}
+    if content == 'others':
+        total = len(section.get('lines') or [])
+        return max(0, total - scroll), total
+    if content == 'screen':
+        total = len(section.get('items') or [])
+        return (min(scroll + 1, total) if total else 0), total
+    return 0, 0
 
-    font_scale：正文字号倍数；scroll：他人往旧翻了几条 / 屏幕往下翻了几条；hover：激光指着的按钮。
+
+def render_wrist(content: str, payload: dict, connected: bool, side: str, ui_lang: str = 'zh-CN',
+                 font_scale: float = 1.0, scroll: int = 0):
+    """手腕卡片，只显示（不能点，见 main.OverlayApp._create_overlays）。
+
+    font_scale：正文字号倍数；scroll：他人往旧翻了几条 / 屏幕往下翻了几条（在菜单页里翻）。
     """
     t = translator(ui_lang)
     img = Image.new('RGBA', (WRIST_W, WRIST_H), (0, 0, 0, 0))
@@ -288,7 +311,8 @@ def render_wrist(content: str, payload: dict, connected: bool, side: str, ui_lan
 
     modes = payload.get('modes') or {}
     kind, label = mode_state(modes, content, t)
-    # 顶栏：状态点 + 模式名 …… 状态 + 译文语言
+    scroll = max(0, min(int(scroll or 0), wrist_scroll_limit(content, payload)))
+    # 顶栏：状态点 + 模式名 …… 状态（翻过页时是「第几条/共几条」） + 译文语言
     status_dot(d, (pad + 10, 46), 8, state_color(kind) if connected else INK_4)
     draw_text(d, (pad + 30, 28), t(f'mode.{content}'), 25, INK, bold=True)
     section = payload.get(content) or {}
@@ -301,19 +325,16 @@ def render_wrist(content: str, payload: dict, connected: bool, side: str, ui_lan
         draw_text(d, (right - cw + 13, 33), chip, 18, PRIMARY, bold=True)
         right -= cw + 12
     state_text = t('state.error') if kind == 'error' else (label if connected else t('conn.no'))
-    sw = text_width(state_text, 18)
-    draw_text(d, (right - sw, 34), state_text, 18, DANGER if kind == 'error' else INK_3)
+    state_fill = DANGER if kind == 'error' else INK_3
+    if scroll and connected and kind == 'running':
+        pos, total = page_position(content, payload, scroll)
+        state_text, state_fill = f'{pos}/{total}', PRIMARY
+    sw = text_width(state_text, 18, bold=state_fill is PRIMARY)
+    draw_text(d, (right - sw, 34), state_text, 18, state_fill, bold=state_fill is PRIMARY)
     d.line((pad, 84, WRIST_W - pad, 84), fill=LINE, width=2)
 
     body_top, body_bottom = WRIST_BODY_TOP, WRIST_BODY_BOTTOM
     width = WRIST_W - pad * 2
-    hits = []
-    with_buttons = connected and kind == 'running' and content in ('others', 'screen')
-    if with_buttons:
-        width -= WRIST_BTN_W + 16
-        limit = wrist_scroll_limit(content, payload)
-        scroll = max(0, min(int(scroll or 0), limit))
-        hits = _wrist_buttons(d, content, section, t, scroll, limit, hover)
 
     def message(text, color=INK_3):
         y = body_top + 20
@@ -351,57 +372,7 @@ def render_wrist(content: str, payload: dict, connected: bool, side: str, ui_lan
             # 画面翻译从上往下显示（和截图里的阅读顺序一致）
             _wrist_entries(d, items[scroll:], pad, body_top, body_bottom, width, empty=t('wrist.screenEmpty'),
                            newest_last=False, fs=fs)
-    return img, hits
-
-
-def _wrist_buttons(d, content, section, t, scroll, limit, hover):
-    """右边一列：▲ 往旧翻、▼ 往新翻（屏幕：▲ 往上、▼ 往下），屏幕卡片中间加「识别」。"""
-    x1 = WRIST_W - WRIST_PAD + 4
-    x0 = x1 - WRIST_BTN_W
-    top, bottom = WRIST_BODY_TOP, WRIST_BODY_BOTTOM
-    bh = 80
-    hits = []
-    if content == 'others':
-        up_enabled, down_enabled = scroll < limit, scroll > 0
-        up_action, down_action = ('scroll', 1), ('scroll', -1)
-        newer = scroll        # ▼ 上标出下面还有几条新的
-        older = 0
-    else:
-        up_enabled, down_enabled = scroll > 0, scroll < limit
-        up_action, down_action = ('scroll', -1), ('scroll', 1)
-        newer, older = 0, scroll
-
-    def arrow_button(box, action, up, enabled, badge):
-        is_hover = enabled and hover == action
-        rounded(d, box, 22, fill=GREEN_50 if is_hover else SURFACE,
-                outline=GREEN_600 if is_hover else LINE_STRONG, width=3)
-        cx, cy = (box[0] + box[2]) / 2, (box[1] + box[3]) / 2
-        s = 16
-        pts = [(cx - s, cy + s * 0.55), (cx + s, cy + s * 0.55), (cx, cy - s * 0.75)] if up else \
-              [(cx - s, cy - s * 0.55), (cx + s, cy - s * 0.55), (cx, cy + s * 0.75)]
-        d.polygon(pts, fill=INK_2 if enabled else LINE_STRONG)
-        if badge:
-            text = str(badge)
-            bw = text_width(text, 16, True) + 16
-            bx1, by0 = box[2] - 6, box[1] + 6
-            rounded(d, (bx1 - bw, by0, bx1, by0 + 26), 13, fill=GREEN_600)
-            draw_text(d, (bx1 - bw + 8, by0 + 1), text, 16, SURFACE, bold=True)
-        if enabled:
-            hits.append((*box, action))
-
-    up_box = (x0, top, x1, top + bh)
-    down_box = (x0, bottom - bh, x1, bottom)
-    arrow_button(up_box, up_action, True, up_enabled, older)
-    arrow_button(down_box, down_action, False, down_enabled, newer)
-    if content == 'screen':
-        mid = (top + bottom) / 2
-        box = (x0, int(mid - bh / 2), x1, int(mid + bh / 2))
-        busy = bool(section.get('busy')) or section.get('status') in ('capturing', 'recognizing', 'translating')
-        action = ('screen_translate',)
-        pill(d, box, t('wrist.capture'), 24, primary=True, hover=hover == action, busy=busy, radius=22)
-        if not busy:
-            hits.append((*box, action))
-    return hits
+    return img
 
 
 def _wrist_self(d, section, pad, top, bottom, width, t, fs=1.0):
@@ -495,7 +466,8 @@ def _wrist_entries(d, entries, pad, top, bottom, width, empty, ongoing=False, ne
 # ---------------- SteamVR 菜单页 ----------------
 #
 #  ┌ 顶栏：标志 + 标题        提示（没连上 / 桌面模式 / 操作失败）     连接状态  界面语言 ┐
-#  ├ 翻译模式（左，三块：名字 状态 启停 + 译成哪种语言）  │ 手腕显示（右上）          │
+#  ├ 翻译模式（左，每个模式一块：名字 状态 启停          │ 手腕显示（右上）          │
+#  │   + 译成哪种语言；他人 / 屏幕还有 ▲ 第几条/共几条 ▼）│                          │
 #  │                                               │ 画面翻译（右下，带结果）   │
 #  └───────────────────────────────────────────────┴──────────────────────────┘
 
@@ -530,16 +502,17 @@ def _card(d, col, top, bottom, title, subtitle, reserve=48):
 DASH_FONT_SCALE = 0.86
 
 
-def render_dashboard(payload: dict, link_state: dict, settings: dict, hover=None, open_menu=None):
+def render_dashboard(payload: dict, link_state: dict, settings: dict, hover=None, open_menu=None, scroll=None):
+    """scroll：{'others': n, 'screen': n}，菜单页里翻到哪了（手腕卡片显示同一个位置）。"""
     global _font_scale
     _font_scale = DASH_FONT_SCALE
     try:
-        return _render_dashboard(payload, link_state, settings, hover, open_menu)
+        return _render_dashboard(payload, link_state, settings, hover, open_menu, scroll or {})
     finally:
         _font_scale = 1.0
 
 
-def _render_dashboard(payload: dict, link_state: dict, settings: dict, hover=None, open_menu=None):
+def _render_dashboard(payload: dict, link_state: dict, settings: dict, hover, open_menu, scroll):
     ui_lang = normalize(settings.get('ui_language') or 'zh-CN')
     t = translator(ui_lang)
     img = Image.new('RGBA', (DASH_W, DASH_H), BG)
@@ -553,9 +526,9 @@ def _render_dashboard(payload: dict, link_state: dict, settings: dict, hover=Non
     logo = _logo(52)
     if logo is not None:
         img.alpha_composite(logo, (32, 24))
-    _modes_card(d, hits, t, payload, modes, busy, open_menu)
+    _modes_card(d, hits, t, payload, modes, busy, open_menu, scroll)
     wrist_bottom = _wrist_card(d, hits, t, settings)
-    _screen_card(d, hits, t, payload, modes, busy, wrist_bottom + 16)
+    _screen_card(d, hits, t, payload, modes, busy, wrist_bottom + 16, scroll.get('screen', 0))
     if open_menu and open_menu in hits.anchors:
         img, menu_hits = _popup(img, hover, open_menu, hits.anchors[open_menu], payload, ui_lang)
         # 菜单项优先；点菜单外面任何地方只关菜单
@@ -651,7 +624,7 @@ def _header(d, hits, t, ui_lang, connected, link_state, open_menu=None):
             y += line_height(16)
 
 
-def _modes_card(d, hits, t, payload, modes, busy, open_menu=None):
+def _modes_card(d, hits, t, payload, modes, busy, open_menu=None, scroll=None):
     x0, x1 = COL_L
     y = _card(d, COL_L, TOP, BOTTOM, t('card.modes'), t('card.modes.sub'), reserve=310)
     # 右上角：全部启动 / 全部停止
@@ -689,7 +662,34 @@ def _modes_card(d, hits, t, payload, modes, busy, open_menu=None):
         key = ('lang', mode)
         dropdown(d, box, lang_label(current), 18, is_open=open_menu == key, hover=hits.add(box, ('menu', key)))
         hits.anchors[key] = (box, lang_label(current), 18)
+        if mode in ('others', 'screen'):
+            _pager(d, hits, t, mode, payload, (scroll or {}).get(mode, 0), (box[2] + 14, box[1], bx1 - 20, box[3]))
         y += block_h + gap
+
+
+def _pager(d, hits, t, mode, payload, scroll, area):
+    """模式自己的翻页：翻页 ▲ 第几条/共几条 ▼。翻的是显示这个模式的手腕卡片（屏幕还有菜单页里的结果）。
+    手腕卡片本身不能点（点了会让 VRChat 进 AFK，见 main.OverlayApp._create_overlays），所以翻页只在这里。"""
+    x0, y0, x1, y1 = area
+    limit = wrist_scroll_limit(mode, payload)
+    scroll = max(0, min(int(scroll or 0), limit))
+    pos, total = page_position(mode, payload, scroll)
+    bw, text_w = 56, 84
+    down = (x1 - bw, y0, x1, y1)
+    up = (down[0] - text_w - bw, y0, down[0] - text_w, y1)
+    if mode == 'others':
+        up_enabled, down_enabled = scroll < limit, scroll > 0
+    else:
+        up_enabled, down_enabled = scroll > 0, scroll < limit
+    for box, is_up, enabled in ((up, True, up_enabled), (down, False, down_enabled)):
+        action = ('page', mode, 'up' if is_up else 'down')
+        arrow_button(d, box, is_up, enabled, hover=hits.add(box, action) if enabled else False)
+    text = f'{pos}/{total}' if total else '–'
+    tw = text_width(text, 18, True)
+    draw_text(d, ((up[2] + down[0] - tw) / 2, y0 + (y1 - y0 - line_height(18)) / 2 + 1), text, 18,
+              PRIMARY if scroll else INK_2, bold=True)
+    label = fit(t('label.page'), 17, up[0] - x0 - 10, True)
+    draw_text(d, (up[0] - 10 - text_width(label, 17, True), y0 + 8), label, 17, INK_3, bold=True)
 
 
 def _wrist_card(d, hits, t, settings):
@@ -736,7 +736,7 @@ def _wrist_card(d, hits, t, settings):
     return bottom
 
 
-def _screen_card(d, hits, t, payload, modes, busy, top):
+def _screen_card(d, hits, t, payload, modes, busy, top, scroll=0):
     x0, x1 = COL_R
     y = _card(d, COL_R, top, BOTTOM, t('card.screen'), t('card.screen.sub'))
     screen = payload.get('screen') or {}
@@ -753,6 +753,7 @@ def _screen_card(d, hits, t, payload, modes, busy, top):
     d.line((x0 + 24, y - 8, x1 - 24, y - 8), fill=LINE, width=2)
     items = [{'badge': '', 'original': it.get('original', ''), 'lang': it.get('lang', ''),
               'translated': it.get('translated', '')} for it in (screen.get('items') or [])]
+    items = items[max(0, min(int(scroll or 0), len(items) - 1)):]   # 跟着屏幕模式的翻页走
     width = x1 - x0 - 48
     if not items:
         draw_text(d, (x0 + 24, y + 6), fit(t('screen.empty'), 17, width), 17, INK_4)
