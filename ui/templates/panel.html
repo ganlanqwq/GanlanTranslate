@@ -247,12 +247,9 @@
             min-height: 0;
         }
 
-        .btn-screen {
+        /* 只有屏幕悬浮窗有相机按钮；写成 body:not(...) 是为了压过后面 .btn 的 display:flex */
+        body:not(.role-screen) .btn-screen {
             display: none;
-        }
-
-        body.role-screen .btn-screen {
-            display: flex;
         }
 
         .btn-screen.busy {
