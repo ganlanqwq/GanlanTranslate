@@ -1,0 +1,1144 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title data-i18n="page.title">甘岚翻译</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Funnel+Sans:wght@300;400;500;600;700;800&amp;family=Geist:wght@100;200;300;400;500;600;700;800;900&amp;family=Geist+Mono:wght@100;200;300;400;500;600;700;800;900&amp;display=swap" rel="stylesheet">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/tailwind.css') }}?v=7.0">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}?v=7.0">
+</head>
+<body>
+<div id="toast-area" class="toast-area fixed top-[16px] right-[16px] z-[9999] flex flex-col gap-[8px]" aria-live="polite" aria-atomic="false"></div>
+<div class="app box-border w-full min-h-screen flex flex-col bg-[#FBFCFA]">
+<section class="hero box-border w-full relative rounded-t-[0px] overflow-hidden">
+<div class="hero-bg absolute inset-0 bg-cover" style="background-image:url('{{ url_for('static', filename='img/hero-bg.jpg') }}');background-position:center 32%"></div>
+<div class="absolute inset-0" style="background-image:linear-gradient(180deg,#0A21159E 0%,#0A211547 46%,#0A2115B0 100%),linear-gradient(90deg,#0A21159A 0%,#0A211500 58%)"></div>
+<div class="relative box-border w-full p-[26px_60px_40px_60px] flex flex-col gap-[70px]">
+<header class="topbar box-border w-full h-[64px] flex justify-between items-center">
+<div class="flex flex-row gap-[12px] items-center">
+  <div class="flex flex-col gap-[1px]">
+    <span class="masthead-eyebrow text-[10.5px] text-[#FFFFFFB8] font-[Geist,system-ui,sans-serif] tracking-[1.6px] uppercase" data-i18n="header.eyebrow">header.eyebrow</span>
+    <h1 class="brand text-[20px] text-[#FFFFFF] font-['Funnel_Sans',system-ui,sans-serif] font-semibold m-0" data-i18n="header.title">header.title</h1>
+  </div>
+</div>
+<div class="flex flex-row gap-[10px] items-center">
+  <div class="status-indicator box-border h-[30px] px-[12px] flex flex-row gap-[7px] items-center bg-[#FFFFFF1F] [outline:1px_solid_#FFFFFF3D] [outline-offset:-0.5px] rounded-[999px] hidden" id="ipc-status-indicator" style="display:none">
+    <div class="status-dot w-[7px] h-[7px] rounded-full" id="ipc-status-dot" style="background-color:#5FC08D"></div>
+    <span class="text-[12px] text-[#FFFFFF] font-[Geist,system-ui,sans-serif]" id="ipc-status-text">-</span>
+  </div>
+  <div class="status-indicator box-border h-[30px] px-[12px] flex flex-row gap-[7px] items-center bg-[#FFFFFF1F] [outline:1px_solid_#FFFFFF3D] [outline-offset:-0.5px] rounded-[999px]">
+    <div class="status-dot w-[7px] h-[7px] rounded-full" id="status-dot"></div>
+    <span class="text-[12px] text-[#FFFFFF] font-[Geist,system-ui,sans-serif]" id="status-text" data-i18n="status.notRunning">status.notRunning</span>
+  </div>
+  <label class="language-selector-wrapper box-border h-[30px] bg-[#FFFFFF1F] [outline:1px_solid_#FFFFFF3D] [outline-offset:-0.5px] rounded-[4px]">
+    <svg viewBox="0 0 24 24" class="lang-icon-globe w-[15px] h-[15px]" fill="none" stroke="#FFFFFF" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a15 15 0 0 1 0 18a15 15 0 0 1 0-18"/></svg>
+    <select id="language-selector" class="language-selector bg-transparent border-0 text-[12px] text-[#FFFFFF] font-[Geist,system-ui,sans-serif] outline-none cursor-pointer appearance-none"></select>
+    <svg viewBox="0 0 24 24" class="lang-icon-chevron w-[13px] h-[13px]" fill="none" stroke="#FFFFFF" stroke-width="2"><path d="m6 9 6 6 6-6"/></svg>
+  </label>
+</div>
+</header>
+<div class="box-border w-full flex flex-col lg:flex-row justify-between items-end gap-[56px]">
+  <div class="hero-text box-border max-w-[640px] flex flex-col gap-[14px]">
+    <span class="hero-issue text-[10.5px] text-[#8FDCB4] font-[Geist,system-ui,sans-serif] tracking-[2.4px] uppercase" data-i18n="hero.issue">hero.issue</span>
+    <h2 class="hero-headline m-0 flex flex-col gap-[2px]">
+      <span class="hero-line text-[50px]/[54px] text-[#FFFFFF] font-['Funnel_Sans',system-ui,sans-serif] font-semibold" data-i18n="hero.line1">hero.line1</span>
+      <span class="hero-line hero-em text-[50px]/[54px] text-[#8FDCB4] font-['Funnel_Sans',system-ui,sans-serif] font-semibold" data-i18n="hero.line2">hero.line2</span>
+    </h2>
+    <p class="hero-lede m-0 text-[16.5px]/[26px] text-[#FFFFFFD0] font-[Geist,system-ui,sans-serif]" data-i18n="hero.lede">hero.lede</p>
+  </div>
+  <div class="hero-service-card box-border w-[340px] shrink-0 flex flex-col gap-[14px] p-[18px] bg-[#FFFFFF] rounded-[12px] shadow-[0_18px_50px_rgba(0,0,0,0.28)]">
+    <div class="flex flex-col gap-[3px]">
+      <span class="text-[10.5px] text-[#7C9285] font-[Geist,system-ui,sans-serif] tracking-[1.4px] uppercase">Service</span>
+      <span class="text-[15px] text-[#12261A] font-['Funnel_Sans',system-ui,sans-serif] font-semibold" data-i18n="label.serviceStatus">label.serviceStatus</span>
+    </div>
+    <div class="box-border w-full h-[1px] shrink-0 bg-[#E3EAE1]"></div>
+    <div class="flex flex-col gap-[8px] text-[12.5px] font-[Geist,system-ui,sans-serif]">
+      <div class="flex flex-row justify-between"><span class="text-[#7C9285]" data-i18n="label.recognitionEngine">label.recognitionEngine</span><span class="text-[#3F5B49]" id="hero-engine">qwen_audio3</span></div>
+      <div class="flex flex-row justify-between"><span class="text-[#7C9285]" data-i18n="label.targetLanguage">label.targetLanguage</span><span class="text-[#3F5B49]" id="hero-target-lang">ja</span></div>
+      <div class="flex flex-row justify-between"><span class="text-[#7C9285]" data-i18n="label.streamingMode">label.streamingMode</span><span class="text-[#3F5B49]" id="hero-streaming">on</span></div>
+    </div>
+    <div class="display-switch">
+      <span class="display-switch-label" data-i18n="label.displayMode">label.displayMode</span>
+      <span class="vr-status" id="vr-status-row">
+        <span class="vr-status-dot" id="vr-status-dot"></span>
+        <span class="vr-status-text" id="vr-status-text" data-i18n="vr.status.disconnected">vr.status.disconnected</span>
+        <button type="button" class="vr-launch" id="vr-launch-btn" onclick="launchVrOverlay()" data-i18n="btn.launchVr">btn.launchVr</button>
+      </span>
+      <div class="display-switch-group" role="group">
+        <button type="button" class="display-opt" data-display="desktop" onclick="setDisplayMode('desktop')" data-i18n="display.desktop">display.desktop</button>
+        <button type="button" class="display-opt" data-display="vr" onclick="setDisplayMode('vr')" data-i18n="display.vr">display.vr</button>
+      </div>
+    </div>
+    <div class="mode-list">
+      <div class="mode-row" data-mode="self">
+        <span class="mode-dot"></span>
+        <span class="mode-name" data-i18n="mode.self">mode.self</span>
+        <span class="mode-state" id="mode-state-self"></span>
+        <button type="button" class="mode-toggle" id="mode-btn-self" onclick="toggleMode('self')" data-i18n="btn.modeStart">btn.modeStart</button>
+        <button type="button" class="mode-panel" onclick="openMiniPanel('self')" title="" data-i18n="btn.modePanel">btn.modePanel</button>
+      </div>
+      <div class="mode-row" data-mode="others">
+        <span class="mode-dot"></span>
+        <span class="mode-name" data-i18n="mode.others">mode.others</span>
+        <span class="mode-state" id="mode-state-others"></span>
+        <button type="button" class="mode-toggle" id="mode-btn-others" onclick="toggleMode('others')" data-i18n="btn.modeStart">btn.modeStart</button>
+        <button type="button" class="mode-panel" onclick="openMiniPanel('others')" title="" data-i18n="btn.modePanel">btn.modePanel</button>
+      </div>
+      <div class="mode-row" data-mode="screen">
+        <span class="mode-dot"></span>
+        <span class="mode-name" data-i18n="mode.screen">mode.screen</span>
+        <span class="mode-state" id="mode-state-screen"></span>
+        <button type="button" class="mode-toggle" id="mode-btn-screen" onclick="toggleMode('screen')" data-i18n="btn.modeStart">btn.modeStart</button>
+        <button type="button" class="mode-panel" onclick="openMiniPanel('screen')" title="" data-i18n="btn.modePanel">btn.modePanel</button>
+      </div>
+    </div>
+    <div class="flex flex-row gap-[10px]">
+      <button type="button" id="start-btn" class="box-border h-[36px] px-[16px] inline-flex items-center justify-center gap-[7px] bg-[#1F7A4D] rounded-[4px] text-[13px] leading-none text-[#FFFFFF] font-[Geist,system-ui,sans-serif] font-semibold cursor-pointer border-0 flex-1" onclick="startService(['self', 'others', 'screen'])" disabled data-i18n="btn.startAllModes">btn.startAllModes</button>
+      <button type="button" id="stop-btn" class="box-border h-[36px] px-[13px] inline-flex items-center justify-center gap-[6px] bg-[#FFFFFF] [outline:1px_solid_#CBD9C7] [outline-offset:-0.5px] rounded-[4px] text-[12.5px] leading-none text-[#3F5B49] font-[Geist,system-ui,sans-serif] font-medium cursor-pointer flex-1" onclick="stopService()" disabled data-i18n="btn.stopAllModes">btn.stopAllModes</button>
+    </div>
+    <div id="vrcx-bridge-controls" class="vrcx-bridge-controls flex-col gap-[6px]" style="display:none">
+      <button type="button" id="copy-vrcx-bridge-btn" class="box-border h-[34px] px-[13px] inline-flex items-center justify-center gap-[6px] bg-[#FFFFFF] [outline:1px_solid_#CBD9C7] [outline-offset:-0.5px] rounded-[4px] text-[12.5px] leading-none text-[#3F5B49] font-[Geist,system-ui,sans-serif] font-medium cursor-pointer w-full" onclick="copyVrcxBridgeScript()" data-i18n="btn.copyVrcxBridgeScript">btn.copyVrcxBridgeScript</button>
+      <small id="vrcx-bridge-status" class="text-[11px] text-[#7C9285]" data-i18n="status.vrcxBridgeIdle">status.vrcxBridgeIdle</small>
+    </div>
+  </div>
+</div>
+</div>
+</section>
+
+<div id="config-center-header" class="box-border w-full max-w-[1200px] mx-auto flex flex-row justify-between items-end gap-[20px] pt-[34px] pb-[20px]">
+<div class="flex flex-col gap-[3px]">
+  <span class="text-[10.5px] text-[#7C9285] font-[Geist,system-ui,sans-serif] tracking-[2px] uppercase">配置中心</span>
+  <span class="text-[26px] text-[#12261A] font-['Funnel_Sans',system-ui,sans-serif] font-semibold" data-i18n="section.settings">section.settings</span>
+</div>
+<div class="flex flex-row gap-[10px] items-center">
+  <span class="inline-flex items-center h-[22px] px-[9px] bg-[#E4F2E8] rounded-[999px] text-[11px] leading-none text-[#0D3A23] font-[Geist,system-ui,sans-serif] font-medium" data-i18n="badge.autoSaved">badge.autoSaved</span>
+  <button type="button" class="box-border h-[34px] px-[13px] inline-flex items-center justify-center gap-[6px] bg-[#FFFFFF] [outline:1px_solid_#CBD9C7] [outline-offset:-0.5px] rounded-[4px] text-[12.5px] leading-none text-[#3F5B49] font-[Geist,system-ui,sans-serif] font-medium cursor-pointer" id="reset-btn" onclick="resetToDefaults()" data-i18n="btn.resetDefaults">btn.resetDefaults</button>
+</div>
+</div>
+
+<nav id="app-page-nav" class="app-page-nav box-border w-full max-w-[1200px] mx-auto pb-[16px]" aria-label="Settings pages">
+<div class="page-tabs">
+  <span class="page-tab-indicator" aria-hidden="true"></span>
+  <button type="button" class="app-page-btn page-tab active" data-app-page="core" aria-pressed="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 4h-7M10 4H3M21 12h-9M8 12H3M21 20h-5M12 20H3M14 2v4M8 10v4M16 18v4"/></svg><span data-i18n="page.core">page.core</span></button>
+  <button type="button" class="app-page-btn page-tab" data-app-page="self" aria-pressed="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2M12 19v3"/></svg><span data-i18n="page.self">page.self</span></button>
+  <button type="button" class="app-page-btn page-tab" data-app-page="others" aria-pressed="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg><span data-i18n="page.others">page.others</span></button>
+  <button type="button" class="app-page-btn page-tab" data-app-page="screen" aria-pressed="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></svg><span data-i18n="page.screen">page.screen</span></button>
+  <button type="button" class="app-page-btn page-tab" data-app-page="advanced" aria-pressed="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M4.93 4.93l2.12 2.12M16.95 16.95l2.12 2.12M2 12h3M19 12h3M4.93 19.07l2.12-2.12M16.95 7.05l2.12-2.12"/></svg><span data-i18n="page.advanced">page.advanced</span></button>
+  <button type="button" class="app-page-btn page-tab" data-app-page="words" aria-pressed="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20"/><path d="M9 7h7M9 11h5"/></svg><span data-i18n="page.words">page.words</span></button>
+  <button type="button" class="app-page-btn page-tab" data-app-page="about" aria-pressed="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg><span data-i18n="page.about">page.about</span></button>
+</div>
+</nav>
+<div id="advanced-view" class="box-border w-full max-w-[1200px] mx-auto flex flex-col gap-[22px] pb-[30px]">
+<div id="page-core" class="app-page" data-app-page="core">
+<div class="grid grid-cols-1 lg:grid-cols-2 gap-[22px] items-start">
+<div class="column-left box-border flex flex-col gap-[22px]">
+<section class="box-border w-full h-fit shrink-0 flex flex-col bg-[#FFFFFF] [outline:1px_solid_#E3EAE1] [outline-offset:-0.5px] rounded-[8px] overflow-hidden" id="api-keys-card">
+<div class="box-border w-full flex flex-row gap-[14px] p-[16px_18px] justify-between items-center cursor-pointer" onclick="toggleCollapsible('api-keys')">
+<div class="box-border [flex:1_1_0] h-fit flex flex-col gap-[3px] justify-start items-start">
+<div class="text-[14.5px] leading-normal text-[#12261A] font-['Funnel_Sans',system-ui,sans-serif] font-semibold text-left whitespace-nowrap" data-i18n="simple.asrTitle">simple.asrTitle</div>
+<div class="text-[12px]/[17px] text-[#7C9285] font-[Geist,system-ui,sans-serif] font-normal text-left" data-i18n="simple.asrHint">simple.asrHint</div>
+</div>
+
+<span class="collapse-icon box-border w-[17px] shrink-0 h-[17px] flex items-center justify-center text-[#7C9285]" id="api-keys-icon"><svg data-icon-name="chevron-up" data-icon-set="lucide" viewBox="0 0 14 14" class="box-border w-[17px] shrink-0 h-[17px]"><path d="M3.5 8.75 7 5.25l3.5 3.5" fill="none" stroke="#7C9285" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+</div>
+<div class="box-border w-full h-[1px] shrink-0 bg-[#E3EAE1]"></div>
+<div class="collapsible-content" id="api-keys">
+<div class="box-border w-full h-fit shrink-0 flex flex-col gap-[16px] p-[18px] justify-start items-start">
+
+<div class="box-border w-full flex flex-row gap-[8px]" id="advanced-asr-provider-toggle">
+  <button type="button" class="simple-provider-btn box-border [flex:1_1_0] h-[38px] inline-flex items-center justify-center gap-[8px] bg-[#FFFFFF] [outline:1px_solid_#E3EAE1] [outline-offset:-0.5px] rounded-[4px] text-[12.5px] text-[#3F5B49] cursor-pointer" data-simple-asr-provider="bailian" data-i18n="simple.asrBailian">simple.asrBailian</button>
+  <button type="button" class="simple-provider-btn box-border [flex:1_1_0] h-[38px] inline-flex items-center justify-center gap-[8px] bg-[#FFFFFF] [outline:1px_solid_#E3EAE1] [outline-offset:-0.5px] rounded-[4px] text-[12.5px] text-[#3F5B49] cursor-pointer" data-simple-asr-provider="openai" data-i18n="simple.asrOpenai">simple.asrOpenai</button>
+</div>
+
+<div class="w-full flex flex-col gap-[14px]" id="advanced-asr-bailian-block">
+<div class="box-border w-full flex flex-col gap-[10px] api-key-group" id="dashscope-key-group">
+  <div class="flex flex-row items-center gap-[8px]">
+    <span class="text-[12.5px] leading-normal text-[#3F5B49] font-[Geist,system-ui,sans-serif] font-medium text-left" data-i18n="label.dashscopeKey">label.dashscopeKey</span>
+    <span id="dashscope-key-required-badge" class="hidden inline-flex items-center h-[22px] px-[9px] bg-[#E4F2E8] rounded-[999px] text-[11px] leading-none text-[#0D3A23] font-[Geist,system-ui,sans-serif] font-medium" data-i18n="badge.required">badge.required</span>
+  </div>
+  <div class="relative w-full"><input type="password" class="box-border w-full h-[36px] px-[11px] bg-[#FFFFFF] [outline:1px_solid_#CBD9C7] [outline-offset:-0.5px] rounded-[4px] text-[13px] leading-normal text-[#12261A] font-[Geist,system-ui,sans-serif] placeholder:text-[#9AAFA1] focus:[outline:1.5px_solid_#1F7A4D] pr-[34px]" id="dashscope-api-key" placeholder="sk-..." ></div>
+  <div class="text-[11.5px]/[16px] text-[#7C9285] font-[Geist,system-ui,sans-serif] font-normal text-left" id="dashscope-key-hint" data-i18n="hint.dashscopeKey">hint.dashscopeKey</div>
+  <label class="box-border w-full flex flex-row gap-[12px] justify-start items-start cursor-pointer items-start">
+<div class="box-border [flex:1_1_0] h-fit flex flex-col gap-[3px] justify-start items-start">
+<div class="text-[12.5px] leading-normal text-[#3F5B49] font-[Geist,system-ui,sans-serif] font-medium text-left" data-i18n="label.international">label.international</div>
+
+</div>
+<input type="checkbox" class="peer sr-only" id="use-international-endpoint" onchange="handleInternationalEndpointChange(event)" data-restart-required="true"><span class="box-border w-[18px] h-[18px] shrink-0 mt-[1px] flex items-center justify-center bg-[#FFFFFF] [outline:1.5px_solid_#CBD9C7] [outline-offset:-0.75px] rounded-[4px] text-[#FFFFFF]"><svg viewBox="0 0 24 24" class="w-[13px] h-[13px] opacity-0" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg></span>
+</label>
+</div>
+<div id="advanced-slot-bailian-model">
+<div class="box-border w-full flex flex-col gap-[6px] justify-start items-start" id="fg-qwen-audio3-model">
+<label class="text-[12.5px] leading-normal text-[#3F5B49] font-[Geist,system-ui,sans-serif] font-medium text-left" data-i18n="label.qwenAudio3Model" for="qwen-audio3-model">label.qwenAudio3Model</label>
+<input type="text" class="box-border w-full h-[36px] px-[11px] bg-[#FFFFFF] [outline:1px_solid_#CBD9C7] [outline-offset:-0.5px] rounded-[4px] text-[13px] leading-normal text-[#12261A] font-[Geist,system-ui,sans-serif] placeholder:text-[#9AAFA1] focus:[outline:1.5px_solid_#1F7A4D]" id="qwen-audio3-model" placeholder="qwen-audio-3.0-asr-flash-streaming" value="qwen-audio-3.0-asr-flash-streaming" autocomplete="off" spellcheck="false" onblur="onSettingChange()" data-restart-required="true">
+<div class="text-[11.5px]/[16px] text-[#7C9285] font-[Geist,system-ui,sans-serif] font-normal text-left" data-i18n="hint.qwenAudio3Model">hint.qwenAudio3Model</div>
+</div>
+</div>
+</div>
+
+<div class="w-full flex flex-col gap-[14px]" id="advanced-asr-openai-block" style="display:none">
+<div class="box-border w-full flex flex-col gap-[6px] justify-start items-start" id="fg-custom-api-base-url">
+<label class="text-[12.5px] leading-normal text-[#3F5B49] font-[Geist,system-ui,sans-serif] font-medium text-left" data-i18n="label.customApiBaseUrl" for="custom-api-base-url">label.customApiBaseUrl</label>
+<input type="text" class="box-border w-full h-[36px] px-[11px] bg-[#FFFFFF] [outline:1px_solid_#CBD9C7] [outline-offset:-0.5px] rounded-[4px] text-[13px] leading-normal text-[#12261A] font-[Geist,system-ui,sans-serif] placeholder:text-[#9AAFA1] focus:[outline:1.5px_solid_#1F7A4D]" id="custom-api-base-url" placeholder="https://api.openai.com/v1" onblur="onSettingChange()">
+<div class="text-[11.5px]/[16px] text-[#7C9285] font-[Geist,system-ui,sans-serif] font-normal text-left" data-i18n="hint.customApiBaseUrl">hint.customApiBaseUrl</div>
+</div>
+<div class="box-border w-full flex flex-col gap-[6px]" id="fg-custom-api-key">
+  <label class="text-[12.5px] leading-normal text-[#3F5B49] font-[Geist,system-ui,sans-serif] font-medium text-left" data-i18n="label.customApiKey">label.customApiKey</label>
+  <div class="relative w-full"><input type="password" class="box-border w-full h-[36px] px-[11px] bg-[#FFFFFF] [outline:1px_solid_#CBD9C7] [outline-offset:-0.5px] rounded-[4px] text-[13px] leading-normal text-[#12261A] font-[Geist,system-ui,sans-serif] placeholder:text-[#9AAFA1] focus:[outline:1.5px_solid_#1F7A4D] pr-[34px]" id="custom-api-key" placeholder="sk-..." ><button type="button" class="secret-visibility-toggle absolute right-[8px] top-1/2 -translate-y-1/2 text-[#7C9285]" id="custom-api-key-visibility-toggle" data-target-input="custom-api-key" aria-label="toggle"><svg viewBox="0 0 24 24" class="w-[15px] h-[15px]" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg></button></div>
+  <div class="text-[11.5px]/[16px] text-[#7C9285] font-[Geist,system-ui,sans-serif] font-normal text-left" data-i18n="hint.customApiKey">hint.customApiKey</div>
+</div>
+<div class="box-border w-full flex flex-col gap-[6px] justify-start items-start" id="fg-custom-api-model">
+<label class="text-[12.5px] leading-normal text-[#3F5B49] font-[Geist,system-ui,sans-serif] font-medium text-left" data-i18n="label.customApiModel" for="custom-api-model">label.customApiModel</label>
+<input type="text" class="box-border w-full h-[36px] px-[11px] bg-[#FFFFFF] [outline:1px_solid_#CBD9C7] [outline-offset:-0.5px] rounded-[4px] text-[13px] leading-normal text-[#12261A] font-[Geist,system-ui,sans-serif] placeholder:text-[#9AAFA1] focus:[outline:1.5px_solid_#1F7A4D]" id="custom-api-model" placeholder="" onblur="onSettingChange()">
+<div class="text-[11.5px]/[16px] text-[#7C9285] font-[Geist,system-ui,sans-serif] font-normal text-left" data-i18n="hint.customApiModel">hint.customApiModel</div>
+</div>
+<div class="flex flex-row items-center gap-[12px]">
+  <button type="button" class="box-border h-[34px] px-[13px] inline-flex items-center justify-center gap-[6px] bg-[#FFFFFF] [outline:1px_solid_#CBD9C7] [outline-offset:-0.5px] rounded-[4px] text-[12.5px] leading-none text-[#3F5B49] font-[Geist,system-ui,sans-serif] font-medium cursor-pointer" id="custom-api-test-btn" onclick="testCustomApi()" data-i18n="btn.testCustomApi">btn.testCustomApi</button>
+  <span class="text-[11.5px]/[16px] text-[#7C9285] font-[Geist,system-ui,sans-serif] font-normal text-left" id="custom-api-test-result"></span>
+</div>
+</div>
+
+<!-- 其他密钥/高级参数已从 UI 移除；保留隐藏字段供配置读写 -->
+<div class="hidden" aria-hidden="true">
+  <input type="password" id="deepl-api-key" value="">
+  <input type="password" id="doubao-api-key" value="">
+  <input type="password" id="soniox-api-key" value="">
+  <input type="text" id="custom-api-target-language" value="ja">
+  <input type="number" id="custom-api-timeout" value="30">
+  <select id="custom-api-audio-format"><option value="wav" selected>wav</option><option value="mp3">mp3</option><option value="flac">flac</option></select>
+  <input type="text" id="custom-api-prompt" value="">
+</div>
+
+</div>
+</div>
+</section>
+<section class="box-border w-full h-fit shrink-0 flex flex-col bg-[#FFFFFF] [outline:1px_solid_#E3EAE1] [outline-offset:-0.5px] rounded-[8px] overflow-hidden" id="translation-llm-card">
+<div class="box-border w-full flex flex-row gap-[14px] p-[16px_18px] justify-between items-center cursor-pointer" onclick="toggleCollapsible('translation-api')">
+<div class="box-border [flex:1_1_0] h-fit flex flex-col gap-[3px] justify-start items-start">
+<div class="text-[14.5px] leading-normal text-[#12261A] font-['Funnel_Sans',system-ui,sans-serif] font-semibold text-left whitespace-nowrap" data-i18n="simple.llmTitle">simple.llmTitle</div>
+<div class="text-[12px]/[17px] text-[#7C9285] font-[Geist,system-ui,sans-serif] font-normal text-left" data-i18n="simple.llmHint">simple.llmHint</div>
+</div>
+<span class="collapse-icon w-[17px] h-[17px] flex items-center justify-center text-[#7C9285]" id="translation-api-icon"><svg data-icon-name="chevron-up" data-icon-set="lucide" viewBox="0 0 14 14" class="box-border w-[17px] shrink-0 h-[17px]"><path d="M3.5 8.75 7 5.25l3.5 3.5" fill="none" stroke="#7C9285" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+</div>
+<div class="box-border w-full h-[1px] shrink-0 bg-[#E3EAE1]"></div>
+<div class="collapsible-content" id="translation-api"><div class="box-border w-full h-fit shrink-0 flex flex-col gap-[16px] p-[18px] justify-start items-start">
+<select class="hidden" id="translation-api-type" onchange="handleTranslationApiChange(event)" aria-hidden="true"><option value="openrouter" selected>openrouter</option></select>
+<div id="translation-api-warning" class="hidden text-[11.5px] text-[#B45309]"></div>
+<div id="qwen-mt-sensitive-words-hint" class="hidden" data-i18n="hint.sensitiveWordsRisk">hint.sensitiveWordsRisk</div>
+<div id="llm-settings-wrapper" class="w-full flex flex-col gap-[14px]">
+  <div class="collapsible-content w-full flex flex-col gap-[14px]" id="llm-settings" style="max-height:none;overflow:visible">
+    <div class="hidden" id="llm-template-buttons" aria-hidden="true"></div>
+    <div class="box-border w-full flex flex-col gap-[6px] justify-start items-start" id="fg-llm-base-url">
+<label class="text-[12.5px] leading-normal text-[#3F5B49] font-[Geist,system-ui,sans-serif] font-medium text-left" data-i18n="label.llmBaseUrl" for="llm-base-url">label.llmBaseUrl</label>
+<input type="text" class="box-border w-full h-[36px] px-[11px] bg-[#FFFFFF] [outline:1px_solid_#CBD9C7] [outline-offset:-0.5px] rounded-[4px] text-[13px] leading-normal text-[#12261A] font-[Geist,system-ui,sans-serif] placeholder:text-[#9AAFA1] focus:[outline:1.5px_solid_#1F7A4D]" id="llm-base-url" placeholder="https://api.openai.com/v1" value="" onblur="onSettingChange()">
+<div class="text-[11.5px]/[16px] text-[#7C9285] font-[Geist,system-ui,sans-serif] font-normal text-left" data-i18n="hint.llmBaseUrl">hint.llmBaseUrl</div>
+</div>
+    <div class="box-border w-full flex flex-col gap-[6px] justify-start items-start" id="fg-llm-model">
+<label class="text-[12.5px] leading-normal text-[#3F5B49] font-[Geist,system-ui,sans-serif] font-medium text-left" data-i18n="label.llmModel" for="llm-model">label.llmModel</label>
+<input type="text" class="box-border w-full h-[36px] px-[11px] bg-[#FFFFFF] [outline:1px_solid_#CBD9C7] [outline-offset:-0.5px] rounded-[4px] text-[13px] leading-normal text-[#12261A] font-[Geist,system-ui,sans-serif] placeholder:text-[#9AAFA1] focus:[outline:1.5px_solid_#1F7A4D]" id="llm-model" placeholder="model-name" value="" onblur="onSettingChange()">
+
+</div>
+    <div class="box-border w-full flex flex-col gap-[6px]" id="fg-llm-api-key">
+      <label class="text-[12.5px] leading-normal text-[#3F5B49] font-[Geist,system-ui,sans-serif] font-medium text-left" data-i18n="label.llmKey" id="llm-api-key-label">label.llmKey</label>
+      <div class="relative w-full"><input type="password" class="box-border w-full h-[36px] px-[11px] bg-[#FFFFFF] [outline:1px_solid_#CBD9C7] [outline-offset:-0.5px] rounded-[4px] text-[13px] leading-normal text-[#12261A] font-[Geist,system-ui,sans-serif] placeholder:text-[#9AAFA1] focus:[outline:1.5px_solid_#1F7A4D] pr-[34px]" id="llm-api-key" placeholder="sk-..." ><button type="button" class="secret-visibility-toggle absolute right-[8px] top-1/2 -translate-y-1/2 text-[#7C9285]" id="llm-api-key-visibility-toggle" data-target-input="llm-api-key" aria-label="toggle"><svg viewBox="0 0 24 24" class="w-[15px] h-[15px]" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg></button></div>
+      <span class="text-[11.5px]/[16px] text-[#7C9285] font-[Geist,system-ui,sans-serif] font-normal text-left" id="llm-api-key-hint" data-i18n="hint.llmKey">hint.llmKey</span>
+      <a id="llm-api-key-deepseek-hint" class="hidden text-[11.5px] text-[#1F7A4D] underline" data-i18n="link.getDeepseekKey" href="https://platform.deepseek.com/api_keys" target="_blank">link.getDeepseekKey</a>
+    </div>
+    <div id="llm-template-key-source-hint" class="hidden text-[11.5px] text-[#7C9285]">
+      <span data-i18n="label.llmKeySource">label.llmKeySource</span>: <span id="llm-template-key-source-label"></span>
+      <a id="llm-template-key-source-link" class="underline text-[#1F7A4D]" href="#" target="_blank">link.getApiKey</a>
+    </div>
+    <div id="openrouter-streaming-mode-group" class="w-full">
+  <label class="box-border w-full flex flex-row gap-[12px] justify-start items-start cursor-pointer items-start">
+<div class="box-border [flex:1_1_0] h-fit flex flex-col gap-[3px] justify-start items-start">
+<div class="text-[12.5px] leading-normal text-[#3F5B49] font-[Geist,system-ui,sans-serif] font-medium text-left" data-i18n="label.streamingMode">label.streamingMode</div>
+<div class="text-[11.5px]/[16px] text-[#7C9285] font-[Geist,system-ui,sans-serif] font-normal text-left" data-i18n="hint.streamingMode">hint.streamingMode</div>
+</div>
+<input type="checkbox" class="peer sr-only" id="openrouter-streaming-mode" checked onchange="onSettingChange()"><span class="box-border w-[18px] h-[18px] shrink-0 mt-[1px] flex items-center justify-center bg-[#FFFFFF] [outline:1.5px_solid_#CBD9C7] [outline-offset:-0.75px] rounded-[4px] text-[#FFFFFF]"><svg viewBox="0 0 24 24" class="w-[13px] h-[13px] opacity-0" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg></span>
+</label>
+</div>
+    <div id="llm-tone-grid" class="w-full grid grid-cols-2 gap-[12px]">
+  <div id="llm-translation-formality-group" class="w-full">
+    <div class="box-border w-full flex flex-col gap-[6px] justify-start items-start">
+<label class="text-[12.5px] leading-normal text-[#3F5B49] font-[Geist,system-ui,sans-serif] font-medium text-left" data-i18n="label.llmTranslationFormality" for="llm-translation-formality">label.llmTranslationFormality</label>
+<select class="box-border w-full h-[36px] px-[11px] bg-[#FFFFFF] [outline:1px_solid_#CBD9C7] [outline-offset:-0.5px] rounded-[4px] text-[13px] leading-normal text-[#12261A] font-[Geist,system-ui,sans-serif] placeholder:text-[#9AAFA1] focus:[outline:1.5px_solid_#1F7A4D] appearance-none pr-[30px]" id="llm-translation-formality" onchange="onSettingChange()"><option value="low" data-i18n="option.llmTranslationFormality.low">option.llmTranslationFormality.low</option><option value="medium" selected data-i18n="option.llmTranslationFormality.medium">option.llmTranslationFormality.medium</option><option value="high" data-i18n="option.llmTranslationFormality.high">option.llmTranslationFormality.high</option></select>
+<div class="text-[11.5px]/[16px] text-[#7C9285] font-[Geist,system-ui,sans-serif] font-normal text-left" data-i18n="hint.llmTranslationFormality">hint.llmTranslationFormality</div>
+</div>
+  </div>
+  <div id="llm-translation-style-group" class="w-full">
+    <div class="box-border w-full flex flex-col gap-[6px] justify-start items-start">
+<label class="text-[12.5px] leading-normal text-[#3F5B49] font-[Geist,system-ui,sans-serif] font-medium text-left" data-i18n="label.llmTranslationStyle" for="llm-translation-style">label.llmTranslationStyle</label>
+<select class="box-border w-full h-[36px] px-[11px] bg-[#FFFFFF] [outline:1px_solid_#CBD9C7] [outline-offset:-0.5px] rounded-[4px] text-[13px] leading-normal text-[#12261A] font-[Geist,system-ui,sans-serif] placeholder:text-[#9AAFA1] focus:[outline:1.5px_solid_#1F7A4D] appearance-none pr-[30px]" id="llm-translation-style" onchange="onSettingChange()"><option value="standard" selected data-i18n="option.llmTranslationStyle.standard">option.llmTranslationStyle.standard</option><option value="light" data-i18n="option.llmTranslationStyle.light">option.llmTranslationStyle.light</option></select>
+<div class="text-[11.5px]/[16px] text-[#7C9285] font-[Geist,system-ui,sans-serif] font-normal text-left" data-i18n="hint.llmTranslationStyle">hint.llmTranslationStyle</div>
+</div>
+  </div>
+</div>
+    <div class="box-border w-full flex flex-col gap-[6px] justify-start items-start">
+<label class="text-[12.5px] leading-normal text-[#3F5B49] font-[Geist,system-ui,sans-serif] font-medium text-left" data-i18n="label.openaiCompatExtraBodyJson" for="openai-compat-extra-body-json">label.openaiCompatExtraBodyJson</label>
+<input type="text" class="box-border w-full h-[36px] px-[11px] bg-[#FFFFFF] [outline:1px_solid_#CBD9C7] [outline-offset:-0.5px] rounded-[4px] text-[13px] leading-normal text-[#12261A] font-[Geist,system-ui,sans-serif] placeholder:text-[#9AAFA1] focus:[outline:1.5px_solid_#1F7A4D]" id="openai-compat-extra-body-json" placeholder='{"thinking": {"type": "disabled"}}' value="" onblur="onSettingChange()">
+<div class="text-[11.5px]/[16px] text-[#7C9285] font-[Geist,system-ui,sans-serif] font-normal text-left" data-i18n="hint.openaiCompatExtraBodyJson">hint.openaiCompatExtraBodyJson</div>
+</div>
+    <div class="box-border w-full flex flex-col gap-[6px] justify-start items-start">
+<label class="text-[12.5px] leading-normal text-[#3F5B49] font-[Geist,system-ui,sans-serif] font-medium text-left" data-i18n="label.llmParallelFastestMode" for="llm-parallel-fastest-mode">label.llmParallelFastestMode</label>
+<select class="box-border w-full h-[36px] px-[11px] bg-[#FFFFFF] [outline:1px_solid_#CBD9C7] [outline-offset:-0.5px] rounded-[4px] text-[13px] leading-normal text-[#12261A] font-[Geist,system-ui,sans-serif] placeholder:text-[#9AAFA1] focus:[outline:1.5px_solid_#1F7A4D] appearance-none pr-[30px]" id="llm-parallel-fastest-mode" onchange="onSettingChange()"><option value="off" data-i18n="option.llmParallelFastest.off">option.llmParallelFastest.off</option><option value="final_only" data-i18n="option.llmParallelFastest.finalOnly">option.llmParallelFastest.finalOnly</option><option value="all" data-i18n="option.llmParallelFastest.all">option.llmParallelFastest.all</option></select>
+<div class="text-[11.5px]/[16px] text-[#7C9285] font-[Geist,system-ui,sans-serif] font-normal text-left" data-i18n="hint.llmParallelFastestMode">hint.llmParallelFastestMode</div>
+</div>
+  </div>
+</div>
+</div></div>
+</section>
+<section class="box-border w-full h-fit shrink-0 flex flex-col bg-[#FFFFFF] [outline:1px_solid_#E3EAE1] [outline-offset:-0.5px] rounded-[8px] overflow-hidden" id="screen-ocr-card">
+<div class="box-border w-full flex flex-row gap-[14px] p-[16px_18px] justify-between items-center cursor-pointer" onclick="toggleCollapsible('screen-ocr-settings')">
+<div class="box-border [flex:1_1_0] h-fit flex flex-col gap-[3px] justify-start items-start">
+<div class="text-[14.5px] leading-normal text-[#12261A] font-['Funnel_Sans',system-ui,sans-serif] font-semibold text-left whitespace-nowrap" data-i18n="section.screenOcr">section.screenOcr</div>
+<div class="text-[12px]/[17px] text-[#7C9285] font-[Geist,system-ui,sans-serif] font-normal text-left" data-i18n="hint.screenOcrSection">hint.screenOcrSection</div>
+</div>
+<span class="collapse-icon w-[17px] h-[17px] flex items-center justify-center text-[#7C9285]" id="screen-ocr-settings-icon"><svg data-icon-name="chevron-up" data-icon-set="lucide" viewBox="0 0 14 14" class="box-border w-[17px] shrink-0 h-[17px]"><path d="M3.5 8.75 7 5.25l3.5 3.5" fill="none" stroke="#7C9285" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+</div>
+<div class="box-border w-full h-[1px] shrink-0 bg-[#E3EAE1]"></div>
+<div class="collapsible-content" id="screen-ocr-settings"><div class="box-border w-full h-fit shrink-0 flex flex-col gap-[16px] p-[18px] justify-start items-start">
+<div class="box-border w-full flex flex-row gap-[8px]">
+  <button type="button" class="simple-provider-btn box-border [flex:1_1_0] h-[38px] inline-flex items-center justify-center gap-[8px] bg-[#FFFFFF] [outline:1px_solid_#E3EAE1] [outline-offset:-0.5px] rounded-[4px] text-[12.5px] text-[#3F5B49] cursor-pointer" onclick="applyScreenOcrPreset('qwen')" data-i18n="btn.screenOcrQwen">btn.screenOcrQwen</button>
+  <button type="button" class="simple-provider-btn box-border [flex:1_1_0] h-[38px] inline-flex items-center justify-center gap-[8px] bg-[#FFFFFF] [outline:1px_solid_#E3EAE1] [outline-offset:-0.5px] rounded-[4px] text-[12.5px] text-[#3F5B49] cursor-pointer" onclick="applyScreenOcrPreset('openai')" data-i18n="btn.screenOcrOpenai">btn.screenOcrOpenai</button>
+</div>
+<div class="box-border w-full flex flex-col gap-[6px] justify-start items-start">
+<label class="text-[12.5px] leading-normal text-[#3F5B49] font-[Geist,system-ui,sans-serif] font-medium text-left" for="screen-ocr-base-url" data-i18n="label.screenOcrBaseUrl">label.screenOcrBaseUrl</label>
+<input type="text" class="box-border w-full h-[36px] px-[11px] bg-[#FFFFFF] [outline:1px_solid_#CBD9C7] [outline-offset:-0.5px] rounded-[4px] text-[13px] leading-normal text-[#12261A] font-[Geist,system-ui,sans-serif] placeholder:text-[#9AAFA1] focus:[outline:1.5px_solid_#1F7A4D]" id="screen-ocr-base-url" placeholder="https://dashscope.aliyuncs.com/compatible-mode/v1" value="https://dashscope.aliyuncs.com/compatible-mode/v1" onblur="onSettingChange()">
+</div>
+<div class="box-border w-full flex flex-col gap-[6px] justify-start items-start">
+<label class="text-[12.5px] leading-normal text-[#3F5B49] font-[Geist,system-ui,sans-serif] font-medium text-left" for="screen-ocr-model" data-i18n="label.screenOcrModel">label.screenOcrModel</label>
+<input type="text" class="box-border w-full h-[36px] px-[11px] bg-[#FFFFFF] [outline:1px_solid_#CBD9C7] [outline-offset:-0.5px] rounded-[4px] text-[13px] leading-normal text-[#12261A] font-[Geist,system-ui,sans-serif] placeholder:text-[#9AAFA1] focus:[outline:1.5px_solid_#1F7A4D]" id="screen-ocr-model" placeholder="qwen-vl-ocr" value="qwen-vl-ocr" onblur="onSettingChange()">
+<div class="text-[11.5px]/[16px] text-[#7C9285] font-[Geist,system-ui,sans-serif] font-normal text-left" data-i18n="hint.screenOcrModel">hint.screenOcrModel</div>
+</div>
+<div class="box-border w-full flex flex-col gap-[6px]">
+<label class="text-[12.5px] leading-normal text-[#3F5B49] font-[Geist,system-ui,sans-serif] font-medium text-left" for="screen-ocr-api-key" data-i18n="label.screenOcrKey">label.screenOcrKey</label>
+<div class="relative w-full"><input type="password" class="box-border w-full h-[36px] px-[11px] bg-[#FFFFFF] [outline:1px_solid_#CBD9C7] [outline-offset:-0.5px] rounded-[4px] text-[13px] leading-normal text-[#12261A] font-[Geist,system-ui,sans-serif] placeholder:text-[#9AAFA1] focus:[outline:1.5px_solid_#1F7A4D] pr-[34px]" id="screen-ocr-api-key" placeholder="sk-..."><button type="button" class="secret-visibility-toggle absolute right-[8px] top-1/2 -translate-y-1/2 text-[#7C9285]" data-target-input="screen-ocr-api-key" aria-label="toggle"><svg viewBox="0 0 24 24" class="w-[15px] h-[15px]" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg></button></div>
+<span class="text-[11.5px]/[16px] text-[#7C9285] font-[Geist,system-ui,sans-serif] font-normal text-left" data-i18n="hint.screenOcrKey">hint.screenOcrKey</span>
+</div>
+</div></div>
+</section>
+</div>
+<div class="column-right box-border flex flex-col gap-[22px]">
+<section class="hidden" id="custom-api-card" aria-hidden="true"><div class="collapsible-content" id="custom-api"></div></section>
+<section class="box-border w-full h-fit shrink-0 flex flex-col bg-[#FFFFFF] [outline:1px_solid_#E3EAE1] [outline-offset:-0.5px] rounded-[8px] overflow-hidden" id="logs-card">
+<div class="box-border w-full flex flex-row gap-[14px] p-[16px_18px] justify-between items-center cursor-pointer" onclick="toggleCollapsible('logs-settings')">
+<div class="box-border [flex:1_1_0] h-fit flex flex-col gap-[3px] justify-start items-start">
+<div class="text-[14.5px] leading-normal text-[#12261A] font-['Funnel_Sans',system-ui,sans-serif] font-semibold text-left whitespace-nowrap" data-i18n="section.logs">section.logs</div>
+<div class="text-[12px]/[17px] text-[#7C9285] font-[Geist,system-ui,sans-serif] font-normal text-left" data-i18n="hint.logs">hint.logs</div>
+</div>
+<span class="collapse-icon w-[17px] h-[17px] flex items-center justify-center text-[#7C9285]" id="logs-settings-icon"><svg data-icon-name="chevron-up" data-icon-set="lucide" viewBox="0 0 14 14" class="box-border w-[17px] shrink-0 h-[17px]"><path d="M3.5 8.75 7 5.25l3.5 3.5" fill="none" stroke="#7C9285" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+</div>
+<div class="box-border w-full h-[1px] shrink-0 bg-[#E3EAE1]"></div>
+<div class="collapsible-content" id="logs-settings"><div class="box-border w-full h-fit shrink-0 flex flex-col gap-[16px] p-[18px] justify-start items-start">
+<div class="flex flex-row items-center gap-[12px]">
+  <button type="button" class="box-border h-[34px] px-[13px] inline-flex items-center justify-center gap-[6px] bg-[#FFFFFF] [outline:1px_solid_#CBD9C7] [outline-offset:-0.5px] rounded-[4px] text-[12.5px] leading-none text-[#3F5B49] font-[Geist,system-ui,sans-serif] font-medium cursor-pointer" onclick="clearLogs()" data-i18n="btn.clearLogs">btn.clearLogs</button>
+  <span class="text-[11.5px]/[16px] text-[#7C9285] font-[Geist,system-ui,sans-serif] font-normal text-left" id="logs-status"></span>
+</div>
+<div class="box-border w-full rounded-[6px] bg-[#0D2016] p-[12px_14px] overflow-hidden">
+  <pre id="logs-viewer" class="logs-viewer logs-scroll box-border w-full max-h-[300px] overflow-auto m-0 font-[Geist_Mono,monospace] text-[12px]/[18px] text-[#C7DFD0] whitespace-pre-wrap break-all" readonly>（日志加载中…）</pre>
+</div>
+</div></div>
+</section>
+<section class="box-border w-full h-fit shrink-0 flex flex-col bg-[#FFFFFF] [outline:1px_solid_#E3EAE1] [outline-offset:-0.5px] rounded-[8px] overflow-hidden" id="presets-card">
+<div class="box-border w-full flex flex-row gap-[14px] p-[16px_18px] justify-between items-center cursor-pointer" onclick="toggleCollapsible('presets')">
+<div class="box-border [flex:1_1_0] h-fit flex flex-col gap-[3px] justify-start items-start">
+<div class="text-[14.5px] leading-normal text-[#12261A] font-['Funnel_Sans',system-ui,sans-serif] font-semibold text-left whitespace-nowrap" data-i18n="section.presets">section.presets</div>
+<div class="text-[12px]/[17px] text-[#7C9285] font-[Geist,system-ui,sans-serif] font-normal text-left" data-i18n="hint.presets">hint.presets</div>
+</div>
+
+<span class="collapse-icon box-border w-[17px] shrink-0 h-[17px] flex items-center justify-center text-[#7C9285]" id="presets-icon"><svg data-icon-name="chevron-up" data-icon-set="lucide" viewBox="0 0 14 14" class="box-border w-[17px] shrink-0 h-[17px]"><path d="M3.5 8.75 7 5.25l3.5 3.5" fill="none" stroke="#7C9285" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+</div>
+<div class="box-border w-full h-[1px] shrink-0 bg-[#E3EAE1]"></div>
+<div class="collapsible-content" id="presets">
+<div class="box-border w-full h-fit shrink-0 flex flex-col gap-[16px] p-[18px] justify-start items-start">
+
+<div class="grid grid-cols-2 gap-[12px] w-full">
+  <div class="box-border w-full flex flex-col gap-[6px] justify-start items-start">
+<label class="text-[12.5px] leading-normal text-[#3F5B49] font-[Geist,system-ui,sans-serif] font-medium text-left" data-i18n="label.presetSelect" for="preset-select">label.presetSelect</label>
+<select class="box-border w-full h-[36px] px-[11px] bg-[#FFFFFF] [outline:1px_solid_#CBD9C7] [outline-offset:-0.5px] rounded-[4px] text-[13px] leading-normal text-[#12261A] font-[Geist,system-ui,sans-serif] placeholder:text-[#9AAFA1] focus:[outline:1.5px_solid_#1F7A4D] appearance-none pr-[30px]" id="preset-select" onchange="onPresetSelectChange()"><option value="" data-i18n="option.noPreset">option.noPreset</option></select>
+
+</div>
+  <div class="box-border w-full flex flex-col gap-[6px] justify-start items-start">
+<label class="text-[12.5px] leading-normal text-[#3F5B49] font-[Geist,system-ui,sans-serif] font-medium text-left" data-i18n="label.presetName" for="preset-name">label.presetName</label>
+<input type="text" class="box-border w-full h-[36px] px-[11px] bg-[#FFFFFF] [outline:1px_solid_#CBD9C7] [outline-offset:-0.5px] rounded-[4px] text-[13px] leading-normal text-[#12261A] font-[Geist,system-ui,sans-serif] placeholder:text-[#9AAFA1] focus:[outline:1.5px_solid_#1F7A4D]" id="preset-name" placeholder="" onblur="onSettingChange()"oninput="onPresetNameInput()">
+
+</div>
+</div>
+<div class="flex flex-row flex-wrap gap-[8px] items-center">
+  <button type="button" class="box-border h-[38px] px-[16px] inline-flex items-center justify-center gap-[7px] bg-[#1F7A4D] rounded-[4px] text-[13px] leading-none text-[#FFFFFF] font-[Geist,system-ui,sans-serif] font-semibold cursor-pointer border-0 h-[34px] px-[13px] text-[12.5px]" onclick="saveCurrentPreset()" data-i18n="btn.savePreset">btn.savePreset</button>
+  <button type="button" class="box-border h-[34px] px-[13px] inline-flex items-center justify-center gap-[6px] bg-[#FFFFFF] [outline:1px_solid_#CBD9C7] [outline-offset:-0.5px] rounded-[4px] text-[12.5px] leading-none text-[#3F5B49] font-[Geist,system-ui,sans-serif] font-medium cursor-pointer" onclick="applySelectedPreset()" data-i18n="btn.applyPreset">btn.applyPreset</button>
+  <button type="button" class="box-border h-[34px] px-[13px] inline-flex items-center justify-center gap-[6px] bg-[#FFFFFF] [outline:1px_solid_#E7C6C6] [outline-offset:-0.5px] rounded-[4px] text-[12.5px] leading-none text-[#B45309] font-[Geist,system-ui,sans-serif] font-medium cursor-pointer" onclick="deleteSelectedPreset()" data-i18n="btn.deletePreset">btn.deletePreset</button>
+  <button type="button" class="box-border h-[34px] px-[13px] inline-flex items-center justify-center gap-[6px] bg-[#FFFFFF] [outline:1px_solid_#CBD9C7] [outline-offset:-0.5px] rounded-[4px] text-[12.5px] leading-none text-[#3F5B49] font-[Geist,system-ui,sans-serif] font-medium cursor-pointer" onclick="exportPresetsFile()" data-i18n="btn.exportPresets">btn.exportPresets</button>
+  <button type="button" class="box-border h-[34px] px-[13px] inline-flex items-center justify-center gap-[6px] bg-[#FFFFFF] [outline:1px_solid_#CBD9C7] [outline-offset:-0.5px] rounded-[4px] text-[12.5px] leading-none text-[#3F5B49] font-[Geist,system-ui,sans-serif] font-medium cursor-pointer" onclick="document.getElementById('preset-import-input').click()" data-i18n="btn.importPresets">btn.importPresets</button>
+  <input type="file" id="preset-import-input" accept=".json,application/json" style="display:none" onchange="importPresetsFile(this)">
+  <span class="text-[11.5px]/[16px] text-[#7C9285] font-[Geist,system-ui,sans-serif] font-normal text-left" id="preset-status"></span>
+</div>
+<div class="text-[11.5px]/[16px] text-[#7C9285] font-[Geist,system-ui,sans-serif] font-normal text-left" data-i18n="hint.presetsLocation">hint.presetsLocation</div>
+
+</div>
+</div>
+</section>
+<section class="box-border w-full h-fit shrink-0 flex flex-col bg-[#FFFFFF] [outline:1px_solid_#E3EAE1] [outline-offset:-0.5px] rounded-[8px] overflow-hidden" id="text-post-processing-card">
+<div class="box-border w-full flex flex-row gap-[14px] p-[16px_18px] justify-between items-center cursor-pointer" onclick="toggleCollapsible('text-post-processing')">
+<div class="box-border [flex:1_1_0] h-fit flex flex-col gap-[3px] justify-start items-start">
+<div class="text-[14.5px] leading-normal text-[#12261A] font-['Funnel_Sans',system-ui,sans-serif] font-semibold text-left whitespace-nowrap" data-i18n="section.textPostProcessing">section.textPostProcessing</div>
+<div class="text-[12px]/[17px] text-[#7C9285] font-[Geist,system-ui,sans-serif] font-normal text-left" data-i18n="hint.textPostProcessing">hint.textPostProcessing</div>
+</div>
+
+<span class="collapse-icon box-border w-[17px] shrink-0 h-[17px] flex items-center justify-center text-[#7C9285]" id="text-post-processing-icon"><svg data-icon-name="chevron-up" data-icon-set="lucide" viewBox="0 0 14 14" class="box-border w-[17px] shrink-0 h-[17px]"><path d="M3.5 8.75 7 5.25l3.5 3.5" fill="none" stroke="#7C9285" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+</div>
+<div class="box-border w-full h-[1px] shrink-0 bg-[#E3EAE1]"></div>
+<div class="collapsible-content" id="text-post-processing">
+<div class="box-border w-full h-fit shrink-0 flex flex-col gap-[16px] p-[18px] justify-start items-start">
+
+<label class="box-border w-full flex flex-row gap-[12px] justify-start items-start cursor-pointer items-start">
+<div class="box-border [flex:1_1_0] h-fit flex flex-col gap-[3px] justify-start items-start">
+<div class="text-[12.5px] leading-normal text-[#3F5B49] font-[Geist,system-ui,sans-serif] font-medium text-left" data-i18n="label.enableFurigana">label.enableFurigana</div>
+
+</div>
+<input type="checkbox" class="peer sr-only" id="enable-furigana" onchange="onSettingChange()"><span class="box-border w-[18px] h-[18px] shrink-0 mt-[1px] flex items-center justify-center bg-[#FFFFFF] [outline:1.5px_solid_#CBD9C7] [outline-offset:-0.75px] rounded-[4px] text-[#FFFFFF]"><svg viewBox="0 0 24 24" class="w-[13px] h-[13px] opacity-0" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg></span>
+</label>
+<label class="box-border w-full flex flex-row gap-[12px] justify-start items-start cursor-pointer items-start">
+<div class="box-border [flex:1_1_0] h-fit flex flex-col gap-[3px] justify-start items-start">
+<div class="text-[12.5px] leading-normal text-[#3F5B49] font-[Geist,system-ui,sans-serif] font-medium text-left" data-i18n="label.enablePinyin">label.enablePinyin</div>
+
+</div>
+<input type="checkbox" class="peer sr-only" id="enable-pinyin" onchange="onSettingChange()"><span class="box-border w-[18px] h-[18px] shrink-0 mt-[1px] flex items-center justify-center bg-[#FFFFFF] [outline:1.5px_solid_#CBD9C7] [outline-offset:-0.75px] rounded-[4px] text-[#FFFFFF]"><svg viewBox="0 0 24 24" class="w-[13px] h-[13px] opacity-0" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg></span>
+</label>
+<label class="box-border w-full flex flex-row gap-[12px] justify-start items-start cursor-pointer items-start">
+<div class="box-border [flex:1_1_0] h-fit flex flex-col gap-[3px] justify-start items-start">
+<div class="text-[12.5px] leading-normal text-[#3F5B49] font-[Geist,system-ui,sans-serif] font-medium text-left" data-i18n="label.removeTrailingPeriod">label.removeTrailingPeriod</div>
+<div class="text-[11.5px]/[16px] text-[#7C9285] font-[Geist,system-ui,sans-serif] font-normal text-left" data-i18n="hint.removeTrailingPeriod">hint.removeTrailingPeriod</div>
+</div>
+<input type="checkbox" class="peer sr-only" id="remove-trailing-period" onchange="onSettingChange()"><span class="box-border w-[18px] h-[18px] shrink-0 mt-[1px] flex items-center justify-center bg-[#FFFFFF] [outline:1.5px_solid_#CBD9C7] [outline-offset:-0.75px] rounded-[4px] text-[#FFFFFF]"><svg viewBox="0 0 24 24" class="w-[13px] h-[13px] opacity-0" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg></span>
+</label>
+<label class="box-border w-full flex flex-row gap-[12px] justify-start items-start cursor-pointer items-start">
+<div class="box-border [flex:1_1_0] h-fit flex flex-col gap-[3px] justify-start items-start">
+<div class="text-[12.5px] leading-normal text-[#3F5B49] font-[Geist,system-ui,sans-serif] font-medium text-left" data-i18n="label.showOriginalAndLangTag">label.showOriginalAndLangTag</div>
+<div class="text-[11.5px]/[16px] text-[#7C9285] font-[Geist,system-ui,sans-serif] font-normal text-left" data-i18n="hint.showOriginalAndLangTag">hint.showOriginalAndLangTag</div>
+</div>
+<input type="checkbox" class="peer sr-only" id="show-original-and-lang-tag" checked onchange="onSettingChange(this)"><span class="box-border w-[18px] h-[18px] shrink-0 mt-[1px] flex items-center justify-center bg-[#FFFFFF] [outline:1.5px_solid_#CBD9C7] [outline-offset:-0.75px] rounded-[4px] text-[#FFFFFF]"><svg viewBox="0 0 24 24" class="w-[13px] h-[13px] opacity-0" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg></span>
+</label>
+<div class="box-border w-full flex flex-col gap-[6px] justify-start items-start">
+<label class="text-[12.5px] leading-normal text-[#3F5B49] font-[Geist,system-ui,sans-serif] font-medium text-left" data-i18n="label.textFancyStyle" for="text-fancy-style">label.textFancyStyle</label>
+<select class="box-border w-full h-[36px] px-[11px] bg-[#FFFFFF] [outline:1px_solid_#CBD9C7] [outline-offset:-0.5px] rounded-[4px] text-[13px] leading-normal text-[#12261A] font-[Geist,system-ui,sans-serif] placeholder:text-[#9AAFA1] focus:[outline:1.5px_solid_#1F7A4D] appearance-none pr-[30px]" id="text-fancy-style" onchange="onSettingChange()"><option value="none" selected data-i18n="option.textFancyStyle.none">option.textFancyStyle.none</option><option value="smallCaps" data-i18n="option.textFancyStyle.smallCaps">option.textFancyStyle.smallCaps</option><option value="curly" data-i18n="option.textFancyStyle.curly">option.textFancyStyle.curly</option><option value="magic" data-i18n="option.textFancyStyle.magic">option.textFancyStyle.magic</option></select>
+<div class="text-[11.5px]/[16px] text-[#7C9285] font-[Geist,system-ui,sans-serif] font-normal text-left" data-i18n="hint.textFancyStyle">hint.textFancyStyle</div>
+</div>
+
+</div>
+</div>
+</section>
+</div>
+</div>
+</div>
+<div id="page-self" class="app-page" data-app-page="self" hidden>
+<div class="grid grid-cols-1 lg:grid-cols-2 gap-[22px] items-start">
+<div class="column-left box-border flex flex-col gap-[22px]">
+<section class="box-border w-full h-fit shrink-0 flex flex-col bg-[#FFFFFF] [outline:1px_solid_#E3EAE1] [outline-offset:-0.5px] rounded-[8px] overflow-hidden" id="basic-settings-card">
+<div class="box-border w-full h-fit shrink-0 flex flex-col gap-[16px] p-[18px] justify-start items-start gap-[18px]">
+<div class="box-border w-full flex flex-col gap-[6px] items-start">
+<div class="text-[14.5px] leading-normal text-[#12261A] font-['Funnel_Sans',system-ui,sans-serif] font-semibold text-left whitespace-nowrap" data-i18n="section.basicSettings">section.basicSettings</div>
+<div class="text-[12px]/[17px] text-[#7C9285] font-[Geist,system-ui,sans-serif] font-normal text-left" data-i18n="hint.basicSettings">hint.basicSettings</div>
+</div>
+<div class="box-border w-full h-[1px] shrink-0 bg-[#E3EAE1]"></div>
+<div class="box-border w-full h-fit shrink-0 flex flex-col gap-[16px] p-[18px] justify-start items-start p-0 gap-[16px]">
+  <div class="box-border w-full flex flex-row gap-[8px]" id="fg-enable-translation">
+    <button type="button" class="simple-translation-mode-btn box-border [flex:1_1_0] h-[38px] inline-flex items-center justify-center gap-[8px] bg-[#FFFFFF] [outline:1px_solid_#E3EAE1] [outline-offset:-0.5px] rounded-[4px] text-[12.5px] text-[#3F5B49] cursor-pointer" data-simple-translation-mode="speech" data-i18n="mode.speechOnly">mode.speechOnly</button>
+    <button type="button" class="simple-translation-mode-btn box-border [flex:1_1_0] h-[38px] inline-flex items-center justify-center gap-[8px] bg-[#FFFFFF] [outline:1px_solid_#E3EAE1] [outline-offset:-0.5px] rounded-[4px] text-[12.5px] text-[#3F5B49] cursor-pointer" data-simple-translation-mode="translation" data-i18n="mode.speechTranslation">mode.speechTranslation</button>
+  </div>
+  <!-- 启用翻译由上方「仅语音识别 / 识别+翻译」切换控制，保留隐藏 checkbox 供配置读写 -->
+  <input type="checkbox" class="hidden" id="enable-translation" checked onchange="onSettingChange(); toggleTranslationOptions()" aria-hidden="true" tabindex="-1">
+  <label class="box-border w-full flex flex-row gap-[12px] justify-start items-start cursor-pointer items-start">
+<div class="box-border [flex:1_1_0] h-fit flex flex-col gap-[3px] justify-start items-start">
+<div class="text-[12.5px] leading-normal text-[#3F5B49] font-[Geist,system-ui,sans-serif] font-medium text-left" data-i18n="label.showPartialResults">label.showPartialResults</div>
+<div class="text-[11.5px]/[16px] text-[#7C9285] font-[Geist,system-ui,sans-serif] font-normal text-left" data-i18n="hint.partialResults">hint.partialResults</div>
+</div>
+<input type="checkbox" class="peer sr-only" id="show-partial-results" checked onchange="onSettingChange()"><span class="box-border w-[18px] h-[18px] shrink-0 mt-[1px] flex items-center justify-center bg-[#FFFFFF] [outline:1.5px_solid_#CBD9C7] [outline-offset:-0.75px] rounded-[4px] text-[#FFFFFF]"><svg viewBox="0 0 24 24" class="w-[13px] h-[13px] opacity-0" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg></span>
+</label>
+  <div id="translation-options" class="hidden w-full flex flex-col gap-[16px]">
+    <div class="box-border w-full flex flex-col gap-[6px] justify-start items-start" id="fg-target-language">
+<div class="text-[12.5px] leading-normal text-[#3F5B49] font-[Geist,system-ui,sans-serif] font-medium text-left" data-i18n="label.targetLanguage">label.targetLanguage</div>
+<div class="language-combo relative w-full"><input type="text" class="language-combo-input box-border w-full h-[36px] px-[11px] bg-[#FFFFFF] [outline:1px_solid_#CBD9C7] [outline-offset:-0.5px] rounded-[4px] text-[13px] leading-normal text-[#12261A] font-[Geist,system-ui,sans-serif] placeholder:text-[#9AAFA1] focus:[outline:1.5px_solid_#1F7A4D]" id="target-language" placeholder="ja" onchange="onSettingChange()"><button type="button" class="language-combo-toggle absolute right-[8px] top-1/2 -translate-y-1/2 text-[#7C9285]"><svg viewBox="0 0 24 24" class="w-[15px] h-[15px]" fill="none" stroke="currentColor" stroke-width="2"><path d="m6 9 6 6 6-6"/></svg></button></div>
+<div class="text-[11.5px]/[16px] text-[#7C9285] font-[Geist,system-ui,sans-serif] font-normal text-left" data-i18n="hint.targetLanguage">hint.targetLanguage</div>
+</div>
+    <div class="box-border w-full flex flex-col gap-[6px] justify-start items-start">
+<div class="text-[12.5px] leading-normal text-[#3F5B49] font-[Geist,system-ui,sans-serif] font-medium text-left" data-i18n="label.secondaryTargetLanguage">label.secondaryTargetLanguage</div>
+<div class="language-combo relative w-full"><input type="text" class="language-combo-input box-border w-full h-[36px] px-[11px] bg-[#FFFFFF] [outline:1px_solid_#CBD9C7] [outline-offset:-0.5px] rounded-[4px] text-[13px] leading-normal text-[#12261A] font-[Geist,system-ui,sans-serif] placeholder:text-[#9AAFA1] focus:[outline:1.5px_solid_#1F7A4D]" id="secondary-target-language" placeholder="en" onchange="onSettingChange()"><button type="button" class="language-combo-clear hidden absolute right-[30px] top-1/2 -translate-y-1/2 text-[#7C9285]">x</button><button type="button" class="language-combo-toggle absolute right-[8px] top-1/2 -translate-y-1/2 text-[#7C9285]"><svg viewBox="0 0 24 24" class="w-[15px] h-[15px]" fill="none" stroke="currentColor" stroke-width="2"><path d="m6 9 6 6 6-6"/></svg></button></div>
+<div class="text-[11.5px]/[16px] text-[#7C9285] font-[Geist,system-ui,sans-serif] font-normal text-left" data-i18n="hint.secondaryTargetLanguage">hint.secondaryTargetLanguage</div>
+</div>
+    <div class="box-border w-full flex flex-col gap-[6px] justify-start items-start">
+<div class="text-[12.5px] leading-normal text-[#3F5B49] font-[Geist,system-ui,sans-serif] font-medium text-left" data-i18n="label.fallbackLanguage">label.fallbackLanguage</div>
+<div class="language-combo relative w-full"><input type="text" class="language-combo-input box-border w-full h-[36px] px-[11px] bg-[#FFFFFF] [outline:1px_solid_#CBD9C7] [outline-offset:-0.5px] rounded-[4px] text-[13px] leading-normal text-[#12261A] font-[Geist,system-ui,sans-serif] placeholder:text-[#9AAFA1] focus:[outline:1.5px_solid_#1F7A4D]" id="fallback-language" placeholder="en" onchange="onSettingChange()"><button type="button" class="language-combo-clear hidden absolute right-[30px] top-1/2 -translate-y-1/2 text-[#7C9285]">x</button><button type="button" class="language-combo-toggle absolute right-[8px] top-1/2 -translate-y-1/2 text-[#7C9285]"><svg viewBox="0 0 24 24" class="w-[15px] h-[15px]" fill="none" stroke="currentColor" stroke-width="2"><path d="m6 9 6 6 6-6"/></svg></button></div>
+<div class="text-[11.5px]/[16px] text-[#7C9285] font-[Geist,system-ui,sans-serif] font-normal text-left" data-i18n="hint.fallbackLanguage">hint.fallbackLanguage</div>
+</div>
+  </div>
+  
+  <div class="box-border w-full flex flex-col gap-[6px]" id="fg-mic-device">
+    <label class="text-[12.5px] leading-normal text-[#3F5B49] font-[Geist,system-ui,sans-serif] font-medium text-left" data-i18n="label.micDevice" for="mic-device">label.micDevice</label>
+    <select class="box-border w-full h-[36px] px-[11px] bg-[#FFFFFF] [outline:1px_solid_#CBD9C7] [outline-offset:-0.5px] rounded-[4px] text-[13px] leading-normal text-[#12261A] font-[Geist,system-ui,sans-serif] placeholder:text-[#9AAFA1] focus:[outline:1.5px_solid_#1F7A4D] appearance-none pr-[30px]" id="mic-device" onchange="onSettingChange(this)" data-restart-required="true"><option value="" data-i18n="option.systemDefault">option.systemDefault</option></select>
+  </div>
+</div>
+</div>
+</section>
+<section class="box-border w-full h-fit shrink-0 flex flex-col bg-[#FFFFFF] [outline:1px_solid_#E3EAE1] [outline-offset:-0.5px] rounded-[8px] overflow-hidden" id="asr-settings-card">
+<div class="box-border w-full flex flex-row gap-[14px] p-[16px_18px] justify-between items-center cursor-pointer" onclick="toggleCollapsible('asr-settings')">
+<div class="box-border [flex:1_1_0] h-fit flex flex-col gap-[3px] justify-start items-start">
+<div class="text-[14.5px] leading-normal text-[#12261A] font-['Funnel_Sans',system-ui,sans-serif] font-semibold text-left whitespace-nowrap" data-i18n="section.asrSettings">section.asrSettings</div>
+<div class="text-[12px]/[17px] text-[#7C9285] font-[Geist,system-ui,sans-serif] font-normal text-left" data-i18n="hint.asrSettings">hint.asrSettings</div>
+</div>
+
+<span class="collapse-icon box-border w-[17px] shrink-0 h-[17px] flex items-center justify-center text-[#7C9285]" id="asr-settings-icon"><svg data-icon-name="chevron-up" data-icon-set="lucide" viewBox="0 0 14 14" class="box-border w-[17px] shrink-0 h-[17px]"><path d="M3.5 8.75 7 5.25l3.5 3.5" fill="none" stroke="#7C9285" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+</div>
+<div class="box-border w-full h-[1px] shrink-0 bg-[#E3EAE1]"></div>
+<div class="collapsible-content" id="asr-settings">
+<div class="box-border w-full h-fit shrink-0 flex flex-col gap-[16px] p-[18px] justify-start items-start">
+
+<!-- 识别后端由上方「语音识别」提供商切换控制，此处仅保留隐藏 select 供配置读写 -->
+<select id="asr-backend" class="hidden" onchange="onSettingChange()" data-restart-required="true" aria-hidden="true" tabindex="-1">
+  <option value="qwen_audio3" selected>qwen_audio3</option>
+  <option value="qwen">qwen</option>
+  <option value="dashscope">dashscope</option>
+  <option value="doubao_file">doubao_file</option>
+  <option value="soniox">soniox</option>
+  <option value="custom_audio">custom_audio</option>
+  <option value="custom_stt">custom_stt</option>
+</select>
+<div class="box-border w-full flex flex-col gap-[6px] justify-start items-start">
+<label class="text-[12.5px] leading-normal text-[#3F5B49] font-[Geist,system-ui,sans-serif] font-medium text-left" data-i18n="label.sourceLanguage" for="source-language">label.sourceLanguage</label>
+<div class="language-combo relative w-full"><input type="text" class="language-combo-input box-border w-full h-[36px] px-[11px] bg-[#FFFFFF] [outline:1px_solid_#CBD9C7] [outline-offset:-0.5px] rounded-[4px] text-[13px] leading-normal text-[#12261A] font-[Geist,system-ui,sans-serif] placeholder:text-[#9AAFA1] focus:[outline:1.5px_solid_#1F7A4D]" id="source-language" placeholder="auto" onchange="onSettingChange()" data-restart-required="true"><button type="button" class="language-combo-clear hidden absolute right-[30px] top-1/2 -translate-y-1/2 text-[#7C9285]">x</button><button type="button" class="language-combo-toggle absolute right-[8px] top-1/2 -translate-y-1/2 text-[#7C9285]"><svg viewBox="0 0 24 24" class="w-[15px] h-[15px]" fill="none" stroke="currentColor" stroke-width="2"><path d="m6 9 6 6 6-6"/></svg></button></div>
+<div class="text-[11.5px]/[16px] text-[#7C9285] font-[Geist,system-ui,sans-serif] font-normal text-left" data-i18n="hint.sourceLanguage">hint.sourceLanguage</div>
+</div>
+<div id="fg-mic-control" class="w-full">
+  <label class="box-border w-full flex flex-row gap-[12px] justify-start items-start cursor-pointer items-start">
+<div class="box-border [flex:1_1_0] h-fit flex flex-col gap-[3px] justify-start items-start">
+<div class="text-[12.5px] leading-normal text-[#3F5B49] font-[Geist,system-ui,sans-serif] font-medium text-left" data-i18n="label.pauseOnMute">label.pauseOnMute</div>
+<div class="text-[11.5px]/[16px] text-[#7C9285] font-[Geist,system-ui,sans-serif] font-normal text-left" data-i18n="hint.pauseOnMute">hint.pauseOnMute</div>
+</div>
+<input type="checkbox" class="peer sr-only" id="enable-mic-control" onchange="onSettingChange()" data-restart-required="true"><span class="box-border w-[18px] h-[18px] shrink-0 mt-[1px] flex items-center justify-center bg-[#FFFFFF] [outline:1.5px_solid_#CBD9C7] [outline-offset:-0.75px] rounded-[4px] text-[#FFFFFF]"><svg viewBox="0 0 24 24" class="w-[13px] h-[13px] opacity-0" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg></span>
+</label>
+</div>
+
+</div>
+</div>
+</section>
+</div>
+<div class="column-right box-border flex flex-col gap-[22px]">
+<section class="box-border w-full h-fit shrink-0 flex flex-col bg-[#FFFFFF] [outline:1px_solid_#E3EAE1] [outline-offset:-0.5px] rounded-[8px] overflow-hidden" id="vrchat-mic-card">
+<div class="box-border w-full flex flex-row gap-[14px] p-[16px_18px] justify-between items-center cursor-pointer" onclick="toggleCollapsible('vrchat-mic-settings')">
+<div class="box-border [flex:1_1_0] h-fit flex flex-col gap-[3px] justify-start items-start">
+<div class="text-[14.5px] leading-normal text-[#12261A] font-['Funnel_Sans',system-ui,sans-serif] font-semibold text-left whitespace-nowrap" data-i18n="section.vrchatMic">section.vrchatMic</div>
+<div class="text-[12px]/[17px] text-[#7C9285] font-[Geist,system-ui,sans-serif] font-normal text-left" data-i18n="hint.vrchatMic">hint.vrchatMic</div>
+</div>
+<span class="collapse-icon w-[17px] h-[17px] flex items-center justify-center text-[#7C9285]" id="vrchat-mic-settings-icon"><svg data-icon-name="chevron-up" data-icon-set="lucide" viewBox="0 0 14 14" class="box-border w-[17px] shrink-0 h-[17px]"><path d="M3.5 8.75 7 5.25l3.5 3.5" fill="none" stroke="#7C9285" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+</div>
+<div class="box-border w-full h-[1px] shrink-0 bg-[#E3EAE1]"></div>
+<div class="collapsible-content" id="vrchat-mic-settings"><div class="box-border w-full h-fit shrink-0 flex flex-col gap-[16px] p-[18px] justify-start items-start">
+<label class="box-border w-full flex flex-row gap-[12px] justify-start items-start cursor-pointer items-start">
+<div class="box-border [flex:1_1_0] h-fit flex flex-col gap-[3px] justify-start items-start">
+<div class="text-[12.5px] leading-normal text-[#3F5B49] font-[Geist,system-ui,sans-serif] font-medium text-left" data-i18n="label.vrchatMicDetection">label.vrchatMicDetection</div>
+<div class="text-[11.5px]/[16px] text-[#7C9285] font-[Geist,system-ui,sans-serif] font-normal text-left" data-i18n="hint.vrchatMicDetection">hint.vrchatMicDetection</div>
+</div>
+<input type="checkbox" class="peer sr-only" id="vrchat-mic-detection-enabled" checked onchange="onVrchatMicSettingChange()"><span class="box-border w-[18px] h-[18px] shrink-0 mt-[1px] flex items-center justify-center bg-[#FFFFFF] [outline:1.5px_solid_#CBD9C7] [outline-offset:-0.75px] rounded-[4px] text-[#FFFFFF]"><svg viewBox="0 0 24 24" class="w-[13px] h-[13px] opacity-0" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg></span>
+</label>
+<div class="box-border w-full flex flex-col gap-[6px] justify-start items-start">
+<label class="text-[12.5px] leading-normal text-[#3F5B49] font-[Geist,system-ui,sans-serif] font-medium text-left" data-i18n="label.vrchatMicManual" for="vrchat-mic-user-open">label.vrchatMicManual</label>
+<select class="box-border w-full h-[36px] px-[11px] bg-[#FFFFFF] [outline:1px_solid_#CBD9C7] [outline-offset:-0.5px] rounded-[4px] text-[13px] leading-normal text-[#12261A] font-[Geist,system-ui,sans-serif] placeholder:text-[#9AAFA1] focus:[outline:1.5px_solid_#1F7A4D] appearance-none pr-[30px]" id="vrchat-mic-user-open" onchange="onVrchatMicSettingChange()"><option value="" data-i18n="option.vrchatMicAuto">option.vrchatMicAuto</option><option value="true" data-i18n="option.vrchatMicAlwaysOpen">option.vrchatMicAlwaysOpen</option><option value="false" data-i18n="option.vrchatMicAlwaysClosed">option.vrchatMicAlwaysClosed</option></select>
+
+</div>
+<div id="vrchat-mic-status" class="local-asr-status-box box-border w-full flex flex-col gap-[10px] p-[10px_12px] bg-[#F4F7F3] [outline:1px_solid_#E3EAE1] [outline-offset:-0.5px] rounded-[6px]" data-state="">
+<div class="box-border w-full flex flex-row gap-[10px] justify-between items-center">
+<div class="text-[12px] leading-normal text-[#7C9285] font-[Geist,system-ui,sans-serif] font-normal text-left whitespace-nowrap" data-i18n="label.vrchatMicProcess">label.vrchatMicProcess</div>
+<div class="box-border w-fit shrink-0 flex flex-row gap-[10px] justify-start items-center">
+<div id="vrchat-mic-process-dot" class="box-border shrink-0 rounded-full" style="width:6px;height:6px;background-color:#B7C9BB"></div>
+<div id="vrchat-mic-process-text" class="text-[12px] leading-normal text-[#12261A] font-[Geist,system-ui,sans-serif] font-medium text-left whitespace-nowrap">-</div>
+</div>
+</div>
+<div class="box-border w-full flex flex-row gap-[10px] justify-between items-center">
+<div class="text-[12px] leading-normal text-[#7C9285] font-[Geist,system-ui,sans-serif] font-normal text-left whitespace-nowrap" data-i18n="label.vrchatMicMic">label.vrchatMicMic</div>
+<div class="box-border w-fit shrink-0 flex flex-row gap-[10px] justify-start items-center">
+<div id="vrchat-mic-open-dot" class="box-border shrink-0 rounded-full" style="width:6px;height:6px;background-color:#B7C9BB"></div>
+<div id="vrchat-mic-open-text" class="text-[12px] leading-normal text-[#12261A] font-[Geist,system-ui,sans-serif] font-medium text-left whitespace-nowrap">-</div>
+</div>
+</div>
+<div class="box-border w-full flex flex-row gap-[10px] justify-between items-center">
+<div class="text-[12px] leading-normal text-[#7C9285] font-[Geist,system-ui,sans-serif] font-normal text-left whitespace-nowrap" data-i18n="label.vrchatMicUpdated">label.vrchatMicUpdated</div>
+<div class="box-border w-fit shrink-0 flex flex-row gap-[10px] justify-start items-center">
+<div id="vrchat-mic-updated-dot" class="box-border shrink-0 rounded-full" style="width:6px;height:6px;background-color:#B7C9BB"></div>
+<div id="vrchat-mic-updated-text" class="text-[12px] leading-normal text-[#12261A] font-[Geist,system-ui,sans-serif] font-medium text-left whitespace-nowrap">-</div>
+</div>
+</div>
+</div>
+</div></div>
+</section>
+<section class="box-border w-full h-fit shrink-0 flex flex-col bg-[#FFFFFF] [outline:1px_solid_#E3EAE1] [outline-offset:-0.5px] rounded-[8px] overflow-hidden" id="quick-lang-settings-section">
+<div class="box-border w-full flex flex-row gap-[14px] p-[16px_18px] justify-between items-center cursor-pointer" onclick="toggleCollapsible('quick-lang-settings')">
+<div class="box-border [flex:1_1_0] h-fit flex flex-col gap-[3px] justify-start items-start">
+<div class="text-[14.5px] leading-normal text-[#12261A] font-['Funnel_Sans',system-ui,sans-serif] font-semibold text-left whitespace-nowrap" data-i18n="section.quickLangButtons">section.quickLangButtons</div>
+<div class="text-[12px]/[17px] text-[#7C9285] font-[Geist,system-ui,sans-serif] font-normal text-left" data-i18n="hint.quickLangButtons">hint.quickLangButtons</div>
+</div>
+<span class="collapse-icon w-[17px] h-[17px] flex items-center justify-center text-[#7C9285]" id="quick-lang-settings-icon"><svg data-icon-name="chevron-up" data-icon-set="lucide" viewBox="0 0 14 14" class="box-border w-[17px] shrink-0 h-[17px]"><path d="M3.5 8.75 7 5.25l3.5 3.5" fill="none" stroke="#7C9285" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+</div>
+<div class="box-border w-full h-[1px] shrink-0 bg-[#E3EAE1]"></div>
+<div class="collapsible-content" id="quick-lang-settings"><div class="box-border w-full h-fit shrink-0 flex flex-col gap-[16px] p-[18px] justify-start items-start">
+<label class="box-border w-full flex flex-row gap-[12px] justify-start items-start cursor-pointer items-start">
+<div class="box-border [flex:1_1_0] h-fit flex flex-col gap-[3px] justify-start items-start">
+<div class="text-[12.5px] leading-normal text-[#3F5B49] font-[Geist,system-ui,sans-serif] font-medium text-left" data-i18n="label.floatingPanelMode">label.floatingPanelMode</div>
+<div class="text-[11.5px]/[16px] text-[#7C9285] font-[Geist,system-ui,sans-serif] font-normal text-left" data-i18n="hint.floatingPanelMode">hint.floatingPanelMode</div>
+</div>
+<input type="checkbox" class="peer sr-only" id="panel-floating-mode" checked onchange="onPanelFloatingModeChange()"><span class="box-border w-[18px] h-[18px] shrink-0 mt-[1px] flex items-center justify-center bg-[#FFFFFF] [outline:1.5px_solid_#CBD9C7] [outline-offset:-0.75px] rounded-[4px] text-[#FFFFFF]"><svg viewBox="0 0 24 24" class="w-[13px] h-[13px] opacity-0" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg></span>
+</label>
+<label class="box-border w-full flex flex-row gap-[12px] justify-start items-start cursor-pointer items-start">
+<div class="box-border [flex:1_1_0] h-fit flex flex-col gap-[3px] justify-start items-start">
+<div class="text-[12.5px] leading-normal text-[#3F5B49] font-[Geist,system-ui,sans-serif] font-medium text-left" data-i18n="label.enableQuickLangBar">label.enableQuickLangBar</div>
+<div class="text-[11.5px]/[16px] text-[#7C9285] font-[Geist,system-ui,sans-serif] font-normal text-left" data-i18n="hint.quickLangButtons">hint.quickLangButtons</div>
+</div>
+<input type="checkbox" class="peer sr-only" id="enable-quick-lang-bar" checked onchange="onEnableQuickLangBarChange()"><span class="box-border w-[18px] h-[18px] shrink-0 mt-[1px] flex items-center justify-center bg-[#FFFFFF] [outline:1.5px_solid_#CBD9C7] [outline-offset:-0.75px] rounded-[4px] text-[#FFFFFF]"><svg viewBox="0 0 24 24" class="w-[13px] h-[13px] opacity-0" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg></span>
+</label>
+<label class="box-border w-full flex flex-row gap-[12px] justify-start items-start cursor-pointer items-start">
+<div class="box-border [flex:1_1_0] h-fit flex flex-col gap-[3px] justify-start items-start">
+<div class="text-[12.5px] leading-normal text-[#3F5B49] font-[Geist,system-ui,sans-serif] font-medium text-left" data-i18n="label.reverseTranslation">label.reverseTranslation</div>
+<div class="text-[11.5px]/[16px] text-[#7C9285] font-[Geist,system-ui,sans-serif] font-normal text-left" data-i18n="hint.reverseTranslation">hint.reverseTranslation</div>
+</div>
+<input type="checkbox" class="peer sr-only" id="enable-reverse-translation" onchange="onSettingChange(); refreshPanelSettingMirrors()"><span class="box-border w-[18px] h-[18px] shrink-0 mt-[1px] flex items-center justify-center bg-[#FFFFFF] [outline:1.5px_solid_#CBD9C7] [outline-offset:-0.75px] rounded-[4px] text-[#FFFFFF]"><svg viewBox="0 0 24 24" class="w-[13px] h-[13px] opacity-0" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg></span>
+</label>
+<div class="grid grid-cols-4 gap-[10px] w-full">
+  <div class="box-border w-full flex flex-col gap-[6px] justify-start items-start">
+<div class="text-[12.5px] leading-normal text-[#3F5B49] font-[Geist,system-ui,sans-serif] font-medium text-left" data-i18n="label.quickLangSlot">label.quickLangSlot</div>
+<input type="text" class="box-border w-full h-[36px] px-[11px] bg-[#FFFFFF] [outline:1px_solid_#CBD9C7] [outline-offset:-0.5px] rounded-[4px] text-[13px] leading-normal text-[#12261A] font-[Geist,system-ui,sans-serif] placeholder:text-[#9AAFA1] focus:[outline:1.5px_solid_#1F7A4D]" id="quick-lang-1" placeholder="en" onblur="onSettingChange()"onchange="onQuickLangChange()">
+
+</div>
+  <div class="box-border w-full flex flex-col gap-[6px] justify-start items-start">
+<div class="text-[12.5px] leading-normal text-[#3F5B49] font-[Geist,system-ui,sans-serif] font-medium text-left" data-i18n="label.quickLangSlot">label.quickLangSlot</div>
+<input type="text" class="box-border w-full h-[36px] px-[11px] bg-[#FFFFFF] [outline:1px_solid_#CBD9C7] [outline-offset:-0.5px] rounded-[4px] text-[13px] leading-normal text-[#12261A] font-[Geist,system-ui,sans-serif] placeholder:text-[#9AAFA1] focus:[outline:1.5px_solid_#1F7A4D]" id="quick-lang-2" placeholder="zh-CN" onblur="onSettingChange()"onchange="onQuickLangChange()">
+
+</div>
+  <div class="box-border w-full flex flex-col gap-[6px] justify-start items-start">
+<div class="text-[12.5px] leading-normal text-[#3F5B49] font-[Geist,system-ui,sans-serif] font-medium text-left" data-i18n="label.quickLangSlot">label.quickLangSlot</div>
+<input type="text" class="box-border w-full h-[36px] px-[11px] bg-[#FFFFFF] [outline:1px_solid_#CBD9C7] [outline-offset:-0.5px] rounded-[4px] text-[13px] leading-normal text-[#12261A] font-[Geist,system-ui,sans-serif] placeholder:text-[#9AAFA1] focus:[outline:1.5px_solid_#1F7A4D]" id="quick-lang-3" placeholder="ja" onblur="onSettingChange()"onchange="onQuickLangChange()">
+
+</div>
+  <div class="box-border w-full flex flex-col gap-[6px] justify-start items-start">
+<div class="text-[12.5px] leading-normal text-[#3F5B49] font-[Geist,system-ui,sans-serif] font-medium text-left" data-i18n="label.quickLangSlot">label.quickLangSlot</div>
+<input type="text" class="box-border w-full h-[36px] px-[11px] bg-[#FFFFFF] [outline:1px_solid_#CBD9C7] [outline-offset:-0.5px] rounded-[4px] text-[13px] leading-normal text-[#12261A] font-[Geist,system-ui,sans-serif] placeholder:text-[#9AAFA1] focus:[outline:1.5px_solid_#1F7A4D]" id="quick-lang-4" placeholder="ko" onblur="onSettingChange()"onchange="onQuickLangChange()">
+
+</div>
+</div>
+<button type="button" class="box-border h-[38px] px-[16px] inline-flex items-center justify-center gap-[7px] bg-[#1F7A4D] rounded-[4px] text-[13px] leading-none text-[#FFFFFF] font-[Geist,system-ui,sans-serif] font-semibold cursor-pointer border-0 self-start desktop-only" onclick="openMiniPanel('self')" data-i18n="btn.openSelfPanel">btn.openSelfPanel</button>
+</div></div>
+</section>
+<section class="box-border w-full h-fit shrink-0 flex flex-col bg-[#FFFFFF] [outline:1px_solid_#E3EAE1] [outline-offset:-0.5px] rounded-[8px] overflow-hidden" id="local-asr-card" style="display:none">
+<div class="box-border w-full flex flex-row gap-[14px] p-[16px_18px] justify-between items-center cursor-pointer" onclick="toggleCollapsible('local-asr-settings')">
+<div class="box-border [flex:1_1_0] h-fit flex flex-col gap-[3px] justify-start items-start">
+<div class="text-[14.5px] leading-normal text-[#12261A] font-['Funnel_Sans',system-ui,sans-serif] font-semibold text-left whitespace-nowrap" data-i18n="section.localAsrSettings">section.localAsrSettings</div>
+<div class="text-[12px]/[17px] text-[#7C9285] font-[Geist,system-ui,sans-serif] font-normal text-left" data-i18n="hint.localAsrSettings">hint.localAsrSettings</div>
+</div>
+<span class="collapse-icon w-[17px] h-[17px] flex items-center justify-center text-[#7C9285]" id="local-asr-settings-icon"><svg data-icon-name="chevron-up" data-icon-set="lucide" viewBox="0 0 14 14" class="box-border w-[17px] shrink-0 h-[17px]"><path d="M3.5 8.75 7 5.25l3.5 3.5" fill="none" stroke="#7C9285" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+</div>
+<div class="box-border w-full h-[1px] shrink-0 bg-[#E3EAE1]"></div>
+<div class="collapsible-content" id="local-asr-settings"><div class="box-border w-full h-fit shrink-0 flex flex-col gap-[16px] p-[18px] justify-start items-start">
+<div class="box-border w-full flex flex-col gap-[6px] justify-start items-start">
+<label class="text-[12.5px] leading-normal text-[#3F5B49] font-[Geist,system-ui,sans-serif] font-medium text-left" data-i18n="label.localAsrEngine" for="local-asr-engine">label.localAsrEngine</label>
+<select class="box-border w-full h-[36px] px-[11px] bg-[#FFFFFF] [outline:1px_solid_#CBD9C7] [outline-offset:-0.5px] rounded-[4px] text-[13px] leading-normal text-[#12261A] font-[Geist,system-ui,sans-serif] placeholder:text-[#9AAFA1] focus:[outline:1.5px_solid_#1F7A4D] appearance-none pr-[30px]" id="local-asr-engine" onchange="onLocalAsrSettingChange(this)" data-restart-required="true"><option value="sensevoice" selected data-i18n="localAsr.engine.sensevoice">localAsr.engine.sensevoice</option><option value="qwen3-asr" data-i18n="localAsr.engine.qwen3">localAsr.engine.qwen3</option></select>
+<div class="text-[11.5px]/[16px] text-[#7C9285] font-[Geist,system-ui,sans-serif] font-normal text-left" data-i18n="hint.localAsrUsesGlobalSourceLang">hint.localAsrUsesGlobalSourceLang</div>
+</div>
+<small id="local-asr-engine-hint" class="text-[11.5px]/[16px] text-[#7C9285] font-[Geist,system-ui,sans-serif] font-normal text-left"></small>
+<label class="box-border w-full flex flex-row gap-[12px] justify-start items-start cursor-pointer items-start">
+<div class="box-border [flex:1_1_0] h-fit flex flex-col gap-[3px] justify-start items-start">
+<div class="text-[12.5px] leading-normal text-[#3F5B49] font-[Geist,system-ui,sans-serif] font-medium text-left" data-i18n="label.localIncrementalAsr">label.localIncrementalAsr</div>
+
+</div>
+<input type="checkbox" class="peer sr-only" id="local-incremental-asr" checked onchange="onLocalAsrSettingChange(this)" data-restart-required="true"><span class="box-border w-[18px] h-[18px] shrink-0 mt-[1px] flex items-center justify-center bg-[#FFFFFF] [outline:1.5px_solid_#CBD9C7] [outline-offset:-0.75px] rounded-[4px] text-[#FFFFFF]"><svg viewBox="0 0 24 24" class="w-[13px] h-[13px] opacity-0" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg></span>
+</label>
+<div class="box-border w-full flex flex-col gap-[6px] justify-start items-start">
+<label class="text-[12.5px] leading-normal text-[#3F5B49] font-[Geist,system-ui,sans-serif] font-medium text-left" data-i18n="label.localInterimInterval" for="local-interim-interval">label.localInterimInterval</label>
+<input type="number" class="box-border w-full h-[36px] px-[11px] bg-[#FFFFFF] [outline:1px_solid_#CBD9C7] [outline-offset:-0.5px] rounded-[4px] text-[13px] leading-normal text-[#12261A] font-[Geist,system-ui,sans-serif] placeholder:text-[#9AAFA1] focus:[outline:1.5px_solid_#1F7A4D]" id="local-interim-interval" min="0.5" max="20" step="0.5" value="2" onchange="onLocalAsrSettingChange(this)" data-restart-required="true">
+
+</div>
+<div class="text-[11.5px]/[16px] text-[#7C9285] font-[Geist,system-ui,sans-serif] font-normal text-left" data-i18n="hint.localVadMovedToAdvanced">hint.localVadMovedToAdvanced</div>
+<div class="w-full flex flex-col gap-[10px]">
+  <span class="text-[12.5px] leading-normal text-[#3F5B49] font-[Geist,system-ui,sans-serif] font-medium text-left" data-i18n="label.localAsrStatus">label.localAsrStatus</span>
+  <div id="local-asr-status" class="local-asr-status-box box-border w-full p-[10px_12px] bg-[#F4F7F3] rounded-[6px] text-[12px] text-[#3F5B49]">-</div>
+  <button type="button" class="box-border h-[38px] px-[16px] inline-flex items-center justify-center gap-[7px] bg-[#1F7A4D] rounded-[4px] text-[13px] leading-none text-[#FFFFFF] font-[Geist,system-ui,sans-serif] font-semibold cursor-pointer border-0 self-start" id="local-asr-download-btn" onclick="downloadLocalAsrModels()" data-i18n="btn.downloadLocalAsr">btn.downloadLocalAsr</button>
+</div>
+</div></div>
+</section>
+</div>
+</div>
+</div>
+<div id="page-others" class="app-page" data-app-page="others" hidden>
+<div class="grid grid-cols-1 lg:grid-cols-2 gap-[22px] items-start">
+<section class="box-border w-full h-fit shrink-0 flex flex-col bg-[#FFFFFF] [outline:1px_solid_#E3EAE1] [outline-offset:-0.5px] rounded-[8px] overflow-hidden" id="others-settings-card">
+<div class="box-border w-full h-fit shrink-0 flex flex-col gap-[16px] p-[18px] justify-start items-start gap-[18px]">
+<div class="box-border w-full flex flex-col gap-[6px] items-start">
+<div class="text-[14.5px] leading-normal text-[#12261A] font-['Funnel_Sans',system-ui,sans-serif] font-semibold text-left whitespace-nowrap" data-i18n="page.others">page.others</div>
+<div class="text-[12px]/[17px] text-[#7C9285] font-[Geist,system-ui,sans-serif] font-normal text-left" data-i18n="page.others.hint">page.others.hint</div>
+</div>
+<div class="box-border w-full h-[1px] shrink-0 bg-[#E3EAE1]"></div>
+<div class="text-[11.5px]/[16px] text-[#7C9285] font-[Geist,system-ui,sans-serif] font-normal text-left" data-i18n="hint.othersHotWords">hint.othersHotWords</div>
+<div class="box-border w-full flex flex-col gap-[6px] justify-start items-start">
+<label class="text-[12.5px] leading-normal text-[#3F5B49] font-[Geist,system-ui,sans-serif] font-medium text-left" for="others-asr-backend" data-i18n="label.othersAsrBackend">label.othersAsrBackend</label>
+<select id="others-asr-backend" class="box-border w-full h-[36px] px-[11px] bg-[#FFFFFF] [outline:1px_solid_#CBD9C7] [outline-offset:-0.5px] rounded-[4px] text-[13px] leading-normal text-[#12261A] font-[Geist,system-ui,sans-serif]" onchange="onSettingChange()" data-restart-required="true">
+  <option value="" selected data-i18n="option.othersAsrFollow">option.othersAsrFollow</option>
+  <option value="qwen_audio3">qwen_audio3</option>
+  <option value="soniox">soniox</option>
+  <option value="dashscope">dashscope</option>
+  <option value="qwen">qwen</option>
+  <option value="doubao_file">doubao_file</option>
+  <option value="custom_audio">custom_audio</option>
+  <option value="custom_stt">custom_stt</option>
+</select>
+<div class="text-[11.5px]/[16px] text-[#7C9285] font-[Geist,system-ui,sans-serif] font-normal text-left" data-i18n="hint.othersAsrBackend">hint.othersAsrBackend</div>
+</div>
+<div class="box-border w-full flex flex-col gap-[6px] justify-start items-start">
+<div class="text-[12.5px] leading-normal text-[#3F5B49] font-[Geist,system-ui,sans-serif] font-medium text-left" data-i18n="label.othersTargetLanguage">label.othersTargetLanguage</div>
+<div class="language-combo relative w-full"><input type="text" class="language-combo-input box-border w-full h-[36px] px-[11px] bg-[#FFFFFF] [outline:1px_solid_#CBD9C7] [outline-offset:-0.5px] rounded-[4px] text-[13px] leading-normal text-[#12261A] font-[Geist,system-ui,sans-serif] placeholder:text-[#9AAFA1] focus:[outline:1.5px_solid_#1F7A4D]" id="others-target-language" placeholder="zh-CN" oninput="onSettingChange()" onchange="onSettingChange()"><button type="button" class="language-combo-toggle absolute right-[8px] top-1/2 -translate-y-1/2 text-[#7C9285]"><svg viewBox="0 0 24 24" class="w-[15px] h-[15px]" fill="none" stroke="currentColor" stroke-width="2"><path d="m6 9 6 6 6-6"/></svg></button></div>
+<div class="text-[11.5px]/[16px] text-[#7C9285] font-[Geist,system-ui,sans-serif] font-normal text-left" data-i18n="hint.othersTargetLanguage">hint.othersTargetLanguage</div>
+</div>
+<div class="box-border w-full flex flex-col gap-[8px] justify-start items-start">
+<div class="text-[12.5px] leading-normal text-[#3F5B49] font-[Geist,system-ui,sans-serif] font-medium text-left" data-i18n="label.othersStatus">label.othersStatus</div>
+<div id="others-status-text" class="text-[12px] leading-normal text-[#12261A] font-[Geist,system-ui,sans-serif] font-medium text-left">-</div>
+<div class="text-[11.5px]/[16px] text-[#7C9285] font-[Geist,system-ui,sans-serif] font-normal text-left" data-i18n="hint.othersStatus">hint.othersStatus</div>
+</div>
+<div id="smart-target-language-section" class="w-full flex flex-col gap-[14px]">
+    
+    <div class="box-border w-full flex flex-row justify-between items-center cursor-pointer" onclick="toggleCollapsible('smart-target-settings')">
+      <div class="flex flex-row gap-[8px] items-center">
+        <span class="text-[13px] leading-normal text-[#12261A] font-['Funnel_Sans',system-ui,sans-serif] font-semibold text-left" data-i18n="section.smartTargetLanguage">section.smartTargetLanguage</span>
+        <span id="smart-target-activated-badge" class="inline-flex items-center h-[22px] px-[9px] bg-[#E4F2E8] rounded-[999px] text-[11px] leading-none text-[#0D3A23] font-[Geist,system-ui,sans-serif] font-medium hidden" data-i18n="badge.activated">badge.activated</span>
+      </div>
+      <span class="collapse-icon w-[17px] h-[17px] flex items-center justify-center text-[#7C9285]" id="smart-target-settings-icon"><svg data-icon-name="chevron-up" data-icon-set="lucide" viewBox="0 0 14 14" class="box-border w-[17px] shrink-0 h-[17px]"><path d="M3.5 8.75 7 5.25l3.5 3.5" fill="none" stroke="#7C9285" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+    </div>
+    <div class="collapsible-content" id="smart-target-settings">
+      <div class="w-full flex flex-col gap-[14px]">
+        <label class="box-border w-full flex flex-row gap-[12px] justify-start items-start cursor-pointer items-start">
+<div class="box-border [flex:1_1_0] h-fit flex flex-col gap-[3px] justify-start items-start">
+<div class="text-[12.5px] leading-normal text-[#3F5B49] font-[Geist,system-ui,sans-serif] font-medium text-left" data-i18n="label.smartTargetPrimaryEnabled">label.smartTargetPrimaryEnabled</div>
+
+</div>
+<input type="checkbox" class="peer sr-only" id="smart-target-primary-enabled" checked onchange="onSettingChange()"><span class="box-border w-[18px] h-[18px] shrink-0 mt-[1px] flex items-center justify-center bg-[#FFFFFF] [outline:1.5px_solid_#CBD9C7] [outline-offset:-0.75px] rounded-[4px] text-[#FFFFFF]"><svg viewBox="0 0 24 24" class="w-[13px] h-[13px] opacity-0" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg></span>
+</label>
+        <label class="box-border w-full flex flex-row gap-[12px] justify-start items-start cursor-pointer items-start">
+<div class="box-border [flex:1_1_0] h-fit flex flex-col gap-[3px] justify-start items-start">
+<div class="text-[12.5px] leading-normal text-[#3F5B49] font-[Geist,system-ui,sans-serif] font-medium text-left" data-i18n="label.smartTargetSecondaryEnabled">label.smartTargetSecondaryEnabled</div>
+
+</div>
+<input type="checkbox" class="peer sr-only" id="smart-target-secondary-enabled" onchange="onSettingChange()"><span class="box-border w-[18px] h-[18px] shrink-0 mt-[1px] flex items-center justify-center bg-[#FFFFFF] [outline:1.5px_solid_#CBD9C7] [outline-offset:-0.75px] rounded-[4px] text-[#FFFFFF]"><svg viewBox="0 0 24 24" class="w-[13px] h-[13px] opacity-0" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg></span>
+</label>
+        <label class="box-border w-full flex flex-row gap-[12px] justify-start items-start cursor-pointer items-start">
+<div class="box-border [flex:1_1_0] h-fit flex flex-col gap-[3px] justify-start items-start">
+<div class="text-[12.5px] leading-normal text-[#3F5B49] font-[Geist,system-ui,sans-serif] font-medium text-left" data-i18n="label.excludeSelfLanguage">label.excludeSelfLanguage</div>
+<div class="text-[11.5px]/[16px] text-[#7C9285] font-[Geist,system-ui,sans-serif] font-normal text-left" data-i18n="hint.excludeSelfLanguage">hint.excludeSelfLanguage</div>
+</div>
+<input type="checkbox" class="peer sr-only" id="smart-target-exclude-self" checked onchange="onSettingChange()"><span class="box-border w-[18px] h-[18px] shrink-0 mt-[1px] flex items-center justify-center bg-[#FFFFFF] [outline:1.5px_solid_#CBD9C7] [outline-offset:-0.75px] rounded-[4px] text-[#FFFFFF]"><svg viewBox="0 0 24 24" class="w-[13px] h-[13px] opacity-0" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg></span>
+</label>
+        <div class="box-border w-full flex flex-col gap-[6px] justify-start items-start">
+<label class="text-[12.5px] leading-normal text-[#3F5B49] font-[Geist,system-ui,sans-serif] font-medium text-left" data-i18n="label.smartTargetStrategy" for="smart-target-strategy">label.smartTargetStrategy</label>
+<select class="box-border w-full h-[36px] px-[11px] bg-[#FFFFFF] [outline:1px_solid_#CBD9C7] [outline-offset:-0.5px] rounded-[4px] text-[13px] leading-normal text-[#12261A] font-[Geist,system-ui,sans-serif] placeholder:text-[#9AAFA1] focus:[outline:1.5px_solid_#1F7A4D] appearance-none pr-[30px]" id="smart-target-strategy" onchange="onSettingChange()"><option value="most_common" selected data-i18n="option.strategy.mostCommon">option.strategy.mostCommon</option><option value="latest" data-i18n="option.strategy.latest">option.strategy.latest</option><option value="weighted" data-i18n="option.strategy.weighted">option.strategy.weighted</option></select>
+
+</div>
+        <div class="grid grid-cols-2 gap-[12px] w-full">
+          <div class="box-border w-full flex flex-col gap-[6px] justify-start items-start">
+<label class="text-[12.5px] leading-normal text-[#3F5B49] font-[Geist,system-ui,sans-serif] font-medium text-left" data-i18n="label.smartTargetWindowSize" for="smart-target-window-size">label.smartTargetWindowSize</label>
+<input type="number" class="box-border w-full h-[36px] px-[11px] bg-[#FFFFFF] [outline:1px_solid_#CBD9C7] [outline-offset:-0.5px] rounded-[4px] text-[13px] leading-normal text-[#12261A] font-[Geist,system-ui,sans-serif] placeholder:text-[#9AAFA1] focus:[outline:1.5px_solid_#1F7A4D]" id="smart-target-window-size" min="1" max="100" step="1" value="5" onchange="onSettingChange()">
+
+</div>
+          <div class="box-border w-full flex flex-col gap-[6px] justify-start items-start">
+<label class="text-[12.5px] leading-normal text-[#3F5B49] font-[Geist,system-ui,sans-serif] font-medium text-left" data-i18n="label.smartTargetMinSamples" for="smart-target-min-samples">label.smartTargetMinSamples</label>
+<input type="number" class="box-border w-full h-[36px] px-[11px] bg-[#FFFFFF] [outline:1px_solid_#CBD9C7] [outline-offset:-0.5px] rounded-[4px] text-[13px] leading-normal text-[#12261A] font-[Geist,system-ui,sans-serif] placeholder:text-[#9AAFA1] focus:[outline:1.5px_solid_#1F7A4D]" id="smart-target-min-samples" min="1" max="50" step="1" value="3" onchange="onSettingChange()">
+
+</div>
+        </div>
+        <div class="box-border w-full flex flex-col gap-[6px] justify-start items-start">
+<label class="text-[12.5px] leading-normal text-[#3F5B49] font-[Geist,system-ui,sans-serif] font-medium text-left" data-i18n="label.recentLanguages">label.recentLanguages</label>
+<div id="smart-target-recent-langs" class="flex flex-row flex-wrap gap-[6px]"></div>
+<div class="text-[11.5px]/[16px] text-[#7C9285] font-[Geist,system-ui,sans-serif] font-normal text-left" data-i18n="hint.noRecentLanguages">hint.noRecentLanguages</div>
+</div>
+      </div>
+    </div>
+  </div>
+</div>
+</section>
+<section class="box-border w-full h-fit shrink-0 flex flex-col bg-[#FFFFFF] [outline:1px_solid_#E3EAE1] [outline-offset:-0.5px] rounded-[8px] overflow-hidden" id="others-panel-settings-section">
+<div class="box-border w-full flex flex-row gap-[14px] p-[16px_18px] justify-between items-center cursor-pointer" onclick="toggleCollapsible('others-panel-settings')">
+<div class="box-border [flex:1_1_0] h-fit flex flex-col gap-[3px] justify-start items-start">
+<div class="text-[14.5px] leading-normal text-[#12261A] font-['Funnel_Sans',system-ui,sans-serif] font-semibold text-left whitespace-nowrap" data-i18n="section.quickLangButtons">section.quickLangButtons</div>
+<div class="text-[12px]/[17px] text-[#7C9285] font-[Geist,system-ui,sans-serif] font-normal text-left" data-i18n="hint.othersPanelSettings">hint.othersPanelSettings</div>
+</div>
+<span class="collapse-icon w-[17px] h-[17px] flex items-center justify-center text-[#7C9285]" id="others-panel-settings-icon"><svg data-icon-name="chevron-up" data-icon-set="lucide" viewBox="0 0 14 14" class="box-border w-[17px] shrink-0 h-[17px]"><path d="M3.5 8.75 7 5.25l3.5 3.5" fill="none" stroke="#7C9285" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+</div>
+<div class="box-border w-full h-[1px] shrink-0 bg-[#E3EAE1]"></div>
+<div class="collapsible-content" id="others-panel-settings"><div class="box-border w-full h-fit shrink-0 flex flex-col gap-[16px] p-[18px] justify-start items-start">
+<label class="box-border w-full flex flex-row gap-[12px] justify-start items-start cursor-pointer items-start">
+<div class="box-border [flex:1_1_0] h-fit flex flex-col gap-[3px] justify-start items-start">
+<div class="text-[12.5px] leading-normal text-[#3F5B49] font-[Geist,system-ui,sans-serif] font-medium text-left" data-i18n="label.floatingPanelMode">label.floatingPanelMode</div>
+<div class="text-[11.5px]/[16px] text-[#7C9285] font-[Geist,system-ui,sans-serif] font-normal text-left" data-i18n="hint.floatingPanelMode">hint.floatingPanelMode</div>
+</div>
+<input type="checkbox" class="peer sr-only panel-setting-mirror" id="others-panel-floating-mode" data-mirror-of="panel-floating-mode" checked onchange="syncPanelSettingMirror(this); onPanelFloatingModeChange()"><span class="box-border w-[18px] h-[18px] shrink-0 mt-[1px] flex items-center justify-center bg-[#FFFFFF] [outline:1.5px_solid_#CBD9C7] [outline-offset:-0.75px] rounded-[4px] text-[#FFFFFF]"><svg viewBox="0 0 24 24" class="w-[13px] h-[13px] opacity-0" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg></span>
+</label>
+<label class="box-border w-full flex flex-row gap-[12px] justify-start items-start cursor-pointer items-start">
+<div class="box-border [flex:1_1_0] h-fit flex flex-col gap-[3px] justify-start items-start">
+<div class="text-[12.5px] leading-normal text-[#3F5B49] font-[Geist,system-ui,sans-serif] font-medium text-left" data-i18n="label.enableQuickLangBar">label.enableQuickLangBar</div>
+<div class="text-[11.5px]/[16px] text-[#7C9285] font-[Geist,system-ui,sans-serif] font-normal text-left" data-i18n="hint.quickLangButtons">hint.quickLangButtons</div>
+</div>
+<input type="checkbox" class="peer sr-only panel-setting-mirror" id="others-enable-quick-lang-bar" data-mirror-of="enable-quick-lang-bar" checked onchange="syncPanelSettingMirror(this); onEnableQuickLangBarChange()"><span class="box-border w-[18px] h-[18px] shrink-0 mt-[1px] flex items-center justify-center bg-[#FFFFFF] [outline:1.5px_solid_#CBD9C7] [outline-offset:-0.75px] rounded-[4px] text-[#FFFFFF]"><svg viewBox="0 0 24 24" class="w-[13px] h-[13px] opacity-0" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg></span>
+</label>
+<label class="box-border w-full flex flex-row gap-[12px] justify-start items-start cursor-pointer items-start">
+<div class="box-border [flex:1_1_0] h-fit flex flex-col gap-[3px] justify-start items-start">
+<div class="text-[12.5px] leading-normal text-[#3F5B49] font-[Geist,system-ui,sans-serif] font-medium text-left" data-i18n="label.reverseTranslation">label.reverseTranslation</div>
+<div class="text-[11.5px]/[16px] text-[#7C9285] font-[Geist,system-ui,sans-serif] font-normal text-left" data-i18n="hint.reverseTranslation">hint.reverseTranslation</div>
+</div>
+<input type="checkbox" class="peer sr-only panel-setting-mirror" id="others-enable-reverse-translation" data-mirror-of="enable-reverse-translation" onchange="syncPanelSettingMirror(this); onSettingChange()"><span class="box-border w-[18px] h-[18px] shrink-0 mt-[1px] flex items-center justify-center bg-[#FFFFFF] [outline:1.5px_solid_#CBD9C7] [outline-offset:-0.75px] rounded-[4px] text-[#FFFFFF]"><svg viewBox="0 0 24 24" class="w-[13px] h-[13px] opacity-0" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg></span>
+</label>
+<div class="grid grid-cols-4 gap-[10px] w-full">
+  <div class="box-border w-full flex flex-col gap-[6px] justify-start items-start">
+<div class="text-[12.5px] leading-normal text-[#3F5B49] font-[Geist,system-ui,sans-serif] font-medium text-left" data-i18n="label.quickLangSlot">label.quickLangSlot</div>
+<input type="text" class="box-border w-full h-[36px] px-[11px] bg-[#FFFFFF] [outline:1px_solid_#CBD9C7] [outline-offset:-0.5px] rounded-[4px] text-[13px] leading-normal text-[#12261A] font-[Geist,system-ui,sans-serif] placeholder:text-[#9AAFA1] focus:[outline:1.5px_solid_#1F7A4D] panel-setting-mirror" id="others-quick-lang-1" data-mirror-of="quick-lang-1" placeholder="en" onblur="syncPanelSettingMirror(this); onSettingChange()" onchange="syncPanelSettingMirror(this); onQuickLangChange()">
+</div>
+  <div class="box-border w-full flex flex-col gap-[6px] justify-start items-start">
+<div class="text-[12.5px] leading-normal text-[#3F5B49] font-[Geist,system-ui,sans-serif] font-medium text-left" data-i18n="label.quickLangSlot">label.quickLangSlot</div>
+<input type="text" class="box-border w-full h-[36px] px-[11px] bg-[#FFFFFF] [outline:1px_solid_#CBD9C7] [outline-offset:-0.5px] rounded-[4px] text-[13px] leading-normal text-[#12261A] font-[Geist,system-ui,sans-serif] placeholder:text-[#9AAFA1] focus:[outline:1.5px_solid_#1F7A4D] panel-setting-mirror" id="others-quick-lang-2" data-mirror-of="quick-lang-2" placeholder="zh-CN" onblur="syncPanelSettingMirror(this); onSettingChange()" onchange="syncPanelSettingMirror(this); onQuickLangChange()">
+</div>
+  <div class="box-border w-full flex flex-col gap-[6px] justify-start items-start">
+<div class="text-[12.5px] leading-normal text-[#3F5B49] font-[Geist,system-ui,sans-serif] font-medium text-left" data-i18n="label.quickLangSlot">label.quickLangSlot</div>
+<input type="text" class="box-border w-full h-[36px] px-[11px] bg-[#FFFFFF] [outline:1px_solid_#CBD9C7] [outline-offset:-0.5px] rounded-[4px] text-[13px] leading-normal text-[#12261A] font-[Geist,system-ui,sans-serif] placeholder:text-[#9AAFA1] focus:[outline:1.5px_solid_#1F7A4D] panel-setting-mirror" id="others-quick-lang-3" data-mirror-of="quick-lang-3" placeholder="ja" onblur="syncPanelSettingMirror(this); onSettingChange()" onchange="syncPanelSettingMirror(this); onQuickLangChange()">
+</div>
+  <div class="box-border w-full flex flex-col gap-[6px] justify-start items-start">
+<div class="text-[12.5px] leading-normal text-[#3F5B49] font-[Geist,system-ui,sans-serif] font-medium text-left" data-i18n="label.quickLangSlot">label.quickLangSlot</div>
+<input type="text" class="box-border w-full h-[36px] px-[11px] bg-[#FFFFFF] [outline:1px_solid_#CBD9C7] [outline-offset:-0.5px] rounded-[4px] text-[13px] leading-normal text-[#12261A] font-[Geist,system-ui,sans-serif] placeholder:text-[#9AAFA1] focus:[outline:1.5px_solid_#1F7A4D] panel-setting-mirror" id="others-quick-lang-4" data-mirror-of="quick-lang-4" placeholder="ko" onblur="syncPanelSettingMirror(this); onSettingChange()" onchange="syncPanelSettingMirror(this); onQuickLangChange()">
+</div>
+</div>
+<button type="button" class="box-border h-[38px] px-[16px] inline-flex items-center justify-center gap-[7px] bg-[#1F7A4D] rounded-[4px] text-[13px] leading-none text-[#FFFFFF] font-[Geist,system-ui,sans-serif] font-semibold cursor-pointer border-0 self-start desktop-only" onclick="openMiniPanel('others')" data-i18n="btn.openOthersPanel">btn.openOthersPanel</button>
+</div></div>
+</section>
+</div>
+</div>
+<div id="page-screen" class="app-page" data-app-page="screen" hidden>
+<div class="grid grid-cols-1 lg:grid-cols-2 gap-[22px] items-start">
+<section class="box-border w-full h-fit shrink-0 flex flex-col bg-[#FFFFFF] [outline:1px_solid_#E3EAE1] [outline-offset:-0.5px] rounded-[8px] overflow-hidden" id="screen-settings-card">
+<div class="box-border w-full h-fit shrink-0 flex flex-col gap-[16px] p-[18px] justify-start items-start gap-[18px]">
+<div class="box-border w-full flex flex-col gap-[6px] items-start">
+<div class="text-[14.5px] leading-normal text-[#12261A] font-['Funnel_Sans',system-ui,sans-serif] font-semibold text-left whitespace-nowrap" data-i18n="page.screen">page.screen</div>
+<div class="text-[12px]/[17px] text-[#7C9285] font-[Geist,system-ui,sans-serif] font-normal text-left" data-i18n="page.screen.desc">page.screen.desc</div>
+</div>
+<div class="box-border w-full h-[1px] shrink-0 bg-[#E3EAE1]"></div>
+<div class="box-border w-full flex flex-col gap-[6px] justify-start items-start">
+<div class="text-[12.5px] leading-normal text-[#3F5B49] font-[Geist,system-ui,sans-serif] font-medium text-left" data-i18n="label.screenTargetLanguage">label.screenTargetLanguage</div>
+<div class="language-combo relative w-full"><input type="text" class="language-combo-input box-border w-full h-[36px] px-[11px] bg-[#FFFFFF] [outline:1px_solid_#CBD9C7] [outline-offset:-0.5px] rounded-[4px] text-[13px] leading-normal text-[#12261A] font-[Geist,system-ui,sans-serif] placeholder:text-[#9AAFA1] focus:[outline:1.5px_solid_#1F7A4D]" id="screen-target-language" placeholder="zh-CN" oninput="onSettingChange()" onchange="onSettingChange()"><button type="button" class="language-combo-toggle absolute right-[8px] top-1/2 -translate-y-1/2 text-[#7C9285]"><svg viewBox="0 0 24 24" class="w-[15px] h-[15px]" fill="none" stroke="currentColor" stroke-width="2"><path d="m6 9 6 6 6-6"/></svg></button></div>
+<div class="text-[11.5px]/[16px] text-[#7C9285] font-[Geist,system-ui,sans-serif] font-normal text-left" data-i18n="hint.screenTargetLanguage">hint.screenTargetLanguage</div>
+</div>
+<div class="box-border w-full flex flex-col gap-[6px] justify-start items-start">
+<label class="text-[12.5px] leading-normal text-[#3F5B49] font-[Geist,system-ui,sans-serif] font-medium text-left" for="screen-hotkey" data-i18n="label.screenHotkey">label.screenHotkey</label>
+<input type="text" class="box-border w-full h-[36px] px-[11px] bg-[#FFFFFF] [outline:1px_solid_#CBD9C7] [outline-offset:-0.5px] rounded-[4px] text-[13px] leading-normal text-[#12261A] font-[Geist,system-ui,sans-serif] placeholder:text-[#9AAFA1] focus:[outline:1.5px_solid_#1F7A4D]" id="screen-hotkey" placeholder="Ctrl+Alt+F8" value="Ctrl+Alt+F8" onblur="onSettingChange()" data-restart-required="true">
+<div class="text-[11.5px]/[16px] text-[#7C9285] font-[Geist,system-ui,sans-serif] font-normal text-left" data-i18n="hint.screenHotkey">hint.screenHotkey</div>
+</div>
+<p class="m-0 text-[11.5px]/[16px] text-[#7C9285] font-[Geist,system-ui,sans-serif] font-normal text-left" data-i18n="page.screen.hint">page.screen.hint</p>
+<button type="button" class="box-border h-[38px] px-[16px] inline-flex items-center justify-center gap-[7px] bg-[#1F7A4D] rounded-[4px] text-[13px] leading-none text-[#FFFFFF] font-[Geist,system-ui,sans-serif] font-semibold cursor-pointer border-0 self-start desktop-only" onclick="openMiniPanel('screen')" data-i18n="btn.openScreenPanel">btn.openScreenPanel</button>
+</div>
+</section>
+</div>
+</div>
+<div id="page-advanced" class="app-page" data-app-page="advanced" hidden>
+<section class="box-border w-full h-fit shrink-0 flex flex-col bg-[#FFFFFF] [outline:1px_solid_#E3EAE1] [outline-offset:-0.5px] rounded-[8px] overflow-hidden" id="advanced-settings-card">
+<div class="box-border w-full flex flex-row gap-[14px] p-[16px_18px] justify-between items-center cursor-pointer" onclick="toggleCollapsible('advanced-settings')">
+<div class="box-border [flex:1_1_0] h-fit flex flex-col gap-[3px] justify-start items-start">
+<div class="text-[14.5px] leading-normal text-[#12261A] font-['Funnel_Sans',system-ui,sans-serif] font-semibold text-left whitespace-nowrap" data-i18n="section.advancedSettings">section.advancedSettings</div>
+<div class="text-[12px]/[17px] text-[#7C9285] font-[Geist,system-ui,sans-serif] font-normal text-left" data-i18n="hint.advancedSettings">hint.advancedSettings</div>
+</div>
+<span class="collapse-icon w-[17px] h-[17px] flex items-center justify-center text-[#7C9285]" id="advanced-settings-icon"><svg data-icon-name="chevron-up" data-icon-set="lucide" viewBox="0 0 14 14" class="box-border w-[17px] shrink-0 h-[17px]"><path d="M3.5 8.75 7 5.25l3.5 3.5" fill="none" stroke="#7C9285" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+</div>
+<div class="box-border w-full h-[1px] shrink-0 bg-[#E3EAE1]"></div>
+<div class="collapsible-content" id="advanced-settings"><div class="box-border w-full h-fit shrink-0 flex flex-col gap-[16px] p-[18px] justify-start items-start">
+<div class="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-4 gap-[16px] w-full">
+<div class="box-border w-full flex flex-col gap-[12px] p-[14px] bg-[#F4F7F3] rounded-[6px]">
+<div class="text-[13px] leading-normal text-[#12261A] font-['Funnel_Sans',system-ui,sans-serif] font-semibold text-left" data-i18n="subsection.display">subsection.display</div>
+<div class="box-border w-full flex flex-col gap-[6px] justify-start items-start">
+<label class="text-[12.5px] leading-normal text-[#3F5B49] font-[Geist,system-ui,sans-serif] font-medium text-left" data-i18n="label.panelWidth" for="panel-width">label.panelWidth</label>
+<input type="number" class="box-border w-full h-[36px] px-[11px] bg-[#FFFFFF] [outline:1px_solid_#CBD9C7] [outline-offset:-0.5px] rounded-[4px] text-[13px] leading-normal text-[#12261A] font-[Geist,system-ui,sans-serif] placeholder:text-[#9AAFA1] focus:[outline:1.5px_solid_#1F7A4D]" id="panel-width" min="300" max="2000" step="20" value="600" onchange="onSettingChange()">
+<div class="text-[11.5px]/[16px] text-[#7C9285] font-[Geist,system-ui,sans-serif] font-normal text-left" data-i18n="hint.panelWidth">hint.panelWidth</div>
+</div><label class="box-border w-full flex flex-row gap-[12px] justify-start items-start cursor-pointer items-start">
+<div class="box-border [flex:1_1_0] h-fit flex flex-col gap-[3px] justify-start items-start">
+<div class="text-[12.5px] leading-normal text-[#3F5B49] font-[Geist,system-ui,sans-serif] font-medium text-left" data-i18n="label.showVrcxBridgeButton">label.showVrcxBridgeButton</div>
+<div class="text-[11.5px]/[16px] text-[#7C9285] font-[Geist,system-ui,sans-serif] font-normal text-left" data-i18n="hint.showVrcxBridgeButton">hint.showVrcxBridgeButton</div>
+</div>
+<input type="checkbox" class="peer sr-only" id="show-vrcx-bridge-button" onchange="onVrcxBridgeVisibilityChange()"><span class="box-border w-[18px] h-[18px] shrink-0 mt-[1px] flex items-center justify-center bg-[#FFFFFF] [outline:1.5px_solid_#CBD9C7] [outline-offset:-0.75px] rounded-[4px] text-[#FFFFFF]"><svg viewBox="0 0 24 24" class="w-[13px] h-[13px] opacity-0" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg></span>
+</label>
+</div>
+<div class="box-border w-full flex flex-col gap-[12px] p-[14px] bg-[#F4F7F3] rounded-[6px]">
+<div class="text-[13px] leading-normal text-[#12261A] font-['Funnel_Sans',system-ui,sans-serif] font-semibold text-left" data-i18n="subsection.micControl">subsection.micControl</div>
+<div class="box-border w-full flex flex-col gap-[6px] justify-start items-start">
+<label class="text-[12.5px] leading-normal text-[#3F5B49] font-[Geist,system-ui,sans-serif] font-medium text-left" data-i18n="label.muteDelay" for="mute-delay">label.muteDelay</label>
+<input type="number" class="box-border w-full h-[36px] px-[11px] bg-[#FFFFFF] [outline:1px_solid_#CBD9C7] [outline-offset:-0.5px] rounded-[4px] text-[13px] leading-normal text-[#12261A] font-[Geist,system-ui,sans-serif] placeholder:text-[#9AAFA1] focus:[outline:1.5px_solid_#1F7A4D]" id="mute-delay" min="0" max="5" step="0.1" value="0.2" onchange="onSettingChange()">
+<div class="text-[11.5px]/[16px] text-[#7C9285] font-[Geist,system-ui,sans-serif] font-normal text-left" data-i18n="hint.muteDelay">hint.muteDelay</div>
+</div><label class="box-border w-full flex flex-row gap-[12px] justify-start items-start cursor-pointer items-start">
+<div class="box-border [flex:1_1_0] h-fit flex flex-col gap-[3px] justify-start items-start">
+<div class="text-[12.5px] leading-normal text-[#3F5B49] font-[Geist,system-ui,sans-serif] font-medium text-left" data-i18n="label.doubleMuteClear">label.doubleMuteClear</div>
+<div class="text-[11.5px]/[16px] text-[#7C9285] font-[Geist,system-ui,sans-serif] font-normal text-left" data-i18n="hint.doubleMuteClear">hint.doubleMuteClear</div>
+</div>
+<input type="checkbox" class="peer sr-only" id="enable-double-mute-clear" checked onchange="onSettingChange()"><span class="box-border w-[18px] h-[18px] shrink-0 mt-[1px] flex items-center justify-center bg-[#FFFFFF] [outline:1.5px_solid_#CBD9C7] [outline-offset:-0.75px] rounded-[4px] text-[#FFFFFF]"><svg viewBox="0 0 24 24" class="w-[13px] h-[13px] opacity-0" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg></span>
+</label>
+</div>
+<div class="box-border w-full flex flex-col gap-[12px] p-[14px] bg-[#F4F7F3] rounded-[6px]">
+<div class="text-[13px] leading-normal text-[#12261A] font-['Funnel_Sans',system-ui,sans-serif] font-semibold text-left" data-i18n="subsection.vad">subsection.vad</div>
+<label class="box-border w-full flex flex-row gap-[12px] justify-start items-start cursor-pointer items-start">
+<div class="box-border [flex:1_1_0] h-fit flex flex-col gap-[3px] justify-start items-start">
+<div class="text-[12.5px] leading-normal text-[#3F5B49] font-[Geist,system-ui,sans-serif] font-medium text-left" data-i18n="label.vadEnabled">label.vadEnabled</div>
+<div class="text-[11.5px]/[16px] text-[#7C9285] font-[Geist,system-ui,sans-serif] font-normal text-left" data-i18n="hint.vadEnabled">hint.vadEnabled</div>
+</div>
+<input type="checkbox" class="peer sr-only" id="vad-enabled" checked onchange="onSettingChange()" data-restart-required="true"><span class="box-border w-[18px] h-[18px] shrink-0 mt-[1px] flex items-center justify-center bg-[#FFFFFF] [outline:1.5px_solid_#CBD9C7] [outline-offset:-0.75px] rounded-[4px] text-[#FFFFFF]"><svg viewBox="0 0 24 24" class="w-[13px] h-[13px] opacity-0" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg></span>
+</label><div class="box-border w-full flex flex-col gap-[6px] justify-start items-start">
+<label class="text-[12.5px] leading-normal text-[#3F5B49] font-[Geist,system-ui,sans-serif] font-medium text-left" data-i18n="label.vadMode" for="vad-mode">label.vadMode</label>
+<select class="box-border w-full h-[36px] px-[11px] bg-[#FFFFFF] [outline:1px_solid_#CBD9C7] [outline-offset:-0.5px] rounded-[4px] text-[13px] leading-normal text-[#12261A] font-[Geist,system-ui,sans-serif] placeholder:text-[#9AAFA1] focus:[outline:1.5px_solid_#1F7A4D] appearance-none pr-[30px]" id="vad-mode" onchange="onSettingChange()" data-restart-required="true"><option value="silero" selected data-i18n="option.localVadSilero">option.localVadSilero</option><option value="energy" data-i18n="option.localVadEnergy">option.localVadEnergy</option></select>
+<div class="text-[11.5px]/[16px] text-[#7C9285] font-[Geist,system-ui,sans-serif] font-normal text-left" data-i18n="hint.vadMode">hint.vadMode</div>
+</div><div class="box-border w-full flex flex-col gap-[6px] justify-start items-start">
+<label class="text-[12.5px] leading-normal text-[#3F5B49] font-[Geist,system-ui,sans-serif] font-medium text-left" data-i18n="label.vadThreshold" for="vad-threshold">label.vadThreshold</label>
+<input type="number" class="box-border w-full h-[36px] px-[11px] bg-[#FFFFFF] [outline:1px_solid_#CBD9C7] [outline-offset:-0.5px] rounded-[4px] text-[13px] leading-normal text-[#12261A] font-[Geist,system-ui,sans-serif] placeholder:text-[#9AAFA1] focus:[outline:1.5px_solid_#1F7A4D]" id="vad-threshold" min="0" max="1" step="0.05" value="0.5" onchange="onSettingChange()" data-restart-required="true">
+<div class="text-[11.5px]/[16px] text-[#7C9285] font-[Geist,system-ui,sans-serif] font-normal text-left" data-i18n="hint.vadThreshold">hint.vadThreshold</div>
+</div><div class="box-border w-full flex flex-col gap-[6px] justify-start items-start">
+<label class="text-[12.5px] leading-normal text-[#3F5B49] font-[Geist,system-ui,sans-serif] font-medium text-left" data-i18n="label.localMinSpeechDuration" for="vad-min-speech-duration">label.localMinSpeechDuration</label>
+<input type="number" class="box-border w-full h-[36px] px-[11px] bg-[#FFFFFF] [outline:1px_solid_#CBD9C7] [outline-offset:-0.5px] rounded-[4px] text-[13px] leading-normal text-[#12261A] font-[Geist,system-ui,sans-serif] placeholder:text-[#9AAFA1] focus:[outline:1.5px_solid_#1F7A4D]" id="vad-min-speech-duration" min="0.1" max="30" step="0.1" value="1" onchange="onSettingChange()" data-restart-required="true">
+
+</div><div class="box-border w-full flex flex-col gap-[6px] justify-start items-start">
+<label class="text-[12.5px] leading-normal text-[#3F5B49] font-[Geist,system-ui,sans-serif] font-medium text-left" data-i18n="label.localMaxSpeechDuration" for="vad-max-speech-duration">label.localMaxSpeechDuration</label>
+<input type="number" class="box-border w-full h-[36px] px-[11px] bg-[#FFFFFF] [outline:1px_solid_#CBD9C7] [outline-offset:-0.5px] rounded-[4px] text-[13px] leading-normal text-[#12261A] font-[Geist,system-ui,sans-serif] placeholder:text-[#9AAFA1] focus:[outline:1.5px_solid_#1F7A4D]" id="vad-max-speech-duration" min="1" max="120" step="0.5" value="30" onchange="onSettingChange()" data-restart-required="true">
+
+</div><div class="box-border w-full flex flex-col gap-[6px] justify-start items-start">
+<label class="text-[12.5px] leading-normal text-[#3F5B49] font-[Geist,system-ui,sans-serif] font-medium text-left" data-i18n="label.localSilenceDuration" for="vad-silence-duration">label.localSilenceDuration</label>
+<input type="number" class="box-border w-full h-[36px] px-[11px] bg-[#FFFFFF] [outline:1px_solid_#CBD9C7] [outline-offset:-0.5px] rounded-[4px] text-[13px] leading-normal text-[#12261A] font-[Geist,system-ui,sans-serif] placeholder:text-[#9AAFA1] focus:[outline:1.5px_solid_#1F7A4D]" id="vad-silence-duration" min="0.1" max="5" step="0.1" value="0.8" onchange="onSettingChange()" data-restart-required="true">
+
+</div><div class="box-border w-full flex flex-col gap-[6px] justify-start items-start">
+<label class="text-[12.5px] leading-normal text-[#3F5B49] font-[Geist,system-ui,sans-serif] font-medium text-left" data-i18n="label.localPreSpeechDuration" for="vad-pre-speech-duration">label.localPreSpeechDuration</label>
+<input type="number" class="box-border w-full h-[36px] px-[11px] bg-[#FFFFFF] [outline:1px_solid_#CBD9C7] [outline-offset:-0.5px] rounded-[4px] text-[13px] leading-normal text-[#12261A] font-[Geist,system-ui,sans-serif] placeholder:text-[#9AAFA1] focus:[outline:1.5px_solid_#1F7A4D]" id="vad-pre-speech-duration" min="0" max="2" step="0.05" value="0.2" onchange="onSettingChange()" data-restart-required="true">
+
+</div>
+</div>
+<div class="box-border w-full flex flex-col gap-[12px] p-[14px] bg-[#F4F7F3] rounded-[6px]">
+<div class="text-[13px] leading-normal text-[#12261A] font-['Funnel_Sans',system-ui,sans-serif] font-semibold text-left" data-i18n="subsection.oscNetwork">subsection.oscNetwork</div>
+<label class="box-border w-full flex flex-row gap-[12px] justify-start items-start cursor-pointer items-start">
+<div class="box-border [flex:1_1_0] h-fit flex flex-col gap-[3px] justify-start items-start">
+<div class="text-[12.5px] leading-normal text-[#3F5B49] font-[Geist,system-ui,sans-serif] font-medium text-left" data-i18n="label.enableArabicReshaper">label.enableArabicReshaper</div>
+<div class="text-[11.5px]/[16px] text-[#7C9285] font-[Geist,system-ui,sans-serif] font-normal text-left" data-i18n="hint.enableArabicReshaper">hint.enableArabicReshaper</div>
+</div>
+<input type="checkbox" class="peer sr-only" id="enable-arabic-reshaper" checked onchange="onSettingChange()"><span class="box-border w-[18px] h-[18px] shrink-0 mt-[1px] flex items-center justify-center bg-[#FFFFFF] [outline:1.5px_solid_#CBD9C7] [outline-offset:-0.75px] rounded-[4px] text-[#FFFFFF]"><svg viewBox="0 0 24 24" class="w-[13px] h-[13px] opacity-0" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg></span>
+</label><label class="box-border w-full flex flex-row gap-[12px] justify-start items-start cursor-pointer items-start">
+<div class="box-border [flex:1_1_0] h-fit flex flex-col gap-[3px] justify-start items-start">
+<div class="text-[12.5px] leading-normal text-[#3F5B49] font-[Geist,system-ui,sans-serif] font-medium text-left" data-i18n="label.oscCompatMode">label.oscCompatMode</div>
+<div class="text-[11.5px]/[16px] text-[#7C9285] font-[Geist,system-ui,sans-serif] font-normal text-left" data-i18n="hint.oscCompatMode">hint.oscCompatMode</div>
+</div>
+<input type="checkbox" class="peer sr-only" id="osc-compat-mode" onchange="updateOscCompatModeUi(); onSettingChange(this)"><span class="box-border w-[18px] h-[18px] shrink-0 mt-[1px] flex items-center justify-center bg-[#FFFFFF] [outline:1.5px_solid_#CBD9C7] [outline-offset:-0.75px] rounded-[4px] text-[#FFFFFF]"><svg viewBox="0 0 24 24" class="w-[13px] h-[13px] opacity-0" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg></span>
+</label><div id="osc-compat-listen-port-group" class="hidden w-full"><div class="box-border w-full flex flex-col gap-[6px] justify-start items-start">
+<label class="text-[12.5px] leading-normal text-[#3F5B49] font-[Geist,system-ui,sans-serif] font-medium text-left" data-i18n="label.oscCompatListenPort" for="osc-compat-listen-port">label.oscCompatListenPort</label>
+<input type="number" class="box-border w-full h-[36px] px-[11px] bg-[#FFFFFF] [outline:1px_solid_#CBD9C7] [outline-offset:-0.5px] rounded-[4px] text-[13px] leading-normal text-[#12261A] font-[Geist,system-ui,sans-serif] placeholder:text-[#9AAFA1] focus:[outline:1.5px_solid_#1F7A4D]" id="osc-compat-listen-port" min="1" max="65535" step="1" value="9001" onchange="onSettingChange()">
+<div class="text-[11.5px]/[16px] text-[#7C9285] font-[Geist,system-ui,sans-serif] font-normal text-left" data-i18n="hint.oscCompatListenPort">hint.oscCompatListenPort</div>
+</div></div><div class="box-border w-full flex flex-col gap-[6px] justify-start items-start">
+<label class="text-[12.5px] leading-normal text-[#3F5B49] font-[Geist,system-ui,sans-serif] font-medium text-left" data-i18n="label.oscSendTargetPort" for="osc-send-target-port">label.oscSendTargetPort</label>
+<input type="number" class="box-border w-full h-[36px] px-[11px] bg-[#FFFFFF] [outline:1px_solid_#CBD9C7] [outline-offset:-0.5px] rounded-[4px] text-[13px] leading-normal text-[#12261A] font-[Geist,system-ui,sans-serif] placeholder:text-[#9AAFA1] focus:[outline:1.5px_solid_#1F7A4D]" id="osc-send-target-port" min="1" max="65535" step="1" value="9000" onchange="onSettingChange()">
+<div class="text-[11.5px]/[16px] text-[#7C9285] font-[Geist,system-ui,sans-serif] font-normal text-left" data-i18n="hint.oscSendTargetPort">hint.oscSendTargetPort</div>
+</div><label class="box-border w-full flex flex-row gap-[12px] justify-start items-start cursor-pointer items-start">
+<div class="box-border [flex:1_1_0] h-fit flex flex-col gap-[3px] justify-start items-start">
+<div class="text-[12.5px] leading-normal text-[#3F5B49] font-[Geist,system-ui,sans-serif] font-medium text-left" data-i18n="label.bypassOscUdpPortCheck">label.bypassOscUdpPortCheck</div>
+<div class="text-[11.5px]/[16px] text-[#7C9285] font-[Geist,system-ui,sans-serif] font-normal text-left" data-i18n="hint.bypassOscUdpPortCheck">hint.bypassOscUdpPortCheck</div>
+</div>
+<input type="checkbox" class="peer sr-only" id="bypass-osc-udp-port-check" onchange="onSettingChange(this)"><span class="box-border w-[18px] h-[18px] shrink-0 mt-[1px] flex items-center justify-center bg-[#FFFFFF] [outline:1.5px_solid_#CBD9C7] [outline-offset:-0.75px] rounded-[4px] text-[#FFFFFF]"><svg viewBox="0 0 24 24" class="w-[13px] h-[13px] opacity-0" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg></span>
+</label><label class="box-border w-full flex flex-row gap-[12px] justify-start items-start cursor-pointer items-start">
+<div class="box-border [flex:1_1_0] h-fit flex flex-col gap-[3px] justify-start items-start">
+<div class="text-[12.5px] leading-normal text-[#3F5B49] font-[Geist,system-ui,sans-serif] font-medium text-left" data-i18n="label.oscSendErrorMessages">label.oscSendErrorMessages</div>
+<div class="text-[11.5px]/[16px] text-[#7C9285] font-[Geist,system-ui,sans-serif] font-normal text-left" data-i18n="hint.oscSendErrorMessages">hint.oscSendErrorMessages</div>
+</div>
+<input type="checkbox" class="peer sr-only" id="osc-send-error-messages" onchange="onSettingChange(this)"><span class="box-border w-[18px] h-[18px] shrink-0 mt-[1px] flex items-center justify-center bg-[#FFFFFF] [outline:1.5px_solid_#CBD9C7] [outline-offset:-0.75px] rounded-[4px] text-[#FFFFFF]"><svg viewBox="0 0 24 24" class="w-[13px] h-[13px] opacity-0" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg></span>
+</label>
+</div>
+</div>
+<div class="box-border w-full h-[1px] shrink-0 bg-[#E3EAE1]"></div>
+<div class="grid grid-cols-1 lg:grid-cols-2 gap-[16px] w-full">
+  <div class="box-border w-full flex flex-col gap-[12px] p-[14px] bg-[#F4F7F3] rounded-[6px]">
+<div class="text-[13px] leading-normal text-[#12261A] font-['Funnel_Sans',system-ui,sans-serif] font-semibold text-left" data-i18n="subsection.langDetector">subsection.langDetector</div>
+<div class="box-border w-full flex flex-col gap-[6px] justify-start items-start">
+<label class="text-[12.5px] leading-normal text-[#3F5B49] font-[Geist,system-ui,sans-serif] font-medium text-left" data-i18n="label.detectorType" for="language-detector">label.detectorType</label>
+<select class="box-border w-full h-[36px] px-[11px] bg-[#FFFFFF] [outline:1px_solid_#CBD9C7] [outline-offset:-0.5px] rounded-[4px] text-[13px] leading-normal text-[#12261A] font-[Geist,system-ui,sans-serif] placeholder:text-[#9AAFA1] focus:[outline:1.5px_solid_#1F7A4D] appearance-none pr-[30px]" id="language-detector" onchange="onSettingChange()"><option value="cjke" selected data-i18n="detector.cjke">detector.cjke</option><option value="enzh" data-i18n="detector.enzh">detector.enzh</option><option value="fasttext" data-i18n="detector.fasttext">detector.fasttext</option></select>
+
+</div>
+</div>
+  <div class="box-border w-full flex flex-col gap-[12px] p-[14px] bg-[#F4F7F3] rounded-[6px]">
+<div class="text-[13px] leading-normal text-[#12261A] font-['Funnel_Sans',system-ui,sans-serif] font-semibold text-left" data-i18n="section.maintenance">section.maintenance</div>
+<button type="button" class="box-border h-[36px] px-[14px] inline-flex items-center justify-center bg-[#FFF7E8] [outline:1px_solid_#F0D9AE] [outline-offset:-0.5px] rounded-[4px] text-[12.5px] leading-none text-[#8A4A08] font-[Geist,system-ui,sans-serif] font-medium cursor-pointer" onclick="resetToDefaults()" data-i18n="btn.resetDefaults">btn.resetDefaults</button>
+</div>
+</div>
+</div></div>
+</section>
+</div>
+<div id="page-words" class="app-page" data-app-page="words" hidden>
+<div class="grid grid-cols-1 lg:grid-cols-2 gap-[22px] items-start">
+<section class="box-border w-full h-fit shrink-0 flex flex-col bg-[#FFFFFF] [outline:1px_solid_#E3EAE1] [outline-offset:-0.5px] rounded-[8px] overflow-hidden" id="hot-words-card">
+<div class="box-border w-full h-fit shrink-0 flex flex-col gap-[16px] p-[18px] justify-start items-start gap-[18px]">
+<div class="box-border w-full flex flex-col gap-[6px] items-start">
+<div class="text-[14.5px] leading-normal text-[#12261A] font-['Funnel_Sans',system-ui,sans-serif] font-semibold text-left whitespace-nowrap" data-i18n="words.hotTitle">words.hotTitle</div>
+<div class="text-[12px]/[17px] text-[#7C9285] font-[Geist,system-ui,sans-serif] font-normal text-left" data-i18n="words.hotHint">words.hotHint</div>
+</div>
+<div class="box-border w-full h-[1px] shrink-0 bg-[#E3EAE1]"></div>
+<label class="box-border w-full flex flex-row gap-[12px] justify-start items-start cursor-pointer items-start">
+<div class="box-border [flex:1_1_0] h-fit flex flex-col gap-[3px] justify-start items-start">
+<div class="text-[12.5px] leading-normal text-[#3F5B49] font-[Geist,system-ui,sans-serif] font-medium text-left" data-i18n="label.enableHotWords">label.enableHotWords</div>
+<div class="text-[11.5px]/[16px] text-[#7C9285] font-[Geist,system-ui,sans-serif] font-normal text-left" data-i18n="hint.enableHotWords">hint.enableHotWords</div>
+</div>
+<input type="checkbox" class="peer sr-only" id="enable-hot-words" onchange="onSettingChange()" data-restart-required="true"><span class="box-border w-[18px] h-[18px] shrink-0 mt-[1px] flex items-center justify-center bg-[#FFFFFF] [outline:1.5px_solid_#CBD9C7] [outline-offset:-0.75px] rounded-[4px] text-[#FFFFFF]"><svg viewBox="0 0 24 24" class="w-[13px] h-[13px] opacity-0" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg></span>
+</label>
+<div class="box-border w-full flex flex-row gap-[8px]" id="hot-words-tabs" role="tablist">
+  <button type="button" class="simple-provider-btn box-border [flex:1_1_0] h-[38px] inline-flex items-center justify-center gap-[8px] bg-[#FFFFFF] [outline:1px_solid_#E3EAE1] [outline-offset:-0.5px] rounded-[4px] text-[12.5px] text-[#3F5B49] cursor-pointer" data-hot-lang="zh-cn" data-i18n="words.lang.zh-cn">words.lang.zh-cn</button>
+  <button type="button" class="simple-provider-btn box-border [flex:1_1_0] h-[38px] inline-flex items-center justify-center gap-[8px] bg-[#FFFFFF] [outline:1px_solid_#E3EAE1] [outline-offset:-0.5px] rounded-[4px] text-[12.5px] text-[#3F5B49] cursor-pointer" data-hot-lang="en" data-i18n="words.lang.en">words.lang.en</button>
+  <button type="button" class="simple-provider-btn box-border [flex:1_1_0] h-[38px] inline-flex items-center justify-center gap-[8px] bg-[#FFFFFF] [outline:1px_solid_#E3EAE1] [outline-offset:-0.5px] rounded-[4px] text-[12.5px] text-[#3F5B49] cursor-pointer" data-hot-lang="ja" data-i18n="words.lang.ja">words.lang.ja</button>
+</div>
+<div class="box-border w-full flex flex-col gap-[6px] justify-start items-start">
+<label class="text-[12.5px] leading-normal text-[#3F5B49] font-[Geist,system-ui,sans-serif] font-medium text-left" for="hot-words-input" data-i18n="words.custom">words.custom</label>
+<textarea id="hot-words-input" class="word-textarea" rows="9" spellcheck="false" data-i18n-placeholder="words.hotPlaceholder"></textarea>
+<div class="word-meta"><span class="text-[11.5px]/[16px] text-[#7C9285] font-[Geist,system-ui,sans-serif] font-normal text-left" id="hot-words-count"></span><span class="word-dirty" id="hot-words-dirty" hidden data-i18n="words.unsaved">words.unsaved</span></div>
+</div>
+<div class="word-builtin">
+<div class="word-builtin-title" data-i18n="words.builtin">words.builtin</div>
+<div class="word-chips" id="hot-words-builtin"></div>
+</div>
+<div class="word-actions">
+<button type="button" class="box-border h-[36px] px-[16px] inline-flex items-center justify-center gap-[7px] bg-[#1F7A4D] rounded-[4px] text-[13px] leading-none text-[#FFFFFF] font-[Geist,system-ui,sans-serif] font-semibold cursor-pointer border-0" id="hot-words-save" onclick="saveHotWords()" data-i18n="btn.saveWords">btn.saveWords</button>
+<button type="button" class="box-border h-[34px] px-[13px] inline-flex items-center justify-center gap-[6px] bg-[#FFFFFF] [outline:1px_solid_#CBD9C7] [outline-offset:-0.5px] rounded-[4px] text-[12.5px] leading-none text-[#3F5B49] font-[Geist,system-ui,sans-serif] font-medium cursor-pointer" onclick="openAppFolder('hot_words')" data-i18n="btn.openFolder">btn.openFolder</button>
+</div>
+</div>
+</section>
+<section class="box-border w-full h-fit shrink-0 flex flex-col bg-[#FFFFFF] [outline:1px_solid_#E3EAE1] [outline-offset:-0.5px] rounded-[8px] overflow-hidden" id="terms-card">
+<div class="box-border w-full h-fit shrink-0 flex flex-col gap-[16px] p-[18px] justify-start items-start gap-[18px]">
+<div class="box-border w-full flex flex-col gap-[6px] items-start">
+<div class="text-[14.5px] leading-normal text-[#12261A] font-['Funnel_Sans',system-ui,sans-serif] font-semibold text-left whitespace-nowrap" data-i18n="words.termTitle">words.termTitle</div>
+<div class="text-[12px]/[17px] text-[#7C9285] font-[Geist,system-ui,sans-serif] font-normal text-left" data-i18n="words.termHint">words.termHint</div>
+</div>
+<div class="box-border w-full h-[1px] shrink-0 bg-[#E3EAE1]"></div>
+<div class="box-border w-full flex flex-col gap-[6px] justify-start items-start">
+<label class="text-[12.5px] leading-normal text-[#3F5B49] font-[Geist,system-ui,sans-serif] font-medium text-left" for="terms-lang" data-i18n="words.termLang">words.termLang</label>
+<select id="terms-lang" class="box-border w-full h-[36px] px-[11px] bg-[#FFFFFF] [outline:1px_solid_#CBD9C7] [outline-offset:-0.5px] rounded-[4px] text-[13px] leading-normal text-[#12261A] font-[Geist,system-ui,sans-serif]"><option value="ja">日本語</option><option value="en">English</option><option value="zh-CN">简体中文</option><option value="zh-TW">繁體中文</option><option value="ko">한국어</option><option value="ru">Русский</option><option value="es">Español</option><option value="fr">Français</option><option value="de">Deutsch</option><option value="pt">Português</option><option value="it">Italiano</option><option value="id">Indonesia</option></select>
+</div>
+<div class="box-border w-full flex flex-col gap-[6px] justify-start items-start">
+<div class="text-[12.5px] leading-normal text-[#3F5B49] font-[Geist,system-ui,sans-serif] font-medium text-left" data-i18n="words.termMine">words.termMine</div>
+<div class="term-head" aria-hidden="true"><span data-i18n="words.termKeywords">words.termKeywords</span><span data-i18n="words.termInstruction">words.termInstruction</span><span></span></div>
+<div class="term-list" id="terms-list"></div>
+<button type="button" class="term-add" onclick="addTermRow()" data-i18n="words.termAdd">words.termAdd</button>
+<div class="word-meta"><span class="text-[11.5px]/[16px] text-[#7C9285] font-[Geist,system-ui,sans-serif] font-normal text-left" data-i18n="words.termTip">words.termTip</span><span class="word-dirty" id="terms-dirty" hidden data-i18n="words.unsaved">words.unsaved</span></div>
+</div>
+<div class="word-builtin">
+<div class="word-builtin-title" data-i18n="words.builtin">words.builtin</div>
+<div class="term-builtin" id="terms-builtin"></div>
+</div>
+<div class="word-actions">
+<button type="button" class="box-border h-[36px] px-[16px] inline-flex items-center justify-center gap-[7px] bg-[#1F7A4D] rounded-[4px] text-[13px] leading-none text-[#FFFFFF] font-[Geist,system-ui,sans-serif] font-semibold cursor-pointer border-0" id="terms-save" onclick="saveTerms()" data-i18n="btn.saveWords">btn.saveWords</button>
+<button type="button" class="box-border h-[34px] px-[13px] inline-flex items-center justify-center gap-[6px] bg-[#FFFFFF] [outline:1px_solid_#CBD9C7] [outline-offset:-0.5px] rounded-[4px] text-[12.5px] leading-none text-[#3F5B49] font-[Geist,system-ui,sans-serif] font-medium cursor-pointer" onclick="openAppFolder('terminology')" data-i18n="btn.openFolder">btn.openFolder</button>
+</div>
+</div>
+</section>
+</div>
+</div>
+<div id="page-about" class="app-page" data-app-page="about" hidden>
+<div class="grid grid-cols-1 lg:grid-cols-2 gap-[22px] items-start">
+<div class="column-left box-border flex flex-col gap-[22px]">
+<section class="box-border w-full h-fit shrink-0 flex flex-col bg-[#FFFFFF] [outline:1px_solid_#E3EAE1] [outline-offset:-0.5px] rounded-[8px] overflow-hidden" id="developer-card">
+<div class="box-border w-full h-fit shrink-0 flex flex-col gap-[16px] p-[18px] justify-start items-start gap-[18px]">
+<div class="box-border w-full flex flex-col gap-[6px] items-start">
+<div class="text-[14.5px] leading-normal text-[#12261A] font-['Funnel_Sans',system-ui,sans-serif] font-semibold text-left whitespace-nowrap" data-i18n="about.devTitle">about.devTitle</div>
+<div class="text-[12px]/[17px] text-[#7C9285] font-[Geist,system-ui,sans-serif] font-normal text-left" data-i18n="about.devHint">about.devHint</div>
+</div>
+<div class="box-border w-full h-[1px] shrink-0 bg-[#E3EAE1]"></div>
+<div class="dev-info" id="dev-info">
+<div class="dev-profile">
+  <img class="credit-avatar credit-avatar-lg" src="{{ url_for('static', filename='img/credits/ganlan.jpg') }}" alt="" width="60" height="60">
+  <div class="dev-profile-text">
+    <div class="dev-name" data-i18n="about.dev.name">about.dev.name</div>
+    <div class="dev-contact">
+      <svg class="dev-contact-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="m22 7-10 6L2 7"/></svg>
+      <span class="dev-contact-label" data-i18n="about.dev.email">about.dev.email</span>
+      <span class="dev-contact-value" id="dev-email">ganlanqwq@outlook.com</span>
+      <button type="button" class="dev-copy" onclick="copyDevEmail()" data-i18n="btn.copy">btn.copy</button>
+    </div>
+  </div>
+</div>
+<blockquote class="dev-message" data-i18n="about.dev.message">about.dev.message</blockquote>
+</div>
+</div>
+</section>
+<section class="box-border w-full h-fit shrink-0 flex flex-col bg-[#FFFFFF] [outline:1px_solid_#E3EAE1] [outline-offset:-0.5px] rounded-[8px] overflow-hidden" id="runtime-card">
+<div class="box-border w-full h-fit shrink-0 flex flex-col gap-[16px] p-[18px] justify-start items-start gap-[18px]">
+<div class="box-border w-full flex flex-col gap-[6px] items-start">
+<div class="text-[14.5px] leading-normal text-[#12261A] font-['Funnel_Sans',system-ui,sans-serif] font-semibold text-left whitespace-nowrap" data-i18n="about.runtimeTitle">about.runtimeTitle</div>
+<div class="text-[12px]/[17px] text-[#7C9285] font-[Geist,system-ui,sans-serif] font-normal text-left" data-i18n="about.runtimeHint">about.runtimeHint</div>
+</div>
+<div class="box-border w-full h-[1px] shrink-0 bg-[#E3EAE1]"></div>
+<dl class="about-info">
+<div class="about-row"><dt data-i18n="about.version">about.version</dt><dd id="about-version">-</dd></div>
+<div class="about-row"><dt data-i18n="about.build">about.build</dt><dd id="about-build">-</dd></div>
+<div class="about-row"><dt data-i18n="about.programDir">about.programDir</dt><dd id="about-program-dir">-</dd></div>
+<div class="about-row"><dt data-i18n="about.dataDir">about.dataDir</dt><dd id="about-data-dir">-</dd></div>
+<div class="about-row"><dt data-i18n="about.os">about.os</dt><dd id="about-os">-</dd></div>
+<div class="about-row"><dt data-i18n="about.python">about.python</dt><dd id="about-python">-</dd></div>
+</dl>
+<div class="word-actions">
+<button type="button" class="box-border h-[34px] px-[13px] inline-flex items-center justify-center gap-[6px] bg-[#FFFFFF] [outline:1px_solid_#CBD9C7] [outline-offset:-0.5px] rounded-[4px] text-[12.5px] leading-none text-[#3F5B49] font-[Geist,system-ui,sans-serif] font-medium cursor-pointer" onclick="openAppFolder('data')" data-i18n="about.openData">about.openData</button>
+<button type="button" class="box-border h-[34px] px-[13px] inline-flex items-center justify-center gap-[6px] bg-[#FFFFFF] [outline:1px_solid_#CBD9C7] [outline-offset:-0.5px] rounded-[4px] text-[12.5px] leading-none text-[#3F5B49] font-[Geist,system-ui,sans-serif] font-medium cursor-pointer" onclick="openAppFolder('vr')" data-i18n="about.openVr">about.openVr</button>
+</div>
+</div>
+</section>
+</div>
+<section class="box-border w-full h-fit shrink-0 flex flex-col bg-[#FFFFFF] [outline:1px_solid_#E3EAE1] [outline-offset:-0.5px] rounded-[8px] overflow-hidden" id="thanks-card">
+<div class="box-border w-full h-fit shrink-0 flex flex-col gap-[16px] p-[18px] justify-start items-start gap-[18px]">
+<div class="box-border w-full flex flex-col gap-[6px] items-start">
+<div class="text-[14.5px] leading-normal text-[#12261A] font-['Funnel_Sans',system-ui,sans-serif] font-semibold text-left whitespace-nowrap" data-i18n="about.thanksTitle">about.thanksTitle</div>
+<div class="text-[12px]/[17px] text-[#7C9285] font-[Geist,system-ui,sans-serif] font-normal text-left" data-i18n="about.thanksHint">about.thanksHint</div>
+</div>
+<div class="box-border w-full h-[1px] shrink-0 bg-[#E3EAE1]"></div>
+<ul class="thanks-list" id="thanks-list">
+<li class="thanks-item">
+  <img class="credit-avatar" src="{{ url_for('static', filename='img/credits/nino.jpg') }}" alt="" width="44" height="44">
+  <div class="thanks-body">
+    <div class="thanks-name">nino</div>
+    <p class="thanks-text" data-i18n="about.thanks.nino">about.thanks.nino</p>
+  </div>
+</li>
+<li class="thanks-item">
+  <img class="credit-avatar" src="{{ url_for('static', filename='img/credits/wood.jpg') }}" alt="" width="44" height="44">
+  <div class="thanks-body">
+    <div class="thanks-name">wood</div>
+    <p class="thanks-text" data-i18n="about.thanks.wood">about.thanks.wood</p>
+  </div>
+</li>
+<li class="thanks-item">
+  <img class="credit-avatar" src="{{ url_for('static', filename='img/credits/changmeng.jpg') }}" alt="" width="44" height="44">
+  <div class="thanks-body">
+    <div class="thanks-name">苌梦</div>
+    <p class="thanks-text" data-i18n="about.thanks.changmeng">about.thanks.changmeng</p>
+  </div>
+</li>
+<li class="thanks-item">
+  <img class="credit-avatar" src="{{ url_for('static', filename='img/credits/febilly.jpg') }}" alt="" width="44" height="44">
+  <div class="thanks-body">
+    <div class="thanks-name">febilly</div>
+    <p class="thanks-text" data-i18n="about.thanks.febilly">about.thanks.febilly</p>
+  </div>
+</li>
+</ul>
+</div>
+</section>
+</div>
+</div>
+</div>
+<footer class="site-footer">
+<div class="site-footer-brand">
+  <span data-i18n="footer.text">footer.text</span>
+  <span class="site-footer-version">v{{ app_version }}</span>
+</div>
+<div class="site-footer-meta">
+  <span><span class="dot"></span><span data-i18n="footer.localOnly">footer.localOnly</span></span>
+</div>
+</footer>
+</div>
+<script>window.SYSTEM_UI_LANGUAGE = {{ system_ui_language|tojson }};</script>
+<script src="{{ url_for('static', filename='js/i18n.js') }}?v=7.0"></script>
+<script src="{{ url_for('static', filename='js/main.js') }}?v=7.0"></script>
+<script src="{{ url_for('static', filename='js/tabs.js') }}?v=7.0"></script>
+<script src="{{ url_for('static', filename='js/pages.js') }}?v=7.0"></script>
+</body>
+</html>

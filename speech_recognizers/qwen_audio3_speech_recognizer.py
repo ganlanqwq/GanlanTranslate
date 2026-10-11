@@ -1,0 +1,189 @@
+from __future__ import annotations
+
+import logging
+from typing import Any, Dict, Iterable, List, Optional
+
+from proxy_detector import refresh_system_proxy_env
+
+from .base_speech_recognizer import SpeechRecognitionCallback
+from .dashscope_speech_recognizer import DashscopeSpeechRecognizer
+from vrcx_context_bridge import build_asr_context_text
+
+logger = logging.getLogger(__name__)
+
+__all__ = ["QwenAudio3SpeechRecognizer"]
+
+
+# 服务端约束：上下文增强最多保留最近 5 轮，单轮文本不超过 400 字符。
+MAX_CONTEXT_ROUNDS = 5
+MAX_CONTEXT_CHARS_PER_ROUND = 400
+
+# 服务端约束：即时热词最多 2000 条；权重取 [1, 5] 或 50（超级热词最多 50 条）。
+MAX_VOCABULARY_ENTRIES = 2000
+MAX_SUPER_HOT_WORDS = 50
+SUPER_HOT_WORD_WEIGHT = 50
+DEFAULT_HOT_WORD_WEIGHT = 4
+
+
+def split_context_rounds(text: str) -> List[str]:
+    """把上下文文本切成若干轮，满足单轮字符上限与总轮数上限。
+
+    优先在换行处切分以保留原有结构；超长单行按字符硬切。超出轮数上限的
+    尾部内容会被丢弃——`build_asr_context_text` 把热词语料放在最前面，
+    因此保留头部即保留信息量更高的部分。
+    """
+    stripped = (text or "").strip()
+    if not stripped:
+        return []
+
+    rounds: List[str] = []
+    current: List[str] = []
+    current_len = 0
+
+    def flush() -> None:
+        nonlocal current, current_len
+        if current:
+            rounds.append("\n".join(current))
+            current = []
+            current_len = 0
+
+    for raw_line in stripped.splitlines():
+        segments = [
+            raw_line[index:index + MAX_CONTEXT_CHARS_PER_ROUND]
+            for index in range(0, len(raw_line), MAX_CONTEXT_CHARS_PER_ROUND)
+        ] or [""]
+        for segment in segments:
+            extra = len(segment) + (1 if current else 0)
+            if current and current_len + extra > MAX_CONTEXT_CHARS_PER_ROUND:
+                flush()
+                if len(rounds) >= MAX_CONTEXT_ROUNDS:
+                    return rounds[:MAX_CONTEXT_ROUNDS]
+                extra = len(segment)
+            current.append(segment)
+            current_len += extra
+
+    flush()
+    return rounds[:MAX_CONTEXT_ROUNDS]
+
+
+_SPEAKER_LANGUAGE_NOTES = {
+    'zh': '说话人主要说普通话（中文），偶尔夹杂英语。很短的语气词（喂、啊、诶、嗯）也是中文。',
+    'en': 'The speaker mainly speaks English.',
+    'ja': '話者は主に日本語を話します。',
+    'ko': '화자는 주로 한국어를 말합니다.',
+    # 他人：VRChat 里各国玩家都有，按原语言转写，不要往中文上靠
+    'multi': ('Multilingual VRChat voice chat. Speakers may use Japanese (日本語), English, Korean (한국어), '
+              'Chinese, or any other language. Transcribe exactly in the language actually spoken; '
+              'never translate into Chinese.'),
+}
+
+
+def speaker_language_note(source_language: Optional[str]) -> str:
+    """源语言（我说什么语言）→ 写进识别上下文的一句提示；auto/未知返回空串。"""
+    s = (source_language or '').strip().lower()
+    if not s or s in ('auto', 'auto-detect'):
+        return ''
+    if s == 'multi':
+        return _SPEAKER_LANGUAGE_NOTES['multi']
+    if s.startswith('zh'):
+        return _SPEAKER_LANGUAGE_NOTES['zh']
+    return _SPEAKER_LANGUAGE_NOTES.get(s.split('-')[0], '')
+
+
+def build_vocabulary(hot_words: Optional[Iterable[Any]]) -> Dict[str, int]:
+    """把热词条目转换为即时热词映射 {热词: 权重}。"""
+    vocabulary: Dict[str, int] = {}
+    super_hot_words = 0
+
+    for entry in hot_words or ():
+        if isinstance(entry, dict):
+            text = str(entry.get("text") or "").strip()
+            raw_weight = entry.get("weight", DEFAULT_HOT_WORD_WEIGHT)
+        else:
+            text = str(entry or "").strip()
+            raw_weight = DEFAULT_HOT_WORD_WEIGHT
+
+        if not text or text in vocabulary:
+            continue
+        if len(vocabulary) >= MAX_VOCABULARY_ENTRIES:
+            break
+
+        try:
+            weight = int(raw_weight)
+        except (TypeError, ValueError):
+            weight = DEFAULT_HOT_WORD_WEIGHT
+
+        if weight == SUPER_HOT_WORD_WEIGHT and super_hot_words < MAX_SUPER_HOT_WORDS:
+            super_hot_words += 1
+        else:
+            weight = min(5, max(1, weight))
+
+        vocabulary[text] = weight
+
+    return vocabulary
+
+
+class QwenAudio3SpeechRecognizer(DashscopeSpeechRecognizer):
+    """Qwen-Audio-3.1-ASR-Flash-Streaming 识别器。
+
+    该模型与 Fun-ASR-Realtime 共用 DashScope Recognition（run-task/finish-task）
+    协议，因此复用 DashScope 识别器的会话管理，只额外接入两项模型特有能力：
+
+    - 即时热词：构造时以 ``vocabulary`` 参数下发，整个进程生命周期固定；
+    - 上下文增强：每次 ``start()``/``resume()`` 时用最新 VRCX 上下文重建
+      ``raw_input.context``，因此每个识别分段都能拿到当时的世界/玩家信息。
+    """
+
+    def __init__(
+        self,
+        callback: SpeechRecognitionCallback,
+        *,
+        corpus_text: Optional[str] = None,
+        hot_words: Optional[Iterable[Any]] = None,
+        speaker_language: Optional[str] = None,
+        **recognition_kwargs: Any,
+    ) -> None:
+        self._corpus_text = corpus_text
+        # language_hints 不在该模型的官方参数表里，可能被服务端忽略；
+        # 再把「说话人主要说什么语言」写进上下文，避免很短的话（喂、啊）被认成韩文等。
+        self._language_note = speaker_language_note(speaker_language)
+        vocabulary = build_vocabulary(hot_words)
+        if vocabulary:
+            recognition_kwargs.setdefault("vocabulary", vocabulary)
+        super().__init__(callback, **recognition_kwargs)
+
+    def start(self) -> None:
+        refresh_system_proxy_env()
+        # Recognition.start(**kwargs) 会覆盖构造时的同名参数，因此每次会话
+        # 都会带上重新计算的上下文；传 None 时 SDK 会把该参数剔除。
+        raw_input = self._build_raw_input()
+        with self._lifecycle_lock:
+            self._require_recognition().start(raw_input=raw_input)
+
+    def stop(self) -> None:
+        # pause() 已经把底层会话停掉了，闭麦状态下再关闭服务时 SDK 会抛
+        # InvalidParameter，这里直接跳过，避免抛出无意义的异常。
+        # _running 是 SDK 私有属性：getattr 兜底，缺失时视为已停止。
+        recognition = self._require_recognition()
+        if not getattr(recognition, "_running", False):
+            return
+        # 复用基类的锁与失败告警，与其他生命周期操作串行化（P2-15）。
+        super().stop()
+        # 后置状态校验：stop 正常返回后若 _running 仍为真，说明底层会话
+        # 可能未被真正结束（服务端悬挂/继续计费），留下可观测的告警。
+        if getattr(recognition, "_running", False):
+            logger.warning(
+                '[QwenAudio3] stop() 返回后底层会话仍为运行状态，服务端会话可能未正确结束'
+            )
+
+    def _build_raw_input(self) -> Optional[Dict[str, Any]]:
+        base = "\n".join(part for part in (self._language_note, (self._corpus_text or "").strip()) if part)
+        rounds = split_context_rounds(build_asr_context_text(base))
+        if not rounds:
+            return None
+        return {
+            "context": [
+                {"role": "user", "content": [{"type": "input_text", "text": chunk}]}
+                for chunk in rounds
+            ]
+        }

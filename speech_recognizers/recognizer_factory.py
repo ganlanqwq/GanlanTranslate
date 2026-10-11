@@ -1,0 +1,548 @@
+"""语音识别器工厂模块，负责创建和配置识别器实例"""
+from __future__ import annotations
+
+import os
+from typing import Any, Dict, Optional
+
+import dashscope
+import config
+
+from .base_speech_recognizer import MonoAudioSpeechRecognizer, SpeechRecognitionCallback, SpeechRecognizer
+from .dashscope_speech_recognizer import DashscopeSpeechRecognizer
+from .doubao_file_speech_recognizer import DoubaoFileSpeechRecognizer
+try:
+    from local_asr import is_local_asr_build_enabled
+    from local_asr.model_manager import is_asr_cached as is_local_asr_cached
+    from .local_speech_recognizer import LocalSpeechRecognizer
+except ImportError:  # pragma: no cover
+    LocalSpeechRecognizer = None  # type: ignore[assignment]
+    is_local_asr_build_enabled = lambda: False  # type: ignore[assignment]
+    is_local_asr_cached = lambda *args, **kwargs: False  # type: ignore[assignment]
+
+try:
+    from .qwen_speech_recognizer import QwenSpeechRecognizer
+except ImportError:  # pragma: no cover
+    QwenSpeechRecognizer = None  # type: ignore[assignment]
+
+try:
+    from .qwen_audio3_speech_recognizer import QwenAudio3SpeechRecognizer
+except ImportError:  # pragma: no cover
+    QwenAudio3SpeechRecognizer = None  # type: ignore[assignment]
+
+try:
+    from .soniox_speech_recognizer import SonioxSpeechRecognizer, WEBSOCKETS_AVAILABLE
+except ImportError:  # pragma: no cover
+    SonioxSpeechRecognizer = None  # type: ignore[assignment]
+    WEBSOCKETS_AVAILABLE = False
+
+try:
+    from .custom_openai_speech_recognizer import (
+        CustomAudioRecognizer,
+        CustomSttRecognizer,
+    )
+except ImportError:  # pragma: no cover
+    CustomAudioRecognizer = None  # type: ignore[assignment]
+    CustomSttRecognizer = None  # type: ignore[assignment]
+
+
+def _normalize_local_asr_language(source_language: Optional[str]) -> str:
+    """本地 ASR 与全局 SOURCE_LANGUAGE 一致；空或 auto 表示自动检测。"""
+    if not source_language:
+        return 'auto'
+    s = source_language.strip()
+    if not s or s.lower() in ('auto', 'auto-detect'):
+        return 'auto'
+    return s
+
+
+def _normalize_qwen_language(lang: Optional[str]) -> Optional[str]:
+    """Normalize language code to Qwen ASR 2-letter hint.
+    Returns None when no valid hint (auto or empty)."""
+    if not lang:
+        return None
+    lang_lower = lang.strip().lower()
+    if lang_lower in ('auto', 'auto-detect'):
+        return None
+
+    # Map common variants to two-letter codes
+    if lang_lower in ('zh', 'zh-cn', 'zh-tw', 'zh-hans', 'zh-hant'):
+        return 'zh'
+    if lang_lower in ('en', 'en-us', 'en-gb'):
+        return 'en'
+    if lang_lower.startswith('ja'):
+        return 'ja'
+    if lang_lower.startswith('ko'):
+        return 'ko'
+
+    # Fallback: take the first two characters when plausible
+    if len(lang_lower) >= 2:
+        return lang_lower[:2]
+    return None
+
+
+def _to_dashscope_language(source_language: Optional[str]) -> Optional[str]:
+    """将 source_language 转换为 DashScope language_hints 格式。
+    fun-asr-realtime 支持: zh, en, ja。不支持或 auto 返回 None。"""
+    if not source_language:
+        return None
+    s = source_language.strip().lower()
+    if not s or s in ('auto', 'auto-detect'):
+        return None
+    if s in ('zh', 'zh-cn', 'zh-tw', 'zh-hans', 'zh-hant'):
+        return 'zh'
+    if s in ('en', 'en-us', 'en-gb'):
+        return 'en'
+    if s.startswith('ja'):
+        return 'ja'
+    return None
+
+
+def _to_doubao_language(source_language: Optional[str]) -> Optional[str]:
+    """将 source_language 转换为豆包火山引擎 request.language 格式。
+    auto/空返回 None。"""
+    if not source_language:
+        return None
+    s = source_language.strip().lower()
+    if not s or s in ('auto', 'auto-detect'):
+        return None
+    lang_map = {
+        'zh': 'zh-CN', 'zh-cn': 'zh-CN', 'zh-tw': 'zh-CN', 'zh-hans': 'zh-CN', 'zh-hant': 'zh-CN',
+        'en': 'en-US', 'en-us': 'en-US', 'en-gb': 'en-US',
+        'ja': 'ja-JP', 'ja-jp': 'ja-JP',
+        'ko': 'ko-KR', 'ko-kr': 'ko-KR',
+        'yue': 'yue-CN', 'yue-cn': 'yue-CN',
+    }
+    return lang_map.get(s, None)
+
+
+def _resolve_doubao_credentials() -> tuple[Optional[str], Optional[str], Optional[str]]:
+    """Resolve Doubao credentials from the process-local runtime config.
+
+    优先读取 DOUBAO_API_KEY。
+    同时兼容 DOUBAO_APP_ID + DOUBAO_ACCESS_KEY 组合方式。
+    """
+    app_id = str(getattr(config, 'DOUBAO_APP_ID', '') or '').strip()
+    access_key = str(getattr(config, 'DOUBAO_ACCESS_KEY', '') or '').strip()
+    combined = str(getattr(config, 'DOUBAO_API_KEY', '') or '').strip()
+    api_key = ''
+
+    if combined:
+        if ':' in combined:
+            maybe_app_id, maybe_access_key = combined.split(':', 1)
+            if not app_id:
+                app_id = maybe_app_id.strip()
+            if not access_key:
+                access_key = maybe_access_key.strip()
+        else:
+            api_key = combined
+
+    return (api_key or None, app_id or None, access_key or None)
+
+
+def _apply_recognition_endpoint() -> None:
+    """按国际版开关设置 Recognition（run-task）协议的 WebSocket 地址。
+
+    DashScope SDK 只提供全局配置项，这里显式写入两种取值之一，避免在
+    国际版/大陆版之间切换时残留上一次的地址。用户显式设置了 SDK 自带的
+    环境变量时以环境变量为准。
+    """
+    if os.getenv('DASHSCOPE_WEBSOCKET_BASE_URL'):
+        return
+
+    use_international = getattr(config, 'USE_INTERNATIONAL_ENDPOINT', False)
+    dashscope.base_websocket_api_url = (
+        config.DASHSCOPE_RECOGNITION_URL_INTERNATIONAL
+        if use_international
+        else config.DASHSCOPE_RECOGNITION_URL
+    )
+
+
+def init_dashscope_api_key() -> None:
+    """
+    初始化 DashScope API Key
+    从进程内运行配置加载，如果未设置则使用占位符
+    """
+    dashscope.api_key = (
+        str(getattr(config, 'DASHSCOPE_API_KEY', '') or '').strip()
+        or '<your-dashscope-api-key>'
+    )
+
+
+def create_recognizer(
+    backend: str,
+    callback: SpeechRecognitionCallback,
+    sample_rate: int = 16000,
+    audio_format: str = 'pcm',
+    source_language: str = 'auto',
+    vocabulary_id: Optional[str] = None,
+    corpus_text: Optional[str] = None,
+    hot_words: Optional[list] = None,
+    enable_vad: bool = True,
+    vad_threshold: float = 0.2,
+    vad_silence_duration_ms: int = 800,
+    keepalive_interval: int = 30,
+    **extra_kwargs: Any
+) -> SpeechRecognizer:
+    """
+    创建语音识别器实例
+    
+    Args:
+        backend: 识别后端，'dashscope'、'qwen'、'qwen_audio3'、'soniox'、'doubao_file' 或 'local'
+        callback: 识别回调实例
+        sample_rate: 音频采样率
+        audio_format: 音频格式
+        source_language: 源语言，'auto' 表示自动检测
+        vocabulary_id: DashScope 热词表 ID（仅 dashscope 后端使用）
+        corpus_text: Qwen 语料文本（qwen 与 local 且 Qwen3-ASR 引擎使用）
+        hot_words: 热词条目列表 [{'text': ..., 'weight': ...}]（仅 qwen_audio3 后端使用）
+        enable_vad: 是否启用VAD（仅 qwen 后端使用）
+        vad_threshold: VAD阈值（仅 qwen 后端使用）
+        vad_silence_duration_ms: VAD静音持续时间（仅 qwen 后端使用）
+        keepalive_interval: WebSocket心跳间隔（秒，仅 qwen 后端使用，0表示禁用）
+        **extra_kwargs: 其他自定义参数
+    
+    Returns:
+        SpeechRecognizer: 语音识别器实例
+    
+    Raises:
+        ValueError: 当后端不支持时
+        RuntimeError: 当依赖缺失时
+    """
+    requested_input_channels = (
+        extra_kwargs.pop('input_channels', None)
+        or extra_kwargs.pop('num_channels', None)
+        or extra_kwargs.pop('channels', None)
+        or 1
+    )
+    input_channels = max(1, int(requested_input_channels))
+
+    if backend == 'qwen':
+        if QwenSpeechRecognizer is None:
+            raise RuntimeError('QwenSpeechRecognizer 不可用，请安装相关依赖')
+        
+        # 根据全局配置选择 URL（国际版或中国大陆版）
+        use_international = getattr(config, 'USE_INTERNATIONAL_ENDPOINT', False)
+        if use_international:
+            asr_url = config.QWEN_ASR_URL_INTERNATIONAL
+        else:
+            asr_url = config.QWEN_ASR_URL
+        
+        recognition_kwargs: Dict[str, Any] = {
+            'model': config.QWEN_ASR_MODEL,
+            'url': asr_url,
+            'sample_rate': sample_rate,
+            'input_audio_format': audio_format,
+            'enable_turn_detection': enable_vad,
+            'turn_detection_threshold': vad_threshold,
+            'turn_detection_silence_duration_ms': vad_silence_duration_ms,
+            'keepalive_interval': keepalive_interval,
+        }
+        
+        # 语言提示：仅 qwen 支持，且 source_language 不是 auto 时才传递
+        language_hint = _normalize_qwen_language(source_language)
+        if language_hint:
+            recognition_kwargs['language'] = language_hint
+        
+        # 热词语料
+        if corpus_text:
+            recognition_kwargs['corpus_text'] = f"{corpus_text}"
+        
+        # 合并额外参数
+        recognition_kwargs.update(extra_kwargs)
+
+        recognizer = QwenSpeechRecognizer(callback=callback, **recognition_kwargs)
+        return MonoAudioSpeechRecognizer(recognizer, input_channels=input_channels)
+    
+    elif backend == 'qwen_audio3':
+        if QwenAudio3SpeechRecognizer is None:
+            raise RuntimeError('QwenAudio3SpeechRecognizer 不可用，请安装相关依赖')
+
+        _apply_recognition_endpoint()
+
+        recognition_kwargs = {
+            'model': config.QWEN_AUDIO3_ASR_MODEL,
+            'format': audio_format,
+            'sample_rate': sample_rate,
+            'corpus_text': corpus_text,
+            'hot_words': hot_words,
+            'speaker_language': source_language,
+        }
+
+        # 该模型自带语种检测，官方参数表也未列出 language_hints；实测服务端会
+        # 静默忽略无法识别的参数，因此非 auto 时照常下发，能生效则生效。
+        lang_hint = _to_dashscope_language(source_language)
+        if lang_hint:
+            recognition_kwargs['language_hints'] = [lang_hint]
+
+        # 合并额外参数
+        recognition_kwargs.update(extra_kwargs)
+
+        recognizer = QwenAudio3SpeechRecognizer(callback=callback, **recognition_kwargs)
+        return MonoAudioSpeechRecognizer(recognizer, input_channels=input_channels)
+
+    elif backend == 'dashscope':
+        recognition_kwargs = {
+            'model': config.DASHSCOPE_ASR_MODEL,
+            'format': audio_format,
+            'sample_rate': sample_rate,
+            'semantic_punctuation_enabled': False,
+        }
+        
+        # 热词表
+        if vocabulary_id:
+            recognition_kwargs['vocabulary_id'] = vocabulary_id
+
+        # 语言提示（仅当 source_language 非 auto 且在模型支持范围内）
+        lang_hint = _to_dashscope_language(source_language)
+        if lang_hint:
+            recognition_kwargs['language_hints'] = [lang_hint]
+        
+        # 合并额外参数
+        recognition_kwargs.update(extra_kwargs)
+
+        recognizer = DashscopeSpeechRecognizer(callback=callback, **recognition_kwargs)
+        return MonoAudioSpeechRecognizer(recognizer, input_channels=input_channels)
+    
+    elif backend == 'soniox':
+        if SonioxSpeechRecognizer is None or not WEBSOCKETS_AVAILABLE:
+            raise RuntimeError('SonioxSpeechRecognizer 不可用，请安装 websockets 库: pip install websockets')
+        
+        api_key = str(getattr(config, 'SONIOX_API_KEY', '') or '').strip()
+        if not api_key:
+            raise RuntimeError('Soniox API Key 未设置')
+        
+        recognition_kwargs = {
+            'api_key': api_key,
+            'model': getattr(config, 'SONIOX_MODEL', 'stt-rt-v3'),
+            'sample_rate': sample_rate,
+            'num_channels': 1,
+            'audio_format': 'pcm_s16le',
+            'enable_endpoint_detection': getattr(config, 'SONIOX_ENABLE_ENDPOINT_DETECTION', True),
+        }
+
+        # 语言提示：合并 source_language（若非 auto）到固定 hints 列表首位
+        hints = list(getattr(config, 'SONIOX_LANGUAGE_HINTS', ['en', 'zh', 'ja', 'ko']))
+        s_lang = source_language.strip().lower() if source_language else ''
+        if s_lang and s_lang not in ('auto', 'auto-detect'):
+            if s_lang not in hints:
+                hints.insert(0, s_lang)
+        recognition_kwargs['language_hints'] = hints
+
+        # 合并额外参数
+        recognition_kwargs.update(extra_kwargs)
+
+        recognition_kwargs['num_channels'] = 1
+
+        recognizer = SonioxSpeechRecognizer(callback=callback, **recognition_kwargs)
+        return MonoAudioSpeechRecognizer(recognizer, input_channels=input_channels)
+
+    elif backend == 'doubao_file':
+        doubao_api_key, doubao_app_id, doubao_access_key = _resolve_doubao_credentials()
+        if not doubao_api_key and not (doubao_app_id and doubao_access_key):
+            raise RuntimeError('豆包录音文件识别缺少凭证，请设置 DOUBAO_API_KEY')
+
+        recognition_kwargs = {
+            'api_key': doubao_api_key,
+            'api_app_key': doubao_app_id,
+            'api_access_key': doubao_access_key,
+            'resource_id': getattr(config, 'DOUBAO_ASR_RESOURCE_ID', 'volc.seedasr.auc'),
+            'url': getattr(config, 'DOUBAO_ASR_FLASH_URL', 'https://openspeech.bytedance.com/api/v3/auc/bigmodel/recognize/flash'),
+            'model_name': getattr(config, 'DOUBAO_ASR_MODEL_NAME', 'bigmodel'),
+            'sample_rate': sample_rate,
+            'channels': getattr(config, 'CHANNELS', 1),
+            'bits': getattr(config, 'BITS', 16),
+            'timeout_seconds': getattr(config, 'DOUBAO_ASR_TIMEOUT_SECONDS', 60),
+            'max_buffer_seconds': getattr(config, 'DOUBAO_ASR_MAX_BUFFER_SECONDS', 60),
+        }
+
+        doubao_lang = _to_doubao_language(source_language)
+        if doubao_lang:
+            recognition_kwargs['request_options'] = {'language': doubao_lang}
+
+        recognition_kwargs.update(extra_kwargs)
+
+        recognition_kwargs['channels'] = 1
+
+        recognizer = DoubaoFileSpeechRecognizer(callback=callback, **recognition_kwargs)
+        return MonoAudioSpeechRecognizer(recognizer, input_channels=input_channels)
+    
+    elif backend == 'local':
+        if LocalSpeechRecognizer is None:
+            raise RuntimeError('LocalSpeechRecognizer 不可用，请安装本地 ASR 相关依赖')
+
+        recognizer = LocalSpeechRecognizer(
+            callback=callback,
+            sample_rate=sample_rate,
+            source_language=_normalize_local_asr_language(source_language),
+            corpus_text=corpus_text,
+        )
+        return MonoAudioSpeechRecognizer(recognizer, input_channels=input_channels)
+
+    elif backend == 'custom_audio':
+        if CustomAudioRecognizer is None:
+            raise RuntimeError('CustomAudioRecognizer 不可用，请检查 speech_recognizers 模块')
+
+        base_url = str(getattr(config, 'CUSTOM_API_BASE_URL', '') or '').strip()
+        api_key = str(getattr(config, 'CUSTOM_API_KEY', '') or '').strip()
+        model = str(getattr(config, 'CUSTOM_API_MODEL', '') or '').strip()
+        if not base_url or not api_key or not model:
+            raise RuntimeError('custom_audio 后端需要 API 地址、API Key 和模型名（设置 → 自定义 API）')
+
+        recognition_kwargs = {
+            'base_url': base_url,
+            'api_key': api_key,
+            'model': model,
+            'target_language': str(getattr(config, 'CUSTOM_API_TARGET_LANGUAGE', '') or 'ja'),
+            'sample_rate': sample_rate,
+            'channels': getattr(config, 'CHANNELS', 1),
+            'timeout': getattr(config, 'CUSTOM_API_TIMEOUT', 30),
+            'extra_body_json': str(getattr(config, 'OPENAI_COMPAT_EXTRA_BODY_JSON', '') or ''),
+            'source_language': source_language or 'auto',
+        }
+        recognition_kwargs.update(extra_kwargs)
+        recognition_kwargs['channels'] = 1
+
+        recognizer = CustomAudioRecognizer(callback=callback, **recognition_kwargs)
+        return MonoAudioSpeechRecognizer(recognizer, input_channels=input_channels)
+
+    elif backend == 'custom_stt':
+        if CustomSttRecognizer is None:
+            raise RuntimeError('CustomSttRecognizer 不可用，请检查 speech_recognizers 模块')
+
+        base_url = str(getattr(config, 'CUSTOM_API_BASE_URL', '') or '').strip()
+        api_key = str(getattr(config, 'CUSTOM_API_KEY', '') or '').strip()
+        model = str(getattr(config, 'CUSTOM_API_MODEL', '') or '').strip()
+        if not base_url or not api_key or not model:
+            raise RuntimeError('custom_stt 后端需要 API 地址、API Key 和模型名（设置 → 自定义 API）')
+
+        recognition_kwargs = {
+            'base_url': base_url,
+            'api_key': api_key,
+            'model': model,
+            'sample_rate': sample_rate,
+            'channels': getattr(config, 'CHANNELS', 1),
+            'timeout': getattr(config, 'CUSTOM_API_TIMEOUT', 30),
+            'audio_format': str(getattr(config, 'CUSTOM_API_AUDIO_FORMAT', '') or 'wav'),
+            'prompt': str(getattr(config, 'CUSTOM_API_PROMPT', '') or ''),
+            'source_language': source_language or 'auto',
+        }
+        recognition_kwargs.update(extra_kwargs)
+        recognition_kwargs['channels'] = 1
+
+        recognizer = CustomSttRecognizer(callback=callback, **recognition_kwargs)
+        return MonoAudioSpeechRecognizer(recognizer, input_channels=input_channels)
+
+    else:
+        raise ValueError(f'不支持的识别后端: {backend}')
+
+
+def is_backend_available(backend: str) -> bool:
+    """
+    检查指定后端是否可用
+    
+    Args:
+        backend: 后端名称，'dashscope'、'qwen'、'qwen_audio3'、'soniox'、'doubao_file' 或 'local'
+
+    Returns:
+        bool: True 表示可用，False 表示不可用
+    """
+    if backend == 'qwen':
+        return QwenSpeechRecognizer is not None
+    elif backend == 'qwen_audio3':
+        # Qwen-Audio-3.0 在北京与新加坡地域均可用
+        return QwenAudio3SpeechRecognizer is not None
+    elif backend == 'dashscope':
+        # dashscope (Fun-ASR) 仅在中国大陆版可用
+        use_international = getattr(config, 'USE_INTERNATIONAL_ENDPOINT', False)
+        return not use_international
+    elif backend == 'soniox':
+        # Soniox 需要 websockets 库和 API Key
+        has_lib = SonioxSpeechRecognizer is not None and WEBSOCKETS_AVAILABLE
+        has_key = bool(str(getattr(config, 'SONIOX_API_KEY', '') or '').strip())
+        return has_lib and has_key
+    elif backend == 'doubao_file':
+        api_key, app_id, access_key = _resolve_doubao_credentials()
+        return bool(api_key or (app_id and access_key))
+    elif backend == 'local':
+        if LocalSpeechRecognizer is None or not is_local_asr_build_enabled():
+            return False
+        engine = getattr(config, 'LOCAL_ASR_ENGINE', 'sensevoice')
+        return bool(is_local_asr_cached(engine))
+    elif backend == 'custom_audio':
+        if CustomAudioRecognizer is None:
+            return False
+        base_url = str(getattr(config, 'CUSTOM_API_BASE_URL', '') or '').strip()
+        api_key = str(getattr(config, 'CUSTOM_API_KEY', '') or '').strip()
+        model = str(getattr(config, 'CUSTOM_API_MODEL', '') or '').strip()
+        return bool(base_url and api_key and model)
+    elif backend == 'custom_stt':
+        if CustomSttRecognizer is None:
+            return False
+        base_url = str(getattr(config, 'CUSTOM_API_BASE_URL', '') or '').strip()
+        api_key = str(getattr(config, 'CUSTOM_API_KEY', '') or '').strip()
+        model = str(getattr(config, 'CUSTOM_API_MODEL', '') or '').strip()
+        return bool(base_url and api_key and model)
+    else:
+        return False
+
+
+_AUTH_ERROR_MARKERS = ('401', 'unauthorized', 'invalidapikey', 'invalid api', 'api-key is invalid', 'api key is invalid')
+
+
+def asr_auth_error_hint(message: str, backend: str = '') -> Optional[str]:
+    """识别报 Key 无效（401）时给一句排查提示；不是 Key 的问题返回 None。
+
+    2026-10-11 另一台电脑：国内 DashScope Key 配上勾选的「国际版」，自我、他人全部 401，日志里只有英文报错。
+    """
+    text = str(message or '').lower()
+    if not any(marker in text for marker in _AUTH_ERROR_MARKERS):
+        return None
+    backend = backend or str(getattr(config, 'PREFERRED_ASR_BACKEND', '') or '')
+    if backend not in ('qwen_audio3', 'dashscope'):
+        return 'API Key 无效，请在网页上检查识别服务的 Key'
+    if getattr(config, 'USE_INTERNATIONAL_ENDPOINT', False):
+        return ('API Key 无效：现在勾选了「国际版」。国内阿里云的 DashScope Key 要取消勾选'
+                '（网页「阿里云 DashScope API Key」旁边），改完重新启动模式')
+    return 'API Key 无效：请在网页上检查「阿里云 DashScope API Key」；国际站的 Key 要勾选旁边的「国际版」'
+
+
+def select_backend(preferred_backend: str, valid_backends: set) -> str:
+    """
+    选择可用的识别后端
+    
+    Args:
+        preferred_backend: 首选后端
+        valid_backends: 有效后端集合
+    
+    Returns:
+        str: 最终选定的后端名称
+    """
+    # 已下线的后端自动迁移（如 qwen3-asr-flash-realtime → qwen_audio3）
+    preferred_backend = getattr(config, 'DEPRECATED_ASR_BACKENDS', {}).get(
+        preferred_backend, preferred_backend
+    )
+
+    # 验证首选后端是否有效
+    if preferred_backend not in valid_backends:
+        preferred_backend = 'qwen_audio3'
+    
+    # 检查首选后端是否可用
+    if is_backend_available(preferred_backend):
+        return preferred_backend
+
+    if preferred_backend == 'dashscope' and getattr(config, 'USE_INTERNATIONAL_ENDPOINT', False):
+        print('[ASR] Fun-ASR 在国际版不可用，正在尝试其他后端...')
+    else:
+        print(f'[ASR] 首选后端 {preferred_backend} 不可用，正在尝试自动回退...')
+
+    for candidate in ('qwen', 'qwen_audio3', 'dashscope', 'doubao_file', 'soniox', 'local', 'custom_audio', 'custom_stt'):
+        if candidate == preferred_backend:
+            continue
+        if candidate not in valid_backends:
+            continue
+        if is_backend_available(candidate):
+            print(f'[ASR] 已自动切换到可用后端: {candidate}')
+            return candidate
+
+    print(f'[ASR] 未找到可用后端，保留原配置: {preferred_backend}')
+    return preferred_backend
