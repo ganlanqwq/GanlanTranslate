@@ -212,11 +212,11 @@ python -m venv .venv
 - [Silero VAD](https://github.com/snakers4/silero-vad)（语音活动检测）
 - [vrchat_oscquery](https://github.com/theepicsnail/vrchat_oscquery)、[pyopenvr](https://github.com/cmbruns/pyopenvr)、[PySide6](https://doc.qt.io/qtforpython-6/)、[Flask](https://flask.palletsprojects.com/)、[fast-langdetect](https://github.com/LlmKira/fast-langdetect)
 
-特别鸣谢（不分先后）：nino、wood、苌梦、febilly。他们的故事写在软件「详情」页里。
+特别鸣谢（不分先后）：nino、wood、苌梦、febilly。他们的故事写在软件「信息 → 贡献者」页里。
 
 ## 反馈
 
-遇到问题或者有建议，欢迎提 [Issue](https://github.com/ganlanqwq/GanlanTranslate/issues)，或者用软件「详情」页里的联系方式找我。
+遇到问题或者有建议，欢迎提 [Issue](https://github.com/ganlanqwq/GanlanTranslate/issues)，或者用软件「信息 → 贡献者」页里的联系方式找我。
 
 ## 许可证
 

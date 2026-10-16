@@ -4418,7 +4418,54 @@ function bindCollapsibleTransitionCleanup(content) {
     content.dataset.collapseTransitionBound = 'true';
 }
 
-// 折叠/展开面板（无动画，立即切换）
+const COLLAPSE_ANIMATION_MS = 260;
+const COLLAPSE_ANIMATION_EASING = 'cubic-bezier(0.25, 0.8, 0.25, 1)';
+
+// 展开 / 收起时高度平滑过渡（2026-10-17 岚：展开没有动画）。
+// collapsed 类照常立刻切换（别处靠它判断状态），收起时用行内 display 让内容在动画期间还显示着。
+function animateCollapsible(content, expanding) {
+    if (content._collapseAnimation) {
+        content._collapseAnimation.cancel();
+    }
+    const reduced = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    if (reduced || typeof content.animate !== 'function') {
+        return;
+    }
+
+    let height;
+    if (expanding) {
+        height = content.getBoundingClientRect().height;
+    } else {
+        // 已经加了 collapsed，先用行内 display 把它留在页面上
+        content.style.setProperty('display', content.dataset.collapseDisplay || 'block', 'important');
+        height = content.getBoundingClientRect().height;
+    }
+    if (!height) {
+        content.style.removeProperty('display');
+        return;
+    }
+
+    content.style.overflow = 'hidden';
+    const frames = [
+        { height: '0px', opacity: 0 },
+        { height: `${height}px`, opacity: 1 },
+    ];
+    const animation = content.animate(expanding ? frames : frames.reverse(), {
+        duration: COLLAPSE_ANIMATION_MS,
+        easing: COLLAPSE_ANIMATION_EASING,
+    });
+    content._collapseAnimation = animation;
+    const cleanup = () => {
+        if (content._collapseAnimation !== animation) return;
+        content._collapseAnimation = null;
+        content.style.removeProperty('overflow');
+        content.style.removeProperty('display');
+    };
+    animation.onfinish = cleanup;
+    animation.oncancel = cleanup;
+}
+
+// 折叠/展开面板
 function toggleCollapsible(id) {
     const content = document.getElementById(id);
     const icon = document.getElementById(id + '-icon');
@@ -4429,10 +4476,14 @@ function toggleCollapsible(id) {
         content.classList.remove('collapsed');
         content.style.removeProperty('max-height');
         updateCollapsibleIcon(icon, false);
+        animateCollapsible(content, true);
     } else {
+        // 记下展开时的 display（有的内容是 flex），收起动画期间照它显示
+        content.dataset.collapseDisplay = getComputedStyle(content).display;
         content.classList.add('collapsed');
         content.style.removeProperty('max-height');
         updateCollapsibleIcon(icon, true);
+        animateCollapsible(content, false);
     }
     syncCollapsibleContainerState(content);
     syncCollapsibleAccessibility(content);

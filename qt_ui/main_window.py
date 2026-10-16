@@ -2,25 +2,49 @@
 
 原生 Qt 窗口壳，里面用 QtWebEngine 打开 Flask 提供的控制页。
 关闭窗口 → 隐藏到托盘；托盘可再打开。
+
+Windows 上不要系统标题栏（2026-10-17 岚：要无头窗口）：网页铺满整个窗口，网页最上面一条能拖动窗口，
+最小化 / 最大化 / 关闭按钮在网页右上角（ui/static/js/window-chrome.js），网页通过 QWebChannel 调这里。
 """
 from __future__ import annotations
 
+import json
 import os
+import sys
 from typing import Callable, Optional
 
-from PySide6.QtCore import QStandardPaths, QUrl, Qt, QTimer
+from PySide6.QtCore import QEvent, QFile, QIODevice, QObject, QPoint, QPointF, QRectF, QStandardPaths, QUrl, Qt, QTimer, Slot
 from PySide6.QtGui import QCloseEvent, QIcon
 from PySide6.QtWidgets import QFileDialog, QMainWindow, QVBoxLayout, QWidget
 
 try:
-    from PySide6.QtWebEngineCore import QWebEnginePage, QWebEngineProfile, QWebEngineSettings
+    from PySide6.QtWebChannel import QWebChannel
+    from PySide6.QtWebEngineCore import QWebEnginePage, QWebEngineProfile, QWebEngineScript, QWebEngineSettings
     from PySide6.QtWebEngineWidgets import QWebEngineView
 except ImportError as exc:  # pragma: no cover
     raise RuntimeError("需要 PySide6 QtWebEngine（完整版 PySide6 / Addons）") from exc
 
+FRAMELESS = sys.platform == "win32"
+if FRAMELESS:
+    from qt_ui.window_frame import enable_native_frame, handle_frame_message
+
 DEFAULT_UI_URL = "http://127.0.0.1:5001/"
 
+# 没最大化时窗口四周 1px 的边
+WINDOW_BORDER = "#2A4636"
+# 网页还没告诉我们之前（还在加载），最上面这么高（逻辑像素）一条先当拖动区
+DEFAULT_DRAG_HEIGHT = 32
+
 _SAVE_DIALOG_TITLE = {"zh-CN": "保存文件", "en": "Save file", "ja": "ファイルを保存", "ko": "파일 저장"}
+_APP_TITLE = {"zh-CN": "甘岚翻译", "en": "Ganlan Translate", "ja": "甘嵐翻訳", "ko": "간란 번역"}
+
+
+def _app_title() -> str:
+    try:
+        import ui_locale
+        return ui_locale.pick(_APP_TITLE)
+    except Exception:
+        return _APP_TITLE["zh-CN"]
 
 
 def _save_dialog_title() -> str:
@@ -77,6 +101,49 @@ class _QuietPage(QWebEnginePage):
         return
 
 
+def _qwebchannel_script() -> Optional[QWebEngineScript]:
+    """把 Qt 自带的 qwebchannel.js 注入网页，网页里才有 QWebChannel。"""
+    source = QFile(":/qtwebchannel/qwebchannel.js")
+    if not source.open(QIODevice.OpenModeFlag.ReadOnly):
+        return None
+    script = QWebEngineScript()
+    script.setName("ganlan-qwebchannel")
+    script.setSourceCode(bytes(source.readAll()).decode("utf-8"))
+    source.close()
+    script.setInjectionPoint(QWebEngineScript.InjectionPoint.DocumentCreation)
+    script.setWorldId(QWebEngineScript.ScriptWorldId.MainWorld)
+    script.setRunsOnSubFrames(False)
+    return script
+
+
+class _WindowBridge(QObject):
+    """网页里的 window-chrome.js 通过 QWebChannel 调这些。"""
+
+    def __init__(self, window: "MainWindow"):
+        super().__init__(window)
+        self._window = window
+
+    @Slot()
+    def minimize(self) -> None:
+        self._window.showMinimized()
+
+    @Slot()
+    def toggleMaximize(self) -> None:  # noqa: N802
+        self._window.toggle_maximized()
+
+    @Slot()
+    def closeWindow(self) -> None:  # noqa: N802
+        self._window.close()
+
+    @Slot(str)
+    def setDragRegion(self, payload: str) -> None:  # noqa: N802
+        self._window.set_drag_region(payload)
+
+    @Slot(result=str)
+    def state(self) -> str:
+        return json.dumps(self._window.chrome_state())
+
+
 class MainWindow(QMainWindow):
     def __init__(
         self,
@@ -92,26 +159,42 @@ class MainWindow(QMainWindow):
         self._on_hidden = on_hidden
         self._quit_requested = False
         self._url = url
+        # 网页最上面能拖动窗口的那一条：高度 + 里面不能拖的按钮（网页坐标）
+        self._drag_height = float(DEFAULT_DRAG_HEIGHT)
+        self._drag_holes: list[QRectF] = []
+        self.view: Optional[QWebEngineView] = None
 
-        self.setWindowTitle("甘岚翻译")
+        self.setWindowTitle(_app_title())
         self.resize(1240, 920)
         self.setMinimumSize(980, 720)
         self._set_icon()
+        if FRAMELESS:
+            self.setWindowFlags(self.windowFlags() | Qt.WindowType.FramelessWindowHint)
 
         # 窗口底色贴近杂志页，避免加载瞬间闪白
         self.setStyleSheet("QMainWindow { background: #0A2115; }")
 
         central = QWidget()
-        central.setStyleSheet("background: #0A2115;")
+        central.setObjectName("windowFrame")
         layout = QVBoxLayout(central)
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(0)
+        self._frame_layout = layout
+        self._sync_frame_border()
 
         self.view = QWebEngineView(central)
         profile = persistent_profile()
         # QtWebEngine 默认把网页里的下载直接丢掉（导出预设会显示成功但没有文件），这里接住
         profile.downloadRequested.connect(self._on_download_requested)
         page = _QuietPage(profile, self.view)
+        if FRAMELESS:
+            self._bridge = _WindowBridge(self)
+            self._channel = QWebChannel(page)
+            self._channel.registerObject("ganlanWindow", self._bridge)
+            page.setWebChannel(self._channel)
+            script = _qwebchannel_script()
+            if script is not None:
+                page.scripts().insert(script)
         self.view.setPage(page)
 
         settings = self.view.settings()
@@ -125,11 +208,87 @@ class MainWindow(QMainWindow):
         layout.addWidget(self.view)
         self.setCentralWidget(central)
 
+        self.view.loadStarted.connect(self._reset_drag_region)
         self.view.loadFinished.connect(self._on_load_finished)
         self.view.setUrl(QUrl(self._url))
 
+        if FRAMELESS:
+            enable_native_frame(int(self.winId()))
+
         # 若首屏未就绪，短延迟再试一次
         QTimer.singleShot(2500, self._ensure_loaded)
+
+    # --- 无标题栏 -----------------------------------------------------------
+    def nativeEvent(self, event_type, message):  # noqa: N802
+        if FRAMELESS and bytes(event_type) == b"windows_generic_MSG":
+            result = handle_frame_message(message, self.devicePixelRatioF(), self._is_drag_point)
+            if result is not None:
+                return True, result
+        return super().nativeEvent(event_type, message)
+
+    def showEvent(self, event) -> None:  # noqa: N802
+        super().showEvent(event)
+        if FRAMELESS:
+            enable_native_frame(int(self.winId()))
+
+    def changeEvent(self, event) -> None:  # noqa: N802
+        super().changeEvent(event)
+        if not FRAMELESS or self.view is None:
+            return
+        if event.type() == QEvent.Type.WindowStateChange:
+            self._sync_frame_border()
+            self._push_chrome_state()
+        elif event.type() == QEvent.Type.ActivationChange:
+            self._push_chrome_state()
+
+    def toggle_maximized(self) -> None:
+        if self.isMaximized():
+            self.showNormal()
+        else:
+            self.showMaximized()
+
+    def chrome_state(self) -> dict:
+        return {"maximized": self.isMaximized(), "active": self.isActiveWindow()}
+
+    def set_drag_region(self, payload: str) -> None:
+        """网页报来的拖动区：{"height": 32, "holes": [[x, y, w, h], ...]}（网页坐标，= 网页控件里的逻辑像素）。"""
+        try:
+            data = json.loads(payload)
+            height = max(0.0, min(float(data.get("height", 0)), 200.0))
+            holes = [QRectF(float(x), float(y), float(w), float(h)) for x, y, w, h in data.get("holes", [])[:200]]
+        except (TypeError, ValueError):
+            return
+        self._drag_height = height
+        self._drag_holes = holes
+
+    def _reset_drag_region(self) -> None:
+        self._drag_height = float(DEFAULT_DRAG_HEIGHT)
+        self._drag_holes = []
+
+    def _is_drag_point(self, x: float, y: float) -> bool:
+        if self.view is None:
+            return False
+        point = self.view.mapFrom(self, QPoint(int(x), int(y)))
+        if not self.view.rect().contains(point) or point.y() >= self._drag_height:
+            return False
+        local = QPointF(point)
+        return not any(hole.contains(local) for hole in self._drag_holes)
+
+    def _push_chrome_state(self) -> None:
+        state = json.dumps(self.chrome_state())
+        self.view.page().runJavaScript(
+            f"window.ganlanWindowChrome && window.ganlanWindowChrome.setState({state});"
+        )
+
+    def _sync_frame_border(self) -> None:
+        """没最大化时四周留 1px 的边（中间那层的底色就是边的颜色），最大化时贴满屏幕。"""
+        frame = self._frame_layout.parentWidget()
+        if not FRAMELESS:
+            frame.setStyleSheet("#windowFrame { background: #0A2115; }")
+            return
+        width = 0 if self.isMaximized() or self.isFullScreen() else 1
+        self._frame_layout.setContentsMargins(width, width, width, width)
+        frame.setStyleSheet(f"#windowFrame {{ background: {WINDOW_BORDER}; }}")
 
     def _on_download_requested(self, download) -> None:
         """网页里的下载（导出预设等）：让用户选保存位置。"""

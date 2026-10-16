@@ -150,7 +150,7 @@ def save_terms(lang: str, entries) -> List[Dict]:
 
 
 def folder_paths() -> Dict[str, str]:
-    """「详情」页可以打开的文件夹（只认这几个键，不接受任意路径）。"""
+    """「软件信息」页可以打开的文件夹（只认这几个键，不接受任意路径）。"""
     return {
         'data': get_user_data_path(),
         'hot_words': get_user_data_path(HOT_WORDS_PRIVATE_DIR),

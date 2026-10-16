@@ -212,11 +212,11 @@ python -m venv .venv
 - [Silero VAD](https://github.com/snakers4/silero-vad)（音声区間検出）
 - [vrchat_oscquery](https://github.com/theepicsnail/vrchat_oscquery)、[pyopenvr](https://github.com/cmbruns/pyopenvr)、[PySide6](https://doc.qt.io/qtforpython-6/)、[Flask](https://flask.palletsprojects.com/)、[fast-langdetect](https://github.com/LlmKira/fast-langdetect)
 
-スペシャルサンクス（順不同）：nino、wood、苌梦、febilly。それぞれのエピソードはアプリの **アプリ情報** ページに書いてあります。
+スペシャルサンクス（順不同）：nino、wood、苌梦、febilly。それぞれのエピソードはアプリの **情報 → 貢献者** ページに書いてあります。
 
 ## フィードバック
 
-不具合の報告や提案は [Issues](https://github.com/ganlanqwq/GanlanTranslate/issues) へどうぞ。アプリの **アプリ情報** ページにある連絡先からも受け付けています。
+不具合の報告や提案は [Issues](https://github.com/ganlanqwq/GanlanTranslate/issues) へどうぞ。アプリの **情報 → 貢献者** ページにある連絡先からも受け付けています。
 
 ## ライセンス
 

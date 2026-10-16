@@ -312,7 +312,7 @@ body[data-display="vr"] .desktop-only { display: none !important; }
   font-weight: 600;
 }
 
-.app-page-nav { display: flex; flex-wrap: wrap; gap: 8px; }
+.app-page-nav { display: flex; flex-direction: column; align-items: flex-start; gap: 12px; padding-bottom: 20px; }
 .app-page { display: flex; flex-direction: column; gap: 22px; }
 .app-page[hidden] { display: none !important; }
 
@@ -385,9 +385,11 @@ body[data-display="vr"] .desktop-only { display: none !important; }
 .language-combo-clear:hover { background: var(--surface-soft); color: var(--green-600); }
 .language-combo-clear[hidden] { display: none !important; }
 .language-combo.open .language-combo-toggle svg { transform: rotate(180deg); }
+.language-combo.open .language-combo-toggle { color: var(--green-600); }
 
 .language-combo-menu {
   display: none;
+  transform-origin: top center;
   position: absolute;
   top: calc(100% + 4px);
   left: 0;
@@ -402,6 +404,8 @@ body[data-display="vr"] .desktop-only { display: none !important; }
   box-shadow: var(--shadow-pop);
 }
 .language-combo.open .language-combo-menu { display: block; }
+/* 收起动画播放期间菜单还显示着，不能再点 */
+.language-combo:not(.open) .language-combo-menu { pointer-events: none; }
 
 .language-combo-option {
   display: flex;
@@ -595,6 +599,7 @@ body[data-display="vr"] .desktop-only { display: none !important; }
    ========================================================================== */
 @keyframes gl-rise { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: none; } }
 @keyframes gl-fade { from { opacity: 0; } to { opacity: 1; } }
+@keyframes gl-float { 0%, 100% { transform: none; } 50% { transform: translateY(-4px); } }
 @keyframes gl-settle { from { transform: scale(1.08); } to { transform: scale(1); } }
 @keyframes gl-pulse {
   0% { box-shadow: 0 0 0 0 rgba(95, 192, 141, 0.55); }
@@ -639,12 +644,40 @@ body[data-display="vr"] .desktop-only { display: none !important; }
   #advanced-view section[id]:hover { box-shadow: 0 8px 26px rgba(18, 38, 26, 0.07); }
   .hero-service-card { transition: transform 0.25s ease, box-shadow 0.25s ease; }
   .hero-service-card:hover { transform: translateY(-3px); box-shadow: 0 24px 60px rgba(0, 0, 0, 0.34); }
-  button:not(:disabled):not(.page-tab):active,
+  button:not(:disabled):not(.page-tab):not(.page-subtab):active,
   .language-selector-wrapper:active { transform: scale(0.97); }
+  /* 输入框里靠 -translate-y-1/2 垂直居中的小按钮（语言下拉箭头、清空、显示密钥）：
+     上面那条会把 translate 盖掉，按下时按钮往下跳半个身位，这里把居中带上 */
+  button.-translate-y-1\/2:not(:disabled):active { transform: translateY(-50%) scale(0.88); }
+
+  /* 语言输入框：箭头转过去，候选菜单淡入、下滑展开；收起时反着播一遍 */
+  .language-combo-toggle,
+  .language-combo-toggle svg { transition: transform 0.22s cubic-bezier(0.3, 0.8, 0.25, 1), color 0.15s ease, background-color 0.15s ease; }
+  .language-combo-menu {
+    opacity: 0;
+    transform: translateY(-6px) scale(0.98);
+    transition: opacity 0.16s ease, transform 0.2s cubic-bezier(0.2, 0.7, 0.2, 1), display 0.2s allow-discrete;
+  }
+  .language-combo.open .language-combo-menu { opacity: 1; transform: none; }
+  @starting-style {
+    .language-combo.open .language-combo-menu { opacity: 0; transform: translateY(-6px) scale(0.98); }
+  }
+
+  /* 下拉框（select-menu.js）：箭头转过去，菜单淡入、滑出 */
+  .gl-select-chevron,
+  .language-selector-wrapper .lang-icon-chevron { transition: transform 0.22s cubic-bezier(0.3, 0.8, 0.25, 1), color 0.15s ease; }
+  .gl-select-menu { transition: opacity 0.16s ease, transform 0.2s cubic-bezier(0.2, 0.7, 0.2, 1); }
+  .gl-select-menu.closing { transition-duration: 0.12s, 0.14s; }
+  .gl-select-option { transition: background-color 0.12s ease, color 0.12s ease; }
   .page-tabs.indicator-ready .page-tab-indicator {
     transition: transform 0.32s cubic-bezier(0.3, 0.8, 0.25, 1), width 0.32s cubic-bezier(0.3, 0.8, 0.25, 1);
   }
   .page-tab:active svg { transform: scale(0.9); }
+  .page-subtabs.indicator-ready .page-subtab-indicator {
+    transition: transform 0.32s cubic-bezier(0.3, 0.8, 0.25, 1), width 0.32s cubic-bezier(0.3, 0.8, 0.25, 1);
+  }
+  .page-subtab:active svg { transform: scale(0.9); }
+  .plugins-empty-icon { animation: gl-float 3.2s ease-in-out infinite; }
 }
 
 /* ==========================================================================
@@ -825,7 +858,8 @@ body[data-display="vr"] .desktop-only { display: none !important; }
 .thanks-text { margin: 0; font-size: 12.5px; line-height: 1.65; color: var(--ink-2); }
 
 /* ==========================================================================
-   13. 设置页标签栏（2026-10-11 岚要求优化）：一条分段控件，白色滑块跟着当前页
+   13. 设置页菜单：两层（2026-10-17 岚要求）。上面一条大类（设置 / 功能 / 插件 / 信息），
+       分段控件 + 白色滑块；下面一条是当前大类的子页面，绿色下划线跟着当前页
    ========================================================================== */
 .page-tabs {
   position: relative;
@@ -861,13 +895,13 @@ body[data-display="vr"] .desktop-only { display: none !important; }
   display: inline-flex;
   align-items: center;
   gap: 7px;
-  height: 36px;
-  padding: 0 15px;
+  height: 38px;
+  padding: 0 20px;
   border: 0;
   border-radius: 7px;
   background: transparent;
   color: var(--ink-2);
-  font-size: 13px;
+  font-size: 13.5px;
   font-weight: 500;
   white-space: nowrap;
   cursor: pointer;
@@ -879,7 +913,242 @@ body[data-display="vr"] .desktop-only { display: none !important; }
 /* 没有滑块（脚本没跑）时当前标签自己带白底 */
 .page-tabs:not(.has-indicator) .page-tab.active { background: var(--surface); box-shadow: 0 1px 2px rgba(18, 38, 26, 0.08); }
 .page-tab:focus-visible { box-shadow: inset 0 0 0 2px rgba(31, 122, 77, 0.35); }
+.page-subnav {
+  display: grid;
+  width: 100%;
+  border-bottom: 1px solid var(--line);
+}
+/* 四条子页面叠在同一格里，换大类时旧的滑出、新的滑进（tabs.js 的 showSubtabs） */
+.page-subtabs {
+  grid-area: 1 / 1;
+  position: relative;
+  display: flex;
+  gap: 2px;
+  min-width: 0;
+  margin-bottom: -1px;
+  padding: 0 2px;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.page-subtabs[hidden] { display: none; }
+.page-subtabs::-webkit-scrollbar { display: none; }
+.page-subtabs.leaving { pointer-events: none; }
+.page-subtab {
+  position: relative;
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 38px;
+  padding: 0 13px;
+  border: 0;
+  border-radius: 6px 6px 0 0;
+  background: transparent;
+  color: var(--ink-3);
+  font-size: 13px;
+  font-weight: 500;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: color 0.2s ease, background-color 0.2s ease;
+}
+.page-subtab svg { width: 14px; height: 14px; flex-shrink: 0; transition: transform 0.15s ease; }
+.page-subtab:hover:not(.active) { color: var(--ink); background: rgba(18, 38, 26, 0.04); }
+.page-subtab.active { color: var(--green-700); font-weight: 600; }
+.page-subtab:focus-visible { box-shadow: inset 0 0 0 2px rgba(31, 122, 77, 0.35); }
+.page-subtab-indicator {
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  width: 0;
+  height: 2px;
+  border-radius: 2px 2px 0 0;
+  background: var(--green-600);
+  pointer-events: none;
+  opacity: 0;
+}
+.page-subtabs.has-indicator .page-subtab-indicator { opacity: 1; }
+.page-subtabs:not(.has-indicator) .page-subtab.active { box-shadow: inset 0 -2px 0 var(--green-600); }
 @media (max-width: 760px) {
   .page-tabs { display: flex; }
-  .page-tab { padding: 0 12px; }
+  .page-tab { flex: 1 0 auto; justify-content: center; padding: 0 12px; }
+  .page-subtab { padding: 0 10px; }
+}
+
+/* 插件页：还没有插件，先放一个空状态 */
+.plugins-empty {
+  box-sizing: border-box;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  padding: 56px 24px 60px;
+  text-align: center;
+}
+.plugins-empty-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 56px;
+  height: 56px;
+  margin-bottom: 4px;
+  border-radius: 16px;
+  background: var(--green-50);
+  color: var(--green-600);
+}
+.plugins-empty-icon svg { width: 26px; height: 26px; }
+.plugins-empty-title { font-family: 'Funnel Sans', system-ui, sans-serif; font-size: 16px; font-weight: 600; color: var(--ink); }
+.plugins-empty-hint { margin: 0; max-width: 420px; font-size: 12.5px; line-height: 1.7; color: var(--ink-3); }
+
+/* ==========================================================================
+   14. 下拉框弹出菜单（2026-10-17 岚：展开没有动画、箭头不好看）
+   select-menu.js 拦下系统自带的下拉列表，换成下面这个菜单；原生 select 还在原地当按钮。
+   过渡写在第 11 节（减少动画时不播）。
+   ========================================================================== */
+.gl-select { position: relative; display: inline-block; vertical-align: middle; max-width: 100%; }
+.gl-select.gl-select-block { display: block; width: 100%; }
+/* 箭头换成能转的图标，原来那张背景图不要了 */
+.gl-select > select { background-image: none; }
+.gl-select-chevron {
+  position: absolute;
+  top: 50%;
+  right: 11px;
+  width: 15px;
+  height: 15px;
+  margin-top: -7.5px;
+  color: var(--ink-3);
+  pointer-events: none;
+}
+.gl-select-chevron svg { display: block; width: 100%; height: 100%; }
+.gl-select:hover .gl-select-chevron { color: var(--ink-2); }
+.gl-select.open .gl-select-chevron { transform: rotate(180deg); color: var(--green-600); }
+.gl-select:has(> select:disabled) .gl-select-chevron { opacity: 0.55; }
+.language-selector-wrapper.open .lang-icon-chevron { transform: rotate(180deg); }
+
+.gl-select-menu {
+  position: fixed;
+  z-index: 1000;
+  box-sizing: border-box;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 4px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-pop);
+  font-family: var(--font-sans);
+  font-size: 13px;
+  line-height: 1.45;
+  color: var(--ink);
+  opacity: 0;
+  transform: translateY(-6px) scale(0.98);
+  transform-origin: top center;
+}
+.gl-select-menu.drop-up { transform: translateY(6px) scale(0.98); transform-origin: bottom center; }
+.gl-select-menu.show { opacity: 1; transform: none; }
+.gl-select-menu.closing { pointer-events: none; }
+.gl-select-menu::-webkit-scrollbar { width: 8px; }
+.gl-select-menu::-webkit-scrollbar-thumb { background: var(--line-strong); border-radius: 999px; border: 2px solid var(--surface); }
+
+.gl-select-option {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 7px 10px;
+  border-radius: var(--radius-sm);
+  color: var(--ink-2);
+  cursor: pointer;
+  user-select: none;
+}
+.gl-select-option.active { background: var(--surface-soft); color: var(--ink); }
+.gl-select-option.selected { background: var(--green-50); color: var(--green-900); font-weight: 600; }
+.gl-select-option.selected.active { background: #D8ECDF; }
+.gl-select-option.disabled { color: var(--ink-4); cursor: default; }
+.gl-select-option-label { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+.gl-select-check { flex-shrink: 0; width: 14px; height: 14px; color: var(--green-600); opacity: 0; }
+.gl-select-check svg { display: block; width: 100%; height: 100%; }
+.gl-select-option.selected .gl-select-check { opacity: 1; }
+.gl-select-group {
+  padding: 8px 10px 3px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.4px;
+  color: var(--ink-4);
+}
+
+/* ==========================================================================
+   15. 安装版窗口的按钮（2026-10-17 岚：要无头窗口）
+   只有在安装版窗口里 window-chrome.js 才会加 html.app-window 和 .window-chrome；浏览器里看不到。
+   最上面 32px 一条能拖动窗口（Qt 那边按 window-chrome.js 报的位置判断），右上角三个按钮。
+   ========================================================================== */
+.window-chrome {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 32px;
+  z-index: 2147483000;
+  pointer-events: none;
+}
+.window-chrome-bg {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  background: rgba(251, 252, 250, 0.86);
+  -webkit-backdrop-filter: blur(14px) saturate(1.3);
+  backdrop-filter: blur(14px) saturate(1.3);
+  border-bottom: 1px solid var(--line);
+}
+/* 滚到页首图片下面：换浅色底，盖住下面滚过去的内容 */
+.window-chrome.solid .window-chrome-bg { opacity: 1; pointer-events: auto; }
+.window-chrome-buttons {
+  position: absolute;
+  top: 0;
+  right: 0;
+  display: flex;
+  height: 32px;
+  pointer-events: auto;
+}
+.window-chrome-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 46px;
+  height: 32px;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.9);
+  font-family: "Segoe Fluent Icons", "Segoe MDL2 Assets", sans-serif;
+  font-size: 10px;
+  line-height: 1;
+  cursor: default;
+  transform: none !important;
+}
+.window-chrome-btn:hover { background: rgba(255, 255, 255, 0.14); }
+.window-chrome-btn:active { background: rgba(255, 255, 255, 0.22); }
+.window-chrome-btn.close:hover { background: #E81123; color: #FFFFFF; }
+.window-chrome-btn.close:active { background: #B91C1C; color: #FFFFFF; }
+.window-chrome-btn:focus-visible { box-shadow: inset 0 0 0 2px rgba(255, 255, 255, 0.5); }
+.window-chrome.inactive .window-chrome-btn:not(:hover) { color: rgba(255, 255, 255, 0.5); }
+.window-chrome.solid .window-chrome-btn { color: var(--ink-2); }
+.window-chrome.solid .window-chrome-btn:hover { background: rgba(18, 38, 26, 0.07); }
+.window-chrome.solid .window-chrome-btn:active { background: rgba(18, 38, 26, 0.12); }
+.window-chrome.solid .window-chrome-btn.close:hover,
+.window-chrome.solid .window-chrome-btn.close:active { color: #FFFFFF; }
+.window-chrome.solid .window-chrome-btn.close:hover { background: #E81123; }
+.window-chrome.solid .window-chrome-btn.close:active { background: #B91C1C; }
+.window-chrome.solid.inactive .window-chrome-btn:not(:hover) { color: var(--ink-4); }
+/* 提示条别跟按钮那一条挤在一起 */
+.app-window .toast-area { top: 44px; }
+/* 网页滚动条的轨道是透明的，露出底色：页首图片旁边那一段换成深绿，不然右边一条浅色很扎眼 */
+html.app-window {
+  background-color: var(--bg);
+  background-image: linear-gradient(to bottom, #0A2115 var(--app-hero-bottom, 0px), var(--bg) var(--app-hero-bottom, 0px));
+  background-repeat: no-repeat;
+}
+@media (prefers-reduced-motion: no-preference) {
+  .window-chrome-bg { transition: opacity 0.2s ease; }
+  .window-chrome-btn { transition: background-color 0.12s ease, color 0.12s ease; }
 }

@@ -212,11 +212,11 @@ Open-source projects used or referenced:
 - [Silero VAD](https://github.com/snakers4/silero-vad) (voice activity detection)
 - [vrchat_oscquery](https://github.com/theepicsnail/vrchat_oscquery), [pyopenvr](https://github.com/cmbruns/pyopenvr), [PySide6](https://doc.qt.io/qtforpython-6/), [Flask](https://flask.palletsprojects.com/), [fast-langdetect](https://github.com/LlmKira/fast-langdetect)
 
-Special thanks (in no particular order): nino, wood, 苌梦, febilly. Their stories are on the **About** page in the app.
+Special thanks (in no particular order): nino, wood, 苌梦, febilly. Their stories are on the **Info → Contributors** page in the app.
 
 ## Feedback
 
-Questions and suggestions are welcome in [Issues](https://github.com/ganlanqwq/GanlanTranslate/issues), or reach me through the contact on the **About** page in the app.
+Questions and suggestions are welcome in [Issues](https://github.com/ganlanqwq/GanlanTranslate/issues), or reach me through the contact on the **Info → Contributors** page in the app.
 
 ## License
 
