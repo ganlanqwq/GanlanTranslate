@@ -53,7 +53,7 @@ Also included:
 ### Translate screen
 
 - Press the global hotkey (default `Ctrl+Alt+F8`) or the camera button on the screen overlay to capture the VRChat window once. It works even if VRChat is covered by other windows (but not when it is minimized).
-- A vision model reads the text in the capture (Qwen OCR `qwen-vl-ocr` by default, or any OpenAI-compatible model that can see images). Each block is labeled with its language and translated.
+- A vision model reads the text in the capture (Qwen OCR `qwen-vl-ocr` by default, or any OpenAI-compatible model that can see images). A sentence that wraps onto several lines on screen is joined back into one block, then each block is labeled with its language and translated.
 - Handy for signs, menus and instructions inside worlds.
 
 ### VR wrist subtitles (SteamVR)

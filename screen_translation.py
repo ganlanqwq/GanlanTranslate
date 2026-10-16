@@ -12,6 +12,7 @@ import base64
 import ctypes
 import io
 import logging
+import re
 import threading
 import time
 from ctypes import wintypes
@@ -27,8 +28,10 @@ INTL_DASHSCOPE_COMPAT_URL = "https://dashscope-intl.aliyuncs.com/compatible-mode
 
 OCR_PROMPT = (
     "Read all legible text in this VRChat game screenshot. "
-    "Output one text block per line, in natural reading order (top to bottom, left to right). "
-    "Join wrapped lines that belong to the same sentence or paragraph into one line. "
+    "Group it into blocks: each chat bubble, sign, paragraph or separate UI label is one block. "
+    "Write each block on a single line: when a sentence or paragraph wraps onto several lines "
+    "in the image, join those lines into one line. Put an empty line between blocks. "
+    "List the blocks in natural reading order (top to bottom, left to right). "
     "Keep the original language exactly; do not translate, explain, number, or add anything. "
     "If there is no readable text, output nothing."
 )
@@ -321,23 +324,110 @@ def recognize_text(image) -> list[str]:
     return split_blocks(content)
 
 
+# 识别模型（尤其 qwen-vl-ocr）常常不管提示词，照画面一行一行输出，一句话被折行拆成好几段。
+# split_blocks 把看起来是同一句被折开的相邻行拼回去；空行、纯数字行、列表项开头都当分界。
+
+# 以这些结尾的行算完整的一句（或标题），不再往下拼
+_LINE_END = tuple("。！？!?…．.；;:：」』】〉》）)\"”’～~♪")
+# 以这些结尾说明句子还没完
+_LINE_CONTINUE = tuple(",，、-‐–—/(（「『【《“")
+# 下一行这样开头是新的一条（列表、注释）
+_ITEM_START = re.compile(
+    r"^(?:\d{1,3}\s*[.)．、:：]|[\(（]\d{1,3}[\)）]|[①-⑳]|[・•●○◆◇■□※★☆▶►▷→\-*])"
+)
+# 英文行末是这些词时句子肯定没完
+_EN_TRAILING_WORDS = {
+    "a", "an", "the", "and", "or", "but", "to", "of", "in", "on", "at", "for", "with",
+    "from", "by", "is", "are", "was", "be", "my", "your", "our", "this", "that", "if", "so",
+}
+# 中日文一行至少这么多字才像是被折行（再短像按钮、菜单项）
+_CJK_WRAP_CHARS = 8
+# 英文、韩文一行至少这么多字符，且下一行不是新句子时才拼
+_SPACED_WRAP_CHARS = 28
+# 拼出来的一段最长多少字符
+_MAX_BLOCK_CHARS = 400
+
+
+def _is_cjk(ch: str) -> bool:
+    """汉字、假名、全角符号：拼接时中间不加空格。"""
+    code = ord(ch)
+    return (
+        0x3000 <= code <= 0x30FF      # CJK 标点、平假名、片假名
+        or 0x3400 <= code <= 0x4DBF
+        or 0x4E00 <= code <= 0x9FFF
+        or 0xF900 <= code <= 0xFAFF
+        or 0xFF00 <= code <= 0xFFEF   # 全角
+        or 0x31F0 <= code <= 0x31FF
+    )
+
+
+def _is_hangul(ch: str) -> bool:
+    code = ord(ch)
+    return 0xAC00 <= code <= 0xD7AF or 0x1100 <= code <= 0x11FF or 0x3130 <= code <= 0x318F
+
+
+def _continues(prev: str, line: str) -> bool:
+    """prev 是不是被折行截断、line 是它的下半句。"""
+    if prev.endswith(_LINE_END) or _ITEM_START.match(line):
+        return False
+    if prev.endswith(_LINE_CONTINUE):
+        return True
+    last, first = prev[-1], line[0]
+    if _is_cjk(last):
+        return len(prev) >= _CJK_WRAP_CHARS and (_is_cjk(first) or first.isalnum())
+    if _is_hangul(last):
+        return len(prev) >= _SPACED_WRAP_CHARS // 2 and (_is_hangul(first) or first.isalnum())
+    if not last.isalnum():
+        return False
+    if first.islower():
+        return True
+    words = prev.split()
+    if words and words[-1].lower() in _EN_TRAILING_WORDS:
+        return True
+    return len(prev) >= _SPACED_WRAP_CHARS and first.isalnum()
+
+
+def _join(prev: str, line: str) -> str:
+    if _is_cjk(prev[-1]) or _is_cjk(line[0]) or prev.endswith(("-", "‐", "/")):
+        return prev + line
+    return prev + " " + line
+
+
 def split_blocks(text: str) -> list[str]:
     from openai_compat_client import OpenAICompatClientBase
 
     cleaned = OpenAICompatClientBase.clean_response(text or "")
-    blocks: list[str] = []
-    seen: set[str] = set()
+    merged: list[str] = []
+    current = ""          # 正在拼的一段
+    last_line = ""        # 这一段的最后一行（判断折行看的是它）
     for raw in cleaned.splitlines():
         line = raw.strip().strip("`").strip()
-        if line.startswith(("- ", "* ", "• ")):
+        marked = line.startswith(("- ", "* ", "• "))
+        if marked:
             line = line[2:].strip()
-        # 纯数字 / 符号（时间、帧数、坐标）不用翻译
+        # 空行、纯数字 / 符号（时间、帧数、坐标）不用翻译，也是分界
         if not line or not any(ch.isalpha() for ch in line):
+            if current:
+                merged.append(current)
+            current = last_line = ""
             continue
-        if line in seen:
-            continue
-        seen.add(line)
-        blocks.append(line)
+        if (current and not marked and _continues(last_line, line)
+                and len(current) + len(line) < _MAX_BLOCK_CHARS):
+            current = _join(current, line)
+        else:
+            if current:
+                merged.append(current)
+            current = line
+        last_line = line
+    if current:
+        merged.append(current)
+
+    blocks: list[str] = []
+    seen: set[str] = set()
+    for block in merged:
+        if block not in seen:
+            seen.add(block)
+            blocks.append(block)
     return blocks
 
 
