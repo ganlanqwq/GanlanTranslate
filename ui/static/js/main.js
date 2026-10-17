@@ -2143,15 +2143,13 @@ async function loadEnvStatus() {
 }
 
 /**
- * Windows/PortAudio 下 get_default_input_device_info 的设备名常被截断（约 32 字符），
- * 而枚举列表里的名称是完整的；且默认设备 index 可能因 Host API 过滤与列表不一致。
- * 用列表项解析「系统默认」应展示的完整名称。
+ * 「系统默认」后面显示的设备名：优先用列表里同一设备的完整名字。
  */
-function resolveDefaultMicDisplayName(devices, defaultIndex, defaultNameApi) {
+function resolveDefaultMicDisplayName(devices, defaultId, defaultNameApi) {
     const api = (defaultNameApi || '').trim();
-    const fromIndex = devices.find((ad) => ad.index === defaultIndex);
-    if (fromIndex && fromIndex.name) {
-        return String(fromIndex.name).trim();
+    const fromId = defaultId ? devices.find((ad) => ad.id === defaultId) : null;
+    if (fromId && fromId.name) {
+        return String(fromId.name).trim();
     }
     if (!api) return '';
     const exact = devices.find((d) => d.name && String(d.name).trim() === api);
@@ -2165,6 +2163,19 @@ function resolveDefaultMicDisplayName(devices, defaultIndex, defaultNameApi) {
         if (n.length > best.length) best = n;
     }
     return best || api;
+}
+
+// 设置麦克风下拉框的值。页面加载时先读配置、后拉设备列表，列表还没回来时
+// 先放一个占位选项，不然选好的麦克风会被清成「系统默认」
+function setMicDeviceSelectValue(micSelect, value) {
+    const id = value ? String(value) : '';
+    if (id && !Array.from(micSelect.options).some((o) => o.value === id)) {
+        const opt = document.createElement('option');
+        opt.value = id;
+        opt.textContent = '…';
+        micSelect.appendChild(opt);
+    }
+    micSelect.value = id;
 }
 
 // 系统默认麦克风变化且当前选用「系统默认」时，保存并重启服务以重新打开采集流
@@ -2181,7 +2192,7 @@ async function maybeRestartForNewSystemDefaultMic() {
     }
 }
 
-// 刷新后端输入设备列表（PyAudio）
+// 刷新麦克风列表。选项的值是后端录音用的设备 ID（Windows 上是 WASAPI 端点 ID）
 async function refreshMicDevices(preserveSelection = true) {
     const micSelect = document.getElementById('mic-device');
     if (!micSelect) return;
@@ -2191,6 +2202,11 @@ async function refreshMicDevices(preserveSelection = true) {
     try {
         const response = await fetch(`${API_BASE}/audio/input-devices`);
         const data = await response.json();
+        // 列不出来时保留现在的选项，不要把选好的麦克风清掉
+        if (!response.ok || data.error) {
+            console.warn('获取麦克风列表失败:', data.error || response.status);
+            return;
+        }
         const devices = Array.isArray(data.devices) ? data.devices : [];
 
         // 重建选项
@@ -2198,9 +2214,9 @@ async function refreshMicDevices(preserveSelection = true) {
         const defaultOpt = document.createElement('option');
         defaultOpt.value = '';
         const t = window.i18n ? window.i18n.t : (key) => key;
-        const defaultIndex = data.default_index;
+        const defaultId = data.default_id || null;
         const defaultNameApi = data.default_name ? String(data.default_name).trim() : '';
-        const displayDefaultName = resolveDefaultMicDisplayName(devices, defaultIndex, defaultNameApi);
+        const displayDefaultName = resolveDefaultMicDisplayName(devices, defaultId, defaultNameApi);
         defaultOpt.textContent = displayDefaultName
             ? (window.i18n
                 ? window.i18n.t('option.systemDefaultWithDevice', { name: displayDefaultName })
@@ -2208,34 +2224,41 @@ async function refreshMicDevices(preserveSelection = true) {
             : (window.i18n ? window.i18n.t('option.systemDefault') : '系统默认');
         micSelect.appendChild(defaultOpt);
 
-        const indices = new Set();
+        const nameCounts = new Map();
         devices.forEach((d) => {
-            const idx = d.index;
-            if (idx === undefined || idx === null) return;
-            const idxStr = String(idx);
-            indices.add(idxStr);
+            const name = d.name ? String(d.name) : '';
+            nameCounts.set(name, (nameCounts.get(name) || 0) + 1);
+        });
+        const ids = new Set();
+        devices.forEach((d) => {
+            if (!d.id) return;
+            const id = String(d.id);
+            ids.add(id);
 
             const opt = document.createElement('option');
-            opt.value = idxStr;
-            const name = d.name ? String(d.name) : `${t('label.device')} ${idxStr}`;
-            opt.textContent = `${name} (#${idxStr})`;
+            opt.value = id;
+            const name = d.name ? String(d.name) : '';
+            // 同名设备（比如两个一样的 USB 麦克风）后面加一小段 ID 区分
+            const suffix = nameCounts.get(name) > 1 && d.label_suffix ? ` (#${d.label_suffix})` : '';
+            opt.textContent = (name || t('label.device')) + suffix;
             micSelect.appendChild(opt);
         });
 
         // 优先保留当前选择；否则使用后端当前配置；最后回退默认
-        const serverSelected = (data.selected_index === undefined || data.selected_index === null) ? '' : String(data.selected_index);
-        if (previousValue && indices.has(previousValue)) {
+        const serverSelected = data.selected_id ? String(data.selected_id) : '';
+        if (previousValue && ids.has(previousValue)) {
             micSelect.value = previousValue;
-        } else if (serverSelected && indices.has(serverSelected)) {
+        } else if (serverSelected && ids.has(serverSelected)) {
             micSelect.value = serverSelected;
         } else {
             micSelect.value = '';
         }
 
-        const identity = `${defaultIndex ?? 'none'}|${displayDefaultName}`;
+        const identity = `${defaultId ?? 'none'}|${displayDefaultName}`;
         const prevIdentity = lastMicDefaultIdentity;
         lastMicDefaultIdentity = identity;
-        if (prevIdentity !== null && identity !== prevIdentity && micSelect.value === '') {
+        // 后端录音会自己跟着系统默认麦克风换（follows_default）时不用重启服务
+        if (prevIdentity !== null && identity !== prevIdentity && micSelect.value === '' && !data.follows_default) {
             void maybeRestartForNewSystemDefaultMic();
         }
     } catch (e) {
@@ -2554,10 +2577,7 @@ function loadConfigFromLocalStorage() {
                 document.getElementById('enable-double-mute-clear').checked = config.mic_control.enable_double_mute_clear ?? true;
 
                 const micSelect = document.getElementById('mic-device');
-                if (micSelect) {
-                    const idx = config.mic_control.mic_device_index;
-                    micSelect.value = (idx === undefined || idx === null) ? '' : String(idx);
-                }
+                if (micSelect) setMicDeviceSelectValue(micSelect, config.mic_control.mic_device_id);
             }
 
             applyVrchatMicSettingsToForm(config);
@@ -2891,8 +2911,7 @@ function applyServerConfigPayload(config) {
     document.getElementById('enable-double-mute-clear').checked = config.mic_control.enable_double_mute_clear ?? true;
     const micSelect = document.getElementById('mic-device');
     if (micSelect && config.mic_control) {
-        const idx = config.mic_control.mic_device_index;
-        micSelect.value = (idx === undefined || idx === null) ? '' : String(idx);
+        setMicDeviceSelectValue(micSelect, config.mic_control.mic_device_id);
     }
 
     applyVrchatMicSettingsToForm(config);
@@ -3115,10 +3134,7 @@ function saveConfigToLocalStorage() {
                 enable_mic_control: document.getElementById('enable-mic-control').checked,
                 mute_delay_seconds: parseFloat(document.getElementById('mute-delay').value),
                 enable_double_mute_clear: document.getElementById('enable-double-mute-clear').checked,
-                mic_device_index: (() => {
-                    const v = document.getElementById('mic-device') ? document.getElementById('mic-device').value : '';
-                    return v === '' ? null : parseInt(v);
-                })(),
+                mic_device_id: document.getElementById('mic-device')?.value || null,
             },
             vrchat_mic: getVrchatMicSettingsFromForm(),
             asr: {
@@ -3365,10 +3381,7 @@ async function saveConfig(autoSave = false) {
                 enable_mic_control: document.getElementById('enable-mic-control').checked,
                 mute_delay_seconds: parseFloat(document.getElementById('mute-delay').value),
                 enable_double_mute_clear: document.getElementById('enable-double-mute-clear').checked,
-                mic_device_index: (() => {
-                    const v = document.getElementById('mic-device') ? document.getElementById('mic-device').value : '';
-                    return v === '' ? null : parseInt(v);
-                })(),
+                mic_device_id: document.getElementById('mic-device')?.value || null,
             },
             vrchat_mic: getVrchatMicSettingsFromForm(),
             asr: {

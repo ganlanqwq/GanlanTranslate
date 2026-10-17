@@ -346,7 +346,8 @@ async def maintain_audio_source(state):
             await close_audio_stream(state)
         message = str(exc)
         if message != getattr(state, '_audio_device_error', None):
-            logger.warning('麦克风暂不可用，等待设备恢复: %s', message)
+            # 用 print：网页「运行日志」只收 print，logging 的警告在那里看不到
+            print(f'[Audio] 麦克风暂不可用，等待设备恢复: {message}')
         state._audio_device_error = message
         return False
 
