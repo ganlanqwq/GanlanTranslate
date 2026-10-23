@@ -393,3 +393,15 @@ def test_osc_manager_applies_plugins(manager, monkeypatch):
     osc.send_text_sync('插件自己发', False, apply_plugins=False)
 
     assert sent == ['你好!', ('typing', False), '插件自己发']
+
+
+def test_pages_use_styled_confirm_dialog():
+    """确认用页面里画的 glConfirm（dialog.js），不用 window.confirm：安装版窗口里那是 Qt 的灰色对话框。"""
+    import re
+    root = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'ui')
+    for name in os.listdir(os.path.join(root, 'static', 'js')):
+        if name.endswith('.js') and name != 'dialog.js':
+            code = open(os.path.join(root, 'static', 'js', name), encoding='utf-8').read()
+            assert not re.search(r'(?<![\w.])confirm\(', code), name
+    page = open(os.path.join(root, 'templates', 'index.html'), encoding='utf-8').read()
+    assert page.index('js/dialog.js') < page.index('js/main.js')

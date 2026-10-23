@@ -8,7 +8,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Funnel+Sans:wght@300;400;500;600;700;800&amp;family=Geist:wght@100;200;300;400;500;600;700;800;900&amp;family=Geist+Mono:wght@100;200;300;400;500;600;700;800;900&amp;display=swap" rel="stylesheet">
 <link rel="stylesheet" href="{{ url_for('static', filename='css/tailwind.css') }}?v=7.2">
-<link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}?v=7.5">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}?v=7.6">
 </head>
 <body>
 <div id="toast-area" class="toast-area fixed top-[16px] right-[16px] z-[9999] flex flex-col gap-[8px]" aria-live="polite" aria-atomic="false"></div>
@@ -1220,11 +1220,12 @@
 </footer>
 </div>
 <script>window.SYSTEM_UI_LANGUAGE = {{ system_ui_language|tojson }};</script>
-<script src="{{ url_for('static', filename='js/i18n.js') }}?v=7.4"></script>
-<script src="{{ url_for('static', filename='js/main.js') }}?v=7.3"></script>
+<script src="{{ url_for('static', filename='js/i18n.js') }}?v=7.5"></script>
+<script src="{{ url_for('static', filename='js/dialog.js') }}?v=7.4"></script>
+<script src="{{ url_for('static', filename='js/main.js') }}?v=7.4"></script>
 <script src="{{ url_for('static', filename='js/tabs.js') }}?v=7.3"></script>
 <script src="{{ url_for('static', filename='js/pages.js') }}?v=7.4"></script>
-<script src="{{ url_for('static', filename='js/plugins.js') }}?v=7.3"></script>
+<script src="{{ url_for('static', filename='js/plugins.js') }}?v=7.4"></script>
 <script src="{{ url_for('static', filename='js/select-menu.js') }}?v=7.3"></script>
 <script src="{{ url_for('static', filename='js/window-chrome.js') }}?v=7.3"></script>
 </body>

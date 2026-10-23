@@ -1406,3 +1406,58 @@ html.app-window {
   .plugin-item { animation: gl-fade 0.25s ease backwards; }
   .plugin-dropzone.is-busy .plugins-empty-icon { animation: gl-float 1s ease-in-out infinite; }
 }
+
+/* ==========================================================================
+   17. 确认框（2026-10-24 岚：删除插件时弹窗风格不对）
+   dialog.js 的 glConfirm，代替系统的 confirm()；样子和安装程序的确认框一样
+   ========================================================================== */
+.gl-dialog {
+  position: fixed;
+  inset: 0;
+  z-index: 9990;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  background: rgba(10, 33, 21, 0.32);
+}
+.gl-dialog-card {
+  box-sizing: border-box;
+  width: min(400px, 100%);
+  padding: 20px 22px 18px;
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  box-shadow: var(--shadow-pop);
+}
+.gl-dialog-title { margin-bottom: 8px; font-family: var(--font-display); font-size: 16px; font-weight: 600; color: var(--ink); }
+.gl-dialog-text { margin: 0 0 18px; font-size: 13px; line-height: 1.7; color: var(--ink-2); white-space: pre-line; word-break: break-word; }
+.gl-dialog-buttons { display: flex; justify-content: flex-end; gap: 10px; }
+.gl-dialog-btn {
+  box-sizing: border-box;
+  height: 34px;
+  padding: 0 14px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  border-radius: var(--radius-sm);
+  font-family: var(--font-sans);
+  font-size: 12.5px;
+  font-weight: 500;
+  line-height: 1;
+  cursor: pointer;
+}
+.gl-dialog-btn.is-secondary { background: var(--surface); color: var(--ink-2); outline: 1px solid var(--line-strong); outline-offset: -0.5px; }
+.gl-dialog-btn.is-secondary:hover { background: var(--surface-soft); }
+.gl-dialog-btn.is-primary { background: var(--green-600); color: #FFFFFF; font-weight: 600; }
+.gl-dialog-btn.is-primary:hover { background: var(--green-700); }
+.gl-dialog-btn.is-danger { background: var(--danger); color: #FFFFFF; font-weight: 600; }
+.gl-dialog-btn.is-danger:hover { background: #A93A2F; }
+
+@media (prefers-reduced-motion: no-preference) {
+  .gl-dialog { animation: gl-fade 0.18s ease; }
+  .gl-dialog .gl-dialog-card { animation: gl-rise 0.28s cubic-bezier(0.2, 0.7, 0.2, 1); }
+  .gl-dialog.is-leaving { animation: gl-dialog-out 0.14s ease forwards; }
+  .gl-dialog-btn { transition: background-color 0.12s ease; }
+}
+@keyframes gl-dialog-out { to { opacity: 0; } }

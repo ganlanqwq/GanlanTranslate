@@ -4081,7 +4081,12 @@ function restoreResetManagedStorage(snapshot) {
 async function resetToDefaults() {
     const t = window.i18n ? window.i18n.t : (key) => key;
 
-    if (!confirm(t('msg.confirmReset'))) {
+    const ok = await glConfirm({
+        title: t('btn.resetDefaults'),
+        message: t('msg.confirmReset'),
+        confirmText: t('dialog.reset'),
+    });
+    if (!ok) {
         return;
     }
 
@@ -4862,7 +4867,14 @@ async function deleteSelectedPreset() {
         if (status) { status.style.color = 'var(--danger)'; status.textContent = '请先选择要删除的预设'; }
         return;
     }
-    if (!confirm(`确定删除预设「${name}」？`)) return;
+    const t = window.i18n ? window.i18n.t : (key) => key;
+    const ok = await glConfirm({
+        title: t('dialog.presetDeleteTitle'),
+        message: t('msg.presetDeleteConfirm', { name }),
+        confirmText: t('dialog.delete'),
+        danger: true,
+    });
+    if (!ok) return;
     try {
         const resp = await fetch(`/api/presets/${encodeURIComponent(name)}`, { method: 'DELETE' });
         const data = await resp.json();

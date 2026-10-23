@@ -388,7 +388,13 @@
         const plugin = findPlugin(id);
         if (!plugin) return;
         const name = pluginName(plugin);
-        if (!confirm(t('msg.pluginDeleteConfirm', { name }))) return;
+        const ok = await glConfirm({
+            title: t('dialog.pluginDeleteTitle'),
+            message: t('msg.pluginDeleteConfirm', { name }),
+            confirmText: t('dialog.delete'),
+            danger: true,
+        });
+        if (!ok) return;
         try {
             await requestJson(`${API}/${encodeURIComponent(id)}`, { method: 'DELETE' });
             state.open.delete(id);
@@ -433,11 +439,15 @@
                     }
                     const { existing, incoming } = error.data;
                     const same = existing.version === incoming.version;
-                    const ok = confirm(t(same ? 'msg.pluginReinstallConfirm' : 'msg.pluginReplaceConfirm', {
-                        name: local(existing.name) || existing.id,
-                        old: existing.version,
-                        new: incoming.version,
-                    }));
+                    const ok = await glConfirm({
+                        title: t(same ? 'dialog.pluginReinstallTitle' : 'dialog.pluginReplaceTitle'),
+                        message: t(same ? 'msg.pluginReinstallConfirm' : 'msg.pluginReplaceConfirm', {
+                            name: local(existing.name) || existing.id,
+                            old: existing.version,
+                            new: incoming.version,
+                        }),
+                        confirmText: t(same ? 'dialog.reinstall' : 'dialog.replace'),
+                    });
                     if (!ok) continue;
                     try {
                         result = await uploadOne(file, true);
