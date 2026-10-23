@@ -334,6 +334,14 @@ class OthersRecognitionCallback(SpeechRecognitionCallback):
                 lang=lang,
                 translated=translated,
             )
+            try:
+                import plugin_manager
+                plugin_manager.emit('others_result', {
+                    'speaker': speaker, 'source': text, 'source_lang': lang,
+                    'translation': translated, 'target_lang': target_lang,
+                })
+            except Exception:
+                pass
             logger.info("[Others] %s：%s[%s] → %s", speaker, text, lang, translated)
             print(f"[Others] 识别：{speaker}：{text}[{lang}] → {target_lang}")
             print(f"[Others] 译文：{translated}")

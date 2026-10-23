@@ -29,6 +29,11 @@ def _quit_process():
     """
     def _do_quit():
         try:
+            from plugin_manager import plugin_manager
+            plugin_manager.shutdown()   # 让插件的 teardown 有机会保存东西
+        except Exception:
+            pass
+        try:
             from panel_launcher import close_all_panels
             closed = close_all_panels()
             if closed:
@@ -182,80 +187,25 @@ def _run_desktop_ui_mode():
     else:
         print("控制服务已就绪：http://127.0.0.1:5001")
 
-    # ---- 系统托盘 ----
-    tray = None
-    try:
-        from tray_app import TrayApp
-        from qt_ui import show_window
-
-        def _open_panel():
-            show_window()
-
-        def _panel_is_running():
-            try:
-                from panel_launcher import has_running_panel
-                return has_running_panel()
-            except Exception:
-                return False
-
-        def _toggle_panel():
-            try:
-                import config
-                from panel_launcher import close_all_panels, has_running_panel, launch_panel
-                if has_running_panel():
-                    closed = close_all_panels()
-                    print(f"[panel] 已关闭 {closed} 个小面板")
-                    return
-                ok = launch_panel(
-                    floating_mode=True,
-                    reverse_enabled=bool(getattr(config, 'ENABLE_REVERSE_TRANSLATION', False)),
-                    panel_width=int(getattr(config, 'PANEL_WIDTH', 600)),
-                    quick_lang_enabled=True,
-                    role="self",
-                    window_x=80,
-                    window_y=80,
-                )
-                print("[panel] 已从托盘打开小面板" if ok else "[panel] 从托盘打开小面板失败")
-            except Exception as exc:
-                print(f"[panel] 托盘切换面板异常: {exc!r}")
-
-        tray = TrayApp(
-            on_open=_open_panel,
-            on_quit=_quit_process,
-            on_toggle_panel=_toggle_panel,
-            on_panel_status=_panel_is_running,
-            title=_ui_text(_APP_NAME),
-        )
-        tray.start()
-        print("已挂到系统托盘（关闭窗口会隐藏；托盘可再打开）")
-    except Exception as e:
-        tray = None
-        print(f"[tray] 托盘启动失败（不影响主程序）: {e}")
-
-    # 再次打开程序时（第二个实例调 /api/show-window）把这个窗口叫出来
+    # 再次打开程序时（第二个实例调 /api/show-window）把这个窗口叫出来；
+    # 安装程序升级前调 /api/quit，像托盘「退出」一样正常退出
     try:
         import ui.app as _ui_app_module
         from qt_ui import show_window as _qt_show_window
         _ui_app_module.set_show_window_handler(_qt_show_window)
+        _ui_app_module.set_quit_handler(_quit_process)
     except Exception as exc:
         print(f"[ui] 注册显示窗口接口失败: {exc!r}")
-
-    hidden_notified = []
-
-    def _on_window_hidden():
-        # 第一次按 × 时提示一下：程序没退出，还在托盘里
-        if tray is not None and not hidden_notified:
-            hidden_notified.append(True)
-            tray.notify(_ui_text(_MSG_IN_TRAY))
 
     exit_code = 1
     try:
         from qt_ui import run_qt_app
+        # 托盘图标和右键菜单在 qt_ui/tray.py（Qt 主线程里建）
         exit_code = run_qt_app(
             url="http://127.0.0.1:5001/",
             on_quit=_quit_process,
-            hide_on_close=tray is not None,   # 托盘没起来就别藏窗口，按 × 直接退出
-            on_hidden=_on_window_hidden,
+            tray_title=_ui_text(_APP_NAME),
+            tray_hidden_message=lambda: _ui_text(_MSG_IN_TRAY),
         )
     except Exception as exc:
         print(f"[ui] PySide6 窗口启动失败: {exc!r}")
@@ -265,11 +215,6 @@ def _run_desktop_ui_mode():
         while True:
             time.sleep(3600)
     finally:
-        if tray is not None:
-            try:
-                tray.stop()
-            except Exception:
-                pass
         try:
             release_single_instance()
         except Exception:

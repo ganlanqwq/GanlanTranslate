@@ -780,16 +780,41 @@ class OSCManager:
             logger.error(f"[OSC] Failed to set typing state: {e}")
     
     async def send_text(self, text: str, ongoing: bool):
+        filtered = self._apply_plugins(text, ongoing)
+        if text and not filtered:
+            if not ongoing:
+                await self.set_typing(False)   # 插件让这句不发，别让「正在输入」一直亮着
+            return
+        text = filtered
         if (self._ipc_client is not None 
                 and self._ipc_client.is_connected() 
                 and self._ipc_client.is_delegate_osc_enabled()):
             text = self._prepare_outgoing_text_for_osc(text)
             await self._ipc_client.send_message(text, ongoing)
             return
-        self.send_text_sync(text, ongoing)
+        self.send_text_sync(text, ongoing, apply_plugins=False)
 
-    def send_text_sync(self, text: str, ongoing: bool):
+    @staticmethod
+    def _apply_plugins(text: str, ongoing: bool) -> str:
+        """插件的 filter_chatbox：可以改发出去的文字，返回空字符串就不发。"""
+        if not text:
+            return text
+        try:
+            from plugin_manager import filter_chatbox
+            return filter_chatbox(text, ongoing)
+        except Exception as e:
+            logger.error(f"[OSC] 插件处理聊天框文字失败: {e}")
+            return text
+
+    def send_text_sync(self, text: str, ongoing: bool, apply_plugins: bool = True):
         """发送文本到 VRChat（带冷却，最多保留一个待发消息）"""
+        if apply_plugins:
+            filtered = self._apply_plugins(text, ongoing)
+            if text and not filtered:
+                if not ongoing:
+                    self.set_typing_sync(False)
+                return
+            text = filtered
         text = self._prepare_outgoing_text_for_osc(text)
 
         # 终句立刻发，不再等 冷却；否则悬浮窗已经出字、聊天框还要再卡一秒多。

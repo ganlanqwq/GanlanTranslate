@@ -75,7 +75,7 @@ except ImportError:  # pragma: no cover
 from resource_path import get_resource_path
 
 # 版本号：网页页脚和「详情」页显示，和 installer.nsi 的 APP_VERSION 保持一致
-APP_VERSION = '1.0.5'
+APP_VERSION = '1.1.0'
 
 # 配置Flask使用正确的模板和静态文件路径
 template_folder = get_resource_path('ui/templates')
@@ -966,6 +966,30 @@ def show_window_route():
         return jsonify({'success': False, 'message': str(e)})
 
 
+_quit_handler = None
+
+
+def set_quit_handler(handler) -> None:
+    """安装版（run_ui）注册：和托盘「退出」一样正常退出。"""
+    global _quit_handler
+    _quit_handler = handler
+
+
+@app.route('/api/quit', methods=['POST'])
+def quit_route():
+    """安装程序覆盖升级前调：让程序自己退出，网页存储（Key、设置）写完再走，不用强制结束。开发版没有登记，什么都不做。"""
+    if not _same_origin_request():
+        return jsonify({'success': False, 'message': 'forbidden'}), 403
+    handler = _quit_handler
+    if handler is None:
+        return jsonify({'success': False, 'message': 'not supported'})
+    try:
+        handler()
+        return jsonify({'success': True})
+    except Exception as e:
+        return jsonify({'success': False, 'message': str(e)})
+
+
 @app.route('/api/ui-language', methods=['GET', 'POST'])
 def ui_language_route():
     """网页确定界面语言后报上来；悬浮窗、托盘、VR 附属程序都跟着它。"""
@@ -1605,11 +1629,11 @@ def open_panel():
         else:
             quick_lang_enabled = bool(raw_quick_lang_enabled)
 
-        from panel_launcher import launch_panel
+        from panel_launcher import PANEL_WINDOW_Y, launch_panel
         role = str(data.get("role") or "self").strip().lower()
         if role not in {"self", "others", "screen"}:
             role = "self"
-        window_y = {"self": 80, "others": 270, "screen": 520}[role]
+        window_y = PANEL_WINDOW_Y[role]
         ok = launch_panel(
             floating_mode=floating_mode,
             reverse_enabled=bool(getattr(config, 'ENABLE_REVERSE_TRANSLATION', False)) if role == "self" else False,
@@ -2300,7 +2324,35 @@ def app_info_route():
         'folders': folders,
         'python': platform.python_version(),
         'os': f'{platform.system()} {platform.release()} ({platform.version()})',
+        'uninstaller': bool(_uninstaller_path()),
     })
+
+
+def _uninstaller_path():
+    """安装版 exe 旁边的 Uninstall.exe（安装程序写的）；开发版没有。"""
+    if not getattr(sys, 'frozen', False):
+        return None
+    path = os.path.join(os.path.dirname(sys.executable), 'Uninstall.exe')
+    return path if os.path.isfile(path) else None
+
+
+@app.route('/api/uninstall', methods=['POST'])
+def uninstall_route():
+    """「软件信息」页的「卸载」：打开卸载程序。确认、要不要保留数据、关掉本程序都由卸载程序自己来。"""
+    if not _same_origin_request():
+        return jsonify({'success': False, 'message': 'forbidden'}), 403
+    path = _uninstaller_path()
+    if not path:
+        return jsonify({'success': False, 'message': '没有找到卸载程序'}), 404
+    import subprocess
+    import tempfile
+    try:
+        # 当前目录不放在安装目录里，不然卸载程序删不掉它
+        subprocess.Popen([path], cwd=tempfile.gettempdir(), close_fds=True)
+    except OSError as e:
+        return jsonify({'success': False, 'message': str(e)}), 500
+    print('[卸载] 已打开卸载程序')
+    return jsonify({'success': True})
 
 
 @app.route('/api/open-folder', methods=['POST'])
@@ -2317,6 +2369,140 @@ def open_folder_route():
     except OSError as e:
         return jsonify({'success': False, 'message': f'打开失败: {e}'}), 500
     return jsonify({'success': True, 'path': path})
+
+
+# ---------- 插件 ----------
+
+def _same_origin_request() -> bool:
+    """改插件的接口只接受本页面发来的请求。
+
+    CORS 是全开的，别的网站也能往 127.0.0.1:5001 POST 表单；插件能跑代码，
+    不能让随便一个网页替用户装上或打开。浏览器跨站请求一定带 Origin。
+    """
+    from urllib.parse import urlsplit
+    host = request.host.lower()
+    # 也挡住 DNS 重绑定（别的域名解析到 127.0.0.1）：Host 只认本机地址
+    if urlsplit('//' + host).hostname not in ('127.0.0.1', 'localhost'):
+        return False
+    origin = request.headers.get('Origin')
+    if not origin:
+        return True
+    try:
+        return urlsplit(origin).netloc.lower() == host
+    except ValueError:
+        return False
+
+
+def _plugin_error(e, status: int = 400):
+    return jsonify({'success': False, 'message': str(e)}), status
+
+
+@app.route('/api/plugins', methods=['GET'])
+def plugins_list_route():
+    from plugin_manager import plugin_manager
+    return jsonify({'success': True, **plugin_manager.list_plugins()})
+
+
+@app.route('/api/plugins/refresh', methods=['POST'])
+def plugins_refresh_route():
+    from plugin_manager import plugin_manager
+    if not _same_origin_request():
+        return _plugin_error('拒绝来自其他网页的请求', 403)
+    plugin_manager.refresh()
+    return jsonify({'success': True, **plugin_manager.list_plugins()})
+
+
+@app.route('/api/plugins/import', methods=['POST'])
+def plugins_import_route():
+    """导入插件包：multipart 的 file 字段是 .zip；overwrite=1 时替换已装的同一个插件。"""
+    from plugin_manager import MAX_PACKAGE_BYTES, PluginError, PluginExistsError, plugin_manager
+    if not _same_origin_request():
+        return _plugin_error('拒绝来自其他网页的请求', 403)
+    if request.content_length and request.content_length > MAX_PACKAGE_BYTES + 1024 * 1024:
+        return _plugin_error(f'插件包太大（超过 {MAX_PACKAGE_BYTES // 1024 // 1024} MB）', 413)
+    upload = request.files.get('file')
+    if upload is None:
+        return _plugin_error('没有收到插件包')
+    data = upload.read(MAX_PACKAGE_BYTES + 1)
+    overwrite = str(request.form.get('overwrite', '')).lower() in ('1', 'true', 'yes')
+    try:
+        info = plugin_manager.install(data, overwrite=overwrite)
+    except PluginExistsError as e:
+        return jsonify({'success': False, 'exists': True, 'message': str(e),
+                        'existing': e.existing, 'incoming': e.incoming}), 409
+    except PluginError as e:
+        return _plugin_error(e)
+    except OSError as e:
+        return _plugin_error(f'保存失败: {e}', 500)
+    return jsonify({'success': True, 'plugin': info})
+
+
+@app.route('/api/plugins/<plugin_id>/enabled', methods=['POST'])
+def plugins_enable_route(plugin_id):
+    from plugin_manager import PluginError, plugin_manager
+    if not _same_origin_request():
+        return _plugin_error('拒绝来自其他网页的请求', 403)
+    enabled = (request.get_json(silent=True) or {}).get('enabled')
+    try:
+        info = plugin_manager.set_enabled(plugin_id, bool(enabled))
+    except PluginError as e:
+        return _plugin_error(e, 404)
+    except OSError as e:
+        return _plugin_error(f'保存失败: {e}', 500)
+    return jsonify({'success': True, 'plugin': info})
+
+
+@app.route('/api/plugins/<plugin_id>/settings', methods=['POST'])
+def plugins_settings_route(plugin_id):
+    from plugin_manager import PluginError, plugin_manager
+    if not _same_origin_request():
+        return _plugin_error('拒绝来自其他网页的请求', 403)
+    values = (request.get_json(silent=True) or {}).get('settings')
+    try:
+        info = plugin_manager.save_settings(plugin_id, values)
+    except PluginError as e:
+        return _plugin_error(e)
+    except OSError as e:
+        return _plugin_error(f'保存失败: {e}', 500)
+    return jsonify({'success': True, 'plugin': info})
+
+
+@app.route('/api/plugins/<plugin_id>', methods=['DELETE'])
+def plugins_delete_route(plugin_id):
+    from plugin_manager import PluginError, plugin_manager
+    if not _same_origin_request():
+        return _plugin_error('拒绝来自其他网页的请求', 403)
+    try:
+        plugin_manager.delete(plugin_id)
+    except PluginError as e:
+        return _plugin_error(e)
+    return jsonify({'success': True})
+
+
+@app.route('/api/plugins/<plugin_id>/icon', methods=['GET'])
+def plugins_icon_route(plugin_id):
+    from flask import Response
+    from plugin_manager import PluginError, plugin_manager
+    try:
+        data, mime = plugin_manager.icon(plugin_id)
+    except PluginError:
+        data, mime = None, None
+    if not data:
+        return Response(status=404)
+    return Response(data, mimetype=mime, headers={'Cache-Control': 'no-store',
+                                                  'X-Content-Type-Options': 'nosniff'})
+
+
+def _load_plugins() -> None:
+    try:
+        import plugin_manager
+        plugin_manager.APP_VERSION = APP_VERSION
+        plugin_manager.plugin_manager.load_all()
+    except Exception as e:
+        print(f'[插件] 加载插件失败: {e}')
+
+
+_load_plugins()
 
 
 def _ensure_vr_bridge() -> None:

@@ -55,3 +55,9 @@ vr_overlay/overlay.log
 # 开发笔记，只留在本机
 CLAUDE.md
 .claude/
+
+# 本机装的插件（运行时创建）
+/plugins/
+# 安装程序外壳的编译中间文件
+/installer/bin/
+/installer/obj/

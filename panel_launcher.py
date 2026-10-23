@@ -14,6 +14,10 @@ from urllib.parse import urlencode
 
 _lock = threading.Lock()
 _panel_processes: List[dict] = []
+# 网页上次打开悬浮窗用的选项（置顶、快捷语言）；托盘打开时照着用
+_last_options: dict = {}
+# 网页 /api/open-panel 用的位置：三个窗口上下错开
+PANEL_WINDOW_Y = {"self": 80, "others": 270, "screen": 520}
 
 
 def _role_key(role: str) -> str:
@@ -79,6 +83,8 @@ def launch_panel(
     """启动一个迷你面板进程。同一角色已在运行时不再重复打开。"""
     role_key = _role_key(role)
     with _lock:
+        _last_options.update(floating_mode=floating_mode, panel_width=panel_width,
+                             quick_lang_enabled=quick_lang_enabled, quick_langs=quick_langs)
         _prune_locked()
         if any(item.get("role") == role_key for item in _panel_processes):
             return True
@@ -134,6 +140,51 @@ def launch_translation_panels(
         window_y=80 + 190,
     )
     return self_ok or others_ok
+
+
+def launch_panel_like_last(role: str) -> bool:
+    """托盘用：按网页上次打开悬浮窗的选项打开这个角色的（网页还没打开过就置顶、默认快捷语言）。"""
+    import config
+    role_key = _role_key(role)
+    with _lock:
+        options = dict(_last_options)
+    return launch_panel(
+        floating_mode=bool(options.get("floating_mode", True)),
+        reverse_enabled=bool(getattr(config, "ENABLE_REVERSE_TRANSLATION", False)) if role_key == "self" else False,
+        panel_width=int(options.get("panel_width") or getattr(config, "PANEL_WIDTH", 600)),
+        quick_lang_enabled=bool(options.get("quick_lang_enabled", True)),
+        quick_langs=options.get("quick_langs"),
+        role=role_key,
+        window_x=80,
+        window_y=PANEL_WINDOW_Y[role_key],
+    )
+
+
+def running_roles() -> set:
+    """开着的悬浮窗是哪几个（self / others / screen）。"""
+    with _lock:
+        _prune_locked()
+        return {item.get("role") for item in _panel_processes}
+
+
+def close_panel(role: str, timeout: float = 2.0) -> bool:
+    """只关这一个角色的悬浮窗。没开着返回 False。"""
+    role_key = _role_key(role)
+    with _lock:
+        _prune_locked()
+        procs = [item for item in _panel_processes if item.get("role") == role_key]
+        _panel_processes[:] = [item for item in _panel_processes if item.get("role") != role_key]
+    for item in procs:
+        proc = item.get("proc")
+        try:
+            proc.terminate()
+            proc.wait(timeout=timeout)
+        except Exception:
+            try:
+                proc.kill()
+            except Exception:
+                pass
+    return bool(procs)
 
 
 def has_running_panel() -> bool:

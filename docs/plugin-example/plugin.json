@@ -1,0 +1,61 @@
+{
+  "id": "chatbox-decorator",
+  "name": {
+    "zh-CN": "聊天框前后缀",
+    "en": "Chatbox Prefix & Suffix",
+    "ja": "チャットボックスの前後に追加",
+    "ko": "채팅창 앞뒤 문구"
+  },
+  "version": "1.1.0",
+  "author": "甘岚",
+  "description": {
+    "zh-CN": "示例插件：在你说的每句话前后加上自定义内容（和正文之间不留空格，翻译时一起翻译），并可以把每句翻译记到文件里。",
+    "en": "Example plugin: adds your own text right before and after every sentence you say (no spaces, translated together with the sentence), and can save every translation to a file.",
+    "ja": "サンプルプラグイン：話した文の前後に好きな文字を付け（本文との間に空白なし、文と一緒に翻訳）、翻訳をファイルに記録することもできます。",
+    "ko": "예제 플러그인: 내가 말한 문장 앞뒤에 원하는 문구를 붙이고(본문과 띄어 쓰지 않고 문장과 함께 번역), 번역을 파일에 기록할 수도 있습니다."
+  },
+  "entry": "main.py",
+  "icon": "icon.png",
+  "min_app_version": "1.1.0",
+  "settings": [
+    {
+      "key": "prefix",
+      "type": "text",
+      "label": { "zh-CN": "前缀", "en": "Prefix", "ja": "前に付ける文字", "ko": "앞 문구" },
+      "default": ""
+    },
+    {
+      "key": "suffix",
+      "type": "text",
+      "label": { "zh-CN": "后缀", "en": "Suffix", "ja": "後ろに付ける文字", "ko": "뒤 문구" },
+      "default": "♪"
+    },
+    {
+      "key": "partial",
+      "type": "toggle",
+      "label": { "zh-CN": "说话中的半句也加", "en": "Also decorate partial text", "ja": "話している途中の文にも付ける", "ko": "말하는 중인 문장에도 붙이기" },
+      "default": false
+    },
+    {
+      "key": "save_log",
+      "type": "toggle",
+      "label": { "zh-CN": "把翻译记到文件", "en": "Save translations to a file", "ja": "翻訳をファイルに記録", "ko": "번역을 파일에 기록" },
+      "description": {
+        "zh-CN": "记在 plugins\\_data\\chatbox-decorator\\log.txt",
+        "en": "Saved to plugins\\_data\\chatbox-decorator\\log.txt",
+        "ja": "plugins\\_data\\chatbox-decorator\\log.txt に保存します",
+        "ko": "plugins\\_data\\chatbox-decorator\\log.txt에 저장합니다"
+      },
+      "default": false
+    },
+    {
+      "key": "max_length",
+      "type": "number",
+      "label": { "zh-CN": "前后缀最多几个字", "en": "Max characters each", "ja": "前後の文字の最大文字数", "ko": "앞뒤 문구 최대 글자 수" },
+      "min": 0,
+      "max": 40,
+      "step": 1,
+      "default": 20
+    }
+  ]
+}

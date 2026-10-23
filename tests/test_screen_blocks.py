@@ -64,6 +64,19 @@ def test_blank_lines_and_numbers_are_boundaries():
     ]
 
 
+def test_standalone_afk_is_ignored():
+    text = "AFK\nこれは看板の一行目でまだ続く\nafk\n[AFK]\nＡＦＫ\nAFK AFK\n- AFK\nThis is a long English sentence that keeps going"
+    assert split_blocks(text) == [
+        "これは看板の一行目でまだ続く",
+        "This is a long English sentence that keeps going",
+    ]
+    assert split_blocks("AFK\n\nafk") == []
+
+
+def test_afk_inside_a_sentence_is_kept():
+    assert split_blocks("I was AFK for a while") == ["I was AFK for a while"]
+    assert split_blocks("AFKした") == ["AFKした"]
+
 def test_markdown_bullets_start_new_blocks_and_duplicates_drop():
     text = "- これはひとつめの項目の文章です\n- これはふたつめの項目の文章です\n- これはひとつめの項目の文章です"
     assert split_blocks(text) == ["これはひとつめの項目の文章です", "これはふたつめの項目の文章です"]

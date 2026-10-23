@@ -370,6 +370,14 @@
         set('about-data-dir', appInfo.data_dir);
         set('about-os', appInfo.os);
         set('about-python', appInfo.python);
+        // 开发版（或者 Uninstall.exe 不在）没有卸载程序，按钮变灰并换说明
+        const button = byId('uninstall-btn');
+        const hint = byId('uninstall-hint');
+        if (button) button.disabled = !appInfo.uninstaller;
+        if (hint) {
+            hint.dataset.i18n = appInfo.uninstaller ? 'about.uninstallHint' : 'about.uninstallMissing';
+            hint.textContent = t(hint.dataset.i18n);
+        }
     }
 
     async function loadAbout() {
@@ -398,6 +406,21 @@
             await postJson(`${API}/open-folder`, { key });
         } catch (error) {
             toast(t('msg.openFolderFailed') + error.message, 'error');
+        }
+    }
+
+    async function openUninstaller() {
+        // 卸载程序自己会问要不要保留数据、确认后关掉本程序，这里只负责打开它
+        const button = byId('uninstall-btn');
+        if (button) button.disabled = true;
+        try {
+            await postJson(`${API}/uninstall`, {});
+            toast(t('msg.uninstallerOpened'), 'success');
+        } catch (error) {
+            toast(t('msg.uninstallerFailed') + error.message, 'error');
+        } finally {
+            // 在 UAC 里点了「否」或者在卸载程序里取消了，回来还能再点
+            setTimeout(() => { if (button) button.disabled = !(appInfo && appInfo.uninstaller); }, 3000);
         }
     }
 
@@ -450,6 +473,7 @@
     window.saveTerms = saveTerms;
     window.addTermRow = addTermRow;
     window.openAppFolder = openAppFolder;
+    window.openUninstaller = openUninstaller;
     window.copyDevEmail = copyDevEmail;
 
     if (document.readyState === 'loading') {

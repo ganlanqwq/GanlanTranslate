@@ -5,17 +5,22 @@ from PyInstaller.utils.hooks import collect_submodules
 from PyInstaller.utils.hooks import collect_dynamic_libs
 
 # 打包：.venv\Scripts\python.exe -m PyInstaller GanlanTranslate.spec --noconfirm --distpath build_installer\dist --workpath build_installer\work
-# 不要输出到 dist\（那里是旧的打包目录，不要动）。安装包再用 installer.nsi 生成。
+# 不要输出到 dist\（那里是旧的打包目录，不要动）。安装包再用 installer\build.py 生成。
 
 datas = [('icon.ico', '.'), ('hot_words', 'hot_words'), ('terminology', 'terminology'), ('ui/templates', 'ui/templates'), ('ui/static', 'ui/static'), ('local_asr/models', 'local_asr/models')]
 binaries = []
-hiddenimports = ['dashscope', 'dashscope.audio.asr', 'dashscope.audio.qwen_omni', 'dashscope.audio.qwen_omni.omni_realtime', 'deepl', 'flask', 'flask_cors', 'pythonosc', 'pyaudio', 'fast_langdetect', 'googletrans', 'aiohttp', 'dotenv', 'main', 'openai', 'pykakasi', 'httpx', 'websockets', 'pypinyin', 'jieba', 'fancify_text', 'arabic_reshaper', 'bidi', 'bidi.algorithm', 'panel_app', 'panel_launcher', 'log_buffer', 'single_instance', 'qt_ui', 'qt_ui.main_window', 'qt_ui.window_frame', 'PySide6', 'PySide6.QtWebEngineWidgets', 'PySide6.QtWebEngineCore', 'PySide6.QtWebChannel', 'shiboken6', 'webview', 'onnxruntime', 'onnxruntime.capi', 'presets', 'vrchat_detector', 'tray_app', 'pystray', 'PIL', 'speech_recognizers.custom_openai_speech_recognizer', 'requests', 'vr_bridge', 'screen_translation', 'others_pipeline', 'speaker_id', 'ui_locale', 'word_settings', 'terminology_manager', 'language_detectors.fasttext_detector', 'fasttext']
+hiddenimports = ['dashscope', 'dashscope.audio.asr', 'dashscope.audio.qwen_omni', 'dashscope.audio.qwen_omni.omni_realtime', 'deepl', 'flask', 'flask_cors', 'pythonosc', 'pyaudio', 'fast_langdetect', 'googletrans', 'aiohttp', 'dotenv', 'main', 'openai', 'pykakasi', 'httpx', 'websockets', 'pypinyin', 'jieba', 'fancify_text', 'arabic_reshaper', 'bidi', 'bidi.algorithm', 'panel_app', 'panel_launcher', 'log_buffer', 'single_instance', 'qt_ui', 'qt_ui.main_window', 'qt_ui.window_frame', 'qt_ui.tray', 'PySide6', 'PySide6.QtWebEngineWidgets', 'PySide6.QtWebEngineCore', 'PySide6.QtWebChannel', 'shiboken6', 'webview', 'onnxruntime', 'onnxruntime.capi', 'presets', 'vrchat_detector', 'PIL', 'speech_recognizers.custom_openai_speech_recognizer', 'requests', 'vr_bridge', 'screen_translation', 'others_pipeline', 'speaker_id', 'ui_locale', 'word_settings', 'terminology_manager', 'language_detectors.fasttext_detector', 'fasttext']
 datas += collect_data_files('pykakasi')
 datas += collect_data_files('fast_langdetect')   # 自带的 lid.176.ftz（他人多语言检测用）
 hiddenimports += collect_submodules('webview.platforms')
 hiddenimports += collect_submodules('streaming_translation')
 hiddenimports += collect_submodules('local_asr')
 hiddenimports += collect_submodules('gguf')
+# 插件（plugins\*.zip）只能 import 打进包里的模块：插件管理本身，加上插件常用、程序自己没用到的标准库
+hiddenimports += ['plugin_manager', 'zipimport', 'csv', 'sqlite3', 'urllib.request', 'urllib.parse', 'http.client',
+                  'html', 'html.parser', 'xml.etree.ElementTree', 'difflib', 'textwrap', 'unicodedata', 'statistics',
+                  'decimal', 'fractions', 'calendar', 'zoneinfo', 'uuid', 'hashlib', 'hmac', 'secrets', 'pathlib',
+                  'dataclasses', 'enum', 'string', 'random', 'shlex', 'pprint', 'webbrowser']
 
 # PySide6 不要 collect_all（会把整个 Qt 打进来，600MB+）；PyInstaller 自带的 hook 只带用到的模块，
 # QtWebEngineProcess.exe 和资源由 hook-PySide6.QtWebEngineCore 处理。

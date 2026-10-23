@@ -29,6 +29,7 @@ Also included:
 
 - **VR wrist subtitles**: read translations with your headset on. Raise your wrist in SteamVR to see them, and switch modes or languages from the SteamVR dashboard.
 - **Words**: add your own recognition hot words (friends' names, world names, community slang) and decide how specific words should be translated.
+- **Plugins**: drop a .zip plugin package onto the window to install it; each plugin can be turned on or off, configured and deleted on its own.
 - **Four UI languages**: Simplified Chinese, English, Japanese and Korean. Follows your Windows display language by default.
 
 ## Features
@@ -69,11 +70,19 @@ Also included:
 - **Translation terms**: tell the model how to translate a keyword when it appears. Saved separately for each target language and used from the next sentence.
 - The built-in lists are shown read-only. Your own entries are saved separately and survive upgrades.
 
+### Plugins
+
+- A plugin is a .zip package whose `plugin.json` records its name, version, author and settings. Drop it onto the Ganlan Translate window (any page works), or click **Import plugin** on the **Plugins** page.
+- On the **Plugins** page you can enable, disable and delete plugins, and the gear button opens each plugin's own settings. **Info → App info** lists the installed plugins and opens the plugins folder.
+- Plugins can change what you said before it is translated (anything they add gets translated too), change the text sent to the chatbox, and receive every translation. The example plugin, "Chatbox Prefix & Suffix", adds your own text before and after every sentence you say.
+- Plugins live in the `plugins` folder next to the program and are left alone when you upgrade. Plugins can run code, so only install ones you trust.
+- To write your own, see the [plugin guide](docs/插件开发.md) (in Chinese) and the example in [`docs/plugin-example/`](docs/plugin-example/).
+
 ### More
 
 - **Presets**: save a whole set of settings as a preset, switch between presets at any time, or export them to a file to share with friends. Presets never contain API keys.
 - **Overlays**: the self, others and screen overlays open separately and can float on top of other windows.
-- **Tray**: closing the main window only minimizes it to the tray. Opening the program again brings back the existing window instead of starting a second copy.
+- **Tray**: closing the main window only minimizes it to the tray. Opening the program again brings back the existing window instead of starting a second copy. Right-click the tray icon to start or stop each mode and open or close each overlay.
 
 ## Download and install
 
@@ -84,6 +93,8 @@ Also included:
 Requirements: Windows 10 / 11 (64-bit). VR wrist subtitles need SteamVR.
 
 When you install over a beta version (program name `GanLan.exe`), your presets, custom hot words and terms, VR companion settings and downloaded models are moved to the new folder automatically, and the old folder is removed.
+
+To uninstall, click **Uninstall…** in **Info → App info**, or uninstall from **Settings → Apps** in Windows. You can choose to keep your presets, plugins, custom hot words and terms, and downloaded models (they are kept by default).
 
 ## Quick start
 
@@ -102,6 +113,7 @@ Stop the service when you are not using it, so it doesn't keep using your recogn
 - API keys are stored only in the program on your PC. They are never written into preset files and never sent anywhere except to the matching service provider.
 - Your voice, screenshots and text are only sent to the recognition / translation / image recognition services you configure (plus Google Translate when **Reverse Translation** is enabled).
 - Presets, hot words, terms and VR settings are stored in the install folder and are kept when you upgrade.
+- Plugins run inside the Ganlan Translate process and can read and write files and use the network. Do not install plugins from unknown sources.
 
 ## FAQ
 
@@ -176,25 +188,26 @@ Don't run the installed version and the source version at the same time. They fi
 
 ### Build the installer
 
-You need [NSIS](https://nsis.sourceforge.io/).
+The installer is our own (`installer/`: a C# shell with a web UI). You need the [.NET SDK 8](https://dotnet.microsoft.com/download) and the .NET Framework 4.7.1 (or later) Developer Pack. The first build downloads Microsoft's WebView2 SDK from nuget.org.
 
 ```bash
 .venv\Scripts\python -m PyInstaller GanlanTranslate.spec --noconfirm --distpath build_installer\dist --workpath build_installer\work
-"C:\Program Files (x86)\NSIS\makensis.exe" installer.nsi
+.venv\Scripts\python installer\build.py
 ```
 
-The installer is written to `build_installer\GanlanTranslate-Setup-<version>.exe`. The version number lives in both `installer.nsi` and `ui/app.py`; change them together.
+The installer is written to `build_installer\GanlanTranslate-Setup-<version>.exe`. The version number lives in both `ui/app.py` and `vr_overlay/link.py`; change them together (the installer reads it from `ui/app.py`). The setup window needs the Microsoft Edge WebView2 Runtime (built into Windows 11 and usually present on Windows 10). To preview the setup window in a browser, run `.venv\Scripts\python installer\preview.py` and open http://127.0.0.1:5098/.
 
 ### Project layout
 
 | Path | Contents |
 |---|---|
 | `ui/` | Web console (Flask backend, pages, styles, scripts) |
-| `qt_ui/`, `run_ui.py`, `tray_app.py` | Desktop window and tray |
+| `qt_ui/`, `run_ui.py` | Desktop window and tray |
 | `main.py`, `recognition_handler.py` | Self translation |
 | `others_pipeline.py`, `speaker_id.py` | Translate others, speaker labels |
 | `screen_translation.py` | Translate screen |
 | `vr_overlay/`, `vr_bridge.py` | SteamVR wrist subtitles and dashboard page |
+| `plugin_manager.py`, `docs/插件开发.md`, `docs/plugin-example/` | Plugins: loading and management, developer guide, example plugin |
 | `speech_recognizers/`, `streaming_translation/` | Speech recognition and translation providers |
 | `hot_words/`, `terminology/` | Built-in hot words and terms |
 | `tailwind_build/` | Tailwind setup for rebuilding the UI styles |

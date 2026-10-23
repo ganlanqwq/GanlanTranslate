@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>甘岚翻译</title>
+<!-- 配色、字体、按钮、开关、动画用主软件的 style.css / tailwind.css（shared/ 指向仓库的 ui/static/，打包时一起打进去）；
+     tailwind.css 是预编译的，这里只用 index.html 里已经出现过的 class，排版写在 setup.css。
+     界面语言跟 Windows 显示语言（外壳在 init 里告诉网页），不能手动切 -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Funnel+Sans:wght@300;400;500;600;700;800&amp;family=Geist:wght@100;200;300;400;500;600;700;800;900&amp;family=Geist+Mono:wght@100;200;300;400;500;600;700;800;900&amp;display=swap" rel="stylesheet">
+<link rel="stylesheet" href="shared/css/tailwind.css">
+<link rel="stylesheet" href="shared/css/style.css">
+<link rel="stylesheet" href="setup.css">
+</head>
+<body class="setup">
+<div class="setup-shell">
+
+<!-- 标题栏（窗口没有系统标题栏，这一条可以拖动） -->
+<header class="setup-titlebar">
+  <div class="setup-brand">
+    <span class="setup-brand-name" data-i18n="app.name">app.name</span>
+    <span class="setup-brand-sub" id="brand-sub"></span>
+  </div>
+  <div class="setup-titlebar-tools">
+    <button type="button" class="setup-win-btn" data-action="minimize" tabindex="-1">&#xE921;</button>
+    <button type="button" class="setup-win-btn close" data-action="close" tabindex="-1">&#xE8BB;</button>
+  </div>
+</header>
+
+<main class="setup-main" id="setup-main">
+
+<!-- ① 欢迎 -->
+<div class="app-page" data-step="welcome" hidden>
+  <section class="setup-head">
+    <h1 class="setup-title" data-i18n="welcome.title">welcome.title</h1>
+    <p class="setup-sub" id="welcome-sub"></p>
+  </section>
+  <section class="setup-body">
+    <p class="setup-text" data-i18n="welcome.text">welcome.text</p>
+    <div class="setup-notes" id="welcome-notes"></div>
+  </section>
+</div>
+
+<!-- ② 许可 -->
+<div class="app-page setup-fill" data-step="license" hidden>
+  <section class="setup-head">
+    <h1 class="setup-title" data-i18n="license.title">license.title</h1>
+    <p class="setup-sub" data-i18n="license.hint">license.hint</p>
+  </section>
+  <section class="setup-body setup-grow">
+    <pre class="setup-license" id="license-text"></pre>
+    <label class="setup-switch-row">
+      <span class="gl-switch"><input type="checkbox" id="license-agree"><span class="gl-switch-track"></span></span>
+      <span class="setup-switch-text" data-i18n="license.agree">license.agree</span>
+    </label>
+  </section>
+</div>
+
+<!-- ③ 位置 -->
+<div class="app-page" data-step="location" hidden>
+  <section class="setup-head">
+    <h1 class="setup-title" data-i18n="location.title">location.title</h1>
+    <p class="setup-sub" id="location-hint"></p>
+  </section>
+  <section class="setup-body">
+    <div class="setup-dir-row">
+      <input type="text" class="box-border w-full h-[36px] px-[11px] bg-[#FFFFFF] [outline:1px_solid_#CBD9C7] [outline-offset:-0.5px] rounded-[4px] text-[13px] leading-normal text-[#12261A] font-[Geist,system-ui,sans-serif] placeholder:text-[#9AAFA1] focus:[outline:1.5px_solid_#1F7A4D]" id="install-dir" autocomplete="off" spellcheck="false">
+      <button type="button" class="box-border h-[34px] px-[13px] inline-flex items-center justify-center gap-[6px] bg-[#FFFFFF] [outline:1px_solid_#CBD9C7] [outline-offset:-0.5px] rounded-[4px] text-[12.5px] leading-none text-[#3F5B49] font-[Geist,system-ui,sans-serif] font-medium cursor-pointer" id="browse-btn" data-i18n="location.browse">location.browse</button>
+    </div>
+    <div class="setup-dir-info" id="dir-info"></div>
+  </section>
+  <section class="setup-body setup-options">
+    <label class="setup-switch-row">
+      <span class="gl-switch"><input type="checkbox" id="opt-desktop" checked><span class="gl-switch-track"></span></span>
+      <span class="setup-switch-text" data-i18n="shortcuts.desktop">shortcuts.desktop</span>
+    </label>
+    <label class="setup-switch-row">
+      <span class="gl-switch"><input type="checkbox" id="opt-startmenu" checked><span class="gl-switch-track"></span></span>
+      <span class="setup-switch-text" data-i18n="shortcuts.startMenu">shortcuts.startMenu</span>
+    </label>
+  </section>
+</div>
+
+<!-- ④ 安装 / 卸载：中间是动画（安装、卸载各一个），下面是进度和日志 -->
+<div class="app-page setup-fill" data-step="install" hidden>
+  <section class="setup-anim-section">
+    <div id="install-animation" class="setup-animation">
+      <img class="setup-anim-install" src="animation/install.gif" alt="">
+      <img class="setup-anim-uninstall" src="animation/uninstall.gif" alt="">
+      <!--
+        动画文件在 installer/ui/animation/：install.gif 安装时播，uninstall.gif 卸载时播。换动画直接替换这两个文件；
+        想换成别的格式就改上面两行。打包时整个 ui 文件夹都会打进去。
+          动图：    <img src="animation/xxx.gif" alt="">      （APNG、WebP 一样）
+          视频：    <video src="animation/xxx.webm" autoplay loop muted playsinline></video>
+          Lottie：  把 lottie.min.js 和 xxx.json 放进 animation/，再加
+                    <div id="lottie"></div><script src="animation/lottie.min.js"></script>
+                    <script>lottie.loadAnimation({container: document.getElementById('lottie'), path: 'animation/xxx.json', loop: true, autoplay: true});</script>
+          纯 CSS：  在 setup.css 里给 #install-animation 写 @keyframes
+        想跟着安装进度变的话，监听这个元素上的事件（setup.js 发的）：
+          setup:start、setup:progress（event.detail.percent 0~100、event.detail.phase）、setup:done、setup:error（event.detail.error）
+        高度在 setup.css 里改 --setup-animation-height（默认 150px），宽度占满。
+      -->
+    </div>
+  </section>
+  <section class="setup-progress-section">
+    <div class="setup-error" id="install-error" hidden></div>
+    <div class="setup-progress-row">
+      <span class="setup-progress-status" id="progress-status"></span>
+      <span class="setup-progress-percent" id="progress-percent">0%</span>
+    </div>
+    <div class="setup-progress" role="progressbar" aria-valuemin="0" aria-valuemax="100" id="progress-bar"><div class="setup-progress-fill" id="progress-fill"></div></div>
+  </section>
+  <section class="setup-log-section">
+    <div class="setup-log-head">
+      <span id="log-title"></span>
+      <span id="log-count"></span>
+    </div>
+    <pre id="logs-viewer" class="setup-log logs-scroll"></pre>
+  </section>
+</div>
+
+<!-- ⑤ 完成 -->
+<div class="app-page" data-step="finish" hidden>
+  <section class="setup-done">
+    <span class="setup-done-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg></span>
+    <h1 class="setup-title" id="done-title"></h1>
+    <p class="setup-done-text" id="done-text"></p>
+    <div class="setup-done-links">
+      <button type="button" class="setup-link" id="open-folder-btn" data-i18n="done.openFolder">done.openFolder</button>
+      <button type="button" class="setup-link" id="open-log-btn" data-i18n="done.openLog">done.openLog</button>
+    </div>
+  </section>
+  <section class="setup-body setup-done-options" id="launch-row">
+    <label class="setup-switch-row">
+      <span class="gl-switch"><input type="checkbox" id="opt-launch" checked><span class="gl-switch-track"></span></span>
+      <span class="setup-switch-text" data-i18n="done.launch">done.launch</span>
+    </label>
+  </section>
+</div>
+
+<!-- 卸载 ① 确认 -->
+<div class="app-page" data-step="confirm" hidden>
+  <section class="setup-head">
+    <h1 class="setup-title" id="confirm-title"></h1>
+    <p class="setup-sub" data-i18n="confirm.hint">confirm.hint</p>
+  </section>
+  <section class="setup-body">
+    <div class="setup-path" id="uninstall-dir"></div>
+    <div class="setup-notes" id="confirm-notes"></div>
+  </section>
+  <section class="setup-body setup-options">
+    <label class="setup-switch-row setup-switch-row-tall">
+      <span class="gl-switch"><input type="checkbox" id="opt-remove-data"><span class="gl-switch-track"></span></span>
+      <span class="setup-switch-text">
+        <span data-i18n="confirm.removeData">confirm.removeData</span>
+        <small class="setup-switch-hint" id="remove-data-hint"></small>
+      </span>
+    </label>
+  </section>
+</div>
+
+</main>
+
+<footer class="setup-footer">
+  <div class="setup-steps" id="steps" aria-label="Steps"></div>
+  <span class="setup-footer-note" id="footer-note"></span>
+  <div class="setup-footer-buttons">
+    <button type="button" class="box-border h-[34px] px-[13px] inline-flex items-center justify-center gap-[6px] bg-[#FFFFFF] [outline:1px_solid_#CBD9C7] [outline-offset:-0.5px] rounded-[4px] text-[12.5px] leading-none text-[#3F5B49] font-[Geist,system-ui,sans-serif] font-medium cursor-pointer" id="back-btn"></button>
+    <button type="button" class="box-border h-[36px] px-[16px] inline-flex items-center justify-center gap-[7px] bg-[#1F7A4D] rounded-[4px] text-[13px] leading-none text-[#FFFFFF] font-[Geist,system-ui,sans-serif] font-semibold cursor-pointer border-0 setup-next" id="next-btn"></button>
+  </div>
+</footer>
+</div>
+
+<!-- 关窗口前确认 -->
+<div class="setup-modal" id="confirm-close" hidden>
+  <div class="setup-modal-card" role="dialog" aria-modal="true" aria-labelledby="confirm-close-title">
+    <div class="setup-modal-title" id="confirm-close-title"></div>
+    <p class="setup-modal-text" id="confirm-close-text"></p>
+    <div class="setup-modal-buttons">
+      <button type="button" class="box-border h-[34px] px-[13px] inline-flex items-center justify-center gap-[6px] bg-[#FFFFFF] [outline:1px_solid_#CBD9C7] [outline-offset:-0.5px] rounded-[4px] text-[12.5px] leading-none text-[#3F5B49] font-[Geist,system-ui,sans-serif] font-medium cursor-pointer" id="confirm-close-quit" data-i18n="close.quit">close.quit</button>
+      <button type="button" class="box-border h-[36px] px-[16px] inline-flex items-center justify-center gap-[7px] bg-[#1F7A4D] rounded-[4px] text-[13px] leading-none text-[#FFFFFF] font-[Geist,system-ui,sans-serif] font-semibold cursor-pointer border-0" id="confirm-close-stay" data-i18n="close.stay">close.stay</button>
+    </div>
+  </div>
+</div>
+
+<script src="setup.js"></script>
+</body>
+</html>

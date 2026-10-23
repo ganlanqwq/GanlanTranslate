@@ -29,6 +29,7 @@
 
 - **VR 手腕字幕**：戴着头显也能看。SteamVR 里抬起手腕就能看到译文，在 SteamVR 菜单里就能开关模式、换语言。
 - **词语设置**：自己加识别热词（朋友的名字、世界名、圈内梗），自己定某个词该怎么翻。
+- **插件**：把 .zip 插件包拖进窗口就能装，每个插件可以单独开关、设置和删除。
 - **四种界面语言**：简体中文、English、日本語、한국어，默认跟随 Windows 的显示语言。
 
 ## 功能介绍
@@ -69,11 +70,19 @@
 - **翻译术语**：原文出现某个关键词时告诉模型怎么翻，按译文语言分开保存，保存后下一句就生效。
 - 内置词库只读显示，你自己加的单独保存，升级不会丢。
 
+### 插件
+
+- 插件包是一个 .zip，里面的 `plugin.json` 记录名字、版本、作者和设置项。把它拖进甘岚翻译窗口（哪一页都行），或者在「插件」页点「导入插件」就装好了。
+- 「插件」页可以启用 / 禁用、删除，点齿轮按钮改这个插件自己的设置；「信息 → 软件信息」里能看到装了哪些插件，并打开插件文件夹。
+- 插件能在翻译之前改你说的话（加进去的内容会跟着一起翻译）、改发到聊天框的文字，也能拿到每一句译文。示例插件「聊天框前后缀」给你说的每句话前后加上自定义内容。
+- 插件放在程序目录的 `plugins` 文件夹里，覆盖升级不会动它。插件能运行代码，只安装你信任的插件。
+- 想自己写插件，看 [插件开发说明](docs/插件开发.md) 和示例 [`docs/plugin-example/`](docs/plugin-example/)。
+
 ### 其他
 
 - **预设**：把一整套配置存成预设，随时切换，也能导出成文件分享给朋友。预设里不包含 API Key。
 - **悬浮窗**：自我、他人、屏幕三个悬浮窗可以分开打开，可以设置成置顶悬浮。
-- **托盘**：关掉主窗口只是缩到右下角托盘，再次打开程序会把原来的窗口叫出来，不会开两个。
+- **托盘**：关掉主窗口只是缩到右下角托盘，再次打开程序会把原来的窗口叫出来，不会开两个。右键托盘图标可以直接启停三个模式、分别开关三个悬浮窗。
 
 ## 下载和安装
 
@@ -84,6 +93,8 @@
 系统要求：Windows 10 / 11（64 位）。用 VR 手腕字幕需要 SteamVR。
 
 从测试版（程序名 `GanLan.exe`）覆盖安装时，会自动把预设、自定义热词和术语、VR 附属程序设置、下载过的模型搬到新目录，再删掉旧目录。
+
+卸载：在「信息 → 软件信息」里点「卸载…」，或者在 Windows 的「设置 → 应用」里卸载。卸载时可以选择保留预设、插件、自定义热词和术语、下载的模型（默认保留）。
 
 ## 快速上手
 
@@ -101,7 +112,8 @@
 
 - API Key 只保存在本机程序里，不会写进预设文件，也不会被上传到除对应服务商以外的地方。
 - 你的声音、截图和文字只会发给你自己配置的识别 / 翻译 / 图像识别服务（开启「反向翻译」时还会用到 Google 翻译）。
-- 预设、热词、术语、VR 设置都存在安装目录里，升级覆盖安装不会丢。
+- 预设、热词、术语、VR 设置、插件都存在安装目录里，升级覆盖安装不会丢。
+- 插件和甘岚翻译在同一个进程里运行，能读写文件、联网。来路不明的插件不要装。
 
 ## 常见问题
 
@@ -176,25 +188,26 @@ python -m venv .venv
 
 ### 打包安装包
 
-需要 [NSIS](https://nsis.sourceforge.io/)。
+安装程序是自己写的（`installer/`：C# 外壳 + 网页界面），需要 [.NET SDK 8](https://dotnet.microsoft.com/download) 和 .NET Framework 4.7.1 以上的开发包（Developer Pack）。第一次打包时会从 nuget.org 下载微软的 WebView2 SDK。
 
 ```bash
 .venv\Scripts\python -m PyInstaller GanlanTranslate.spec --noconfirm --distpath build_installer\dist --workpath build_installer\work
-"C:\Program Files (x86)\NSIS\makensis.exe" installer.nsi
+.venv\Scripts\python installer\build.py
 ```
 
-安装包输出到 `build_installer\GanlanTranslate-Setup-<版本>.exe`。版本号在 `installer.nsi` 和 `ui/app.py` 里，两处要一起改。
+安装包输出到 `build_installer\GanlanTranslate-Setup-<版本>.exe`。版本号在 `ui/app.py` 和 `vr_overlay/link.py` 里，两处要一起改，安装程序从 `ui/app.py` 读。安装界面需要 Microsoft Edge WebView2 运行库（Win11 自带，Win10 一般也有）。想在浏览器里预览安装界面：运行 `.venv\Scripts\python installer\preview.py`，打开 http://127.0.0.1:5098/ 。
 
 ### 目录说明
 
 | 路径 | 内容 |
 |---|---|
 | `ui/` | 网页控制台（Flask 后端、页面、样式、脚本） |
-| `qt_ui/`、`run_ui.py`、`tray_app.py` | 桌面窗口和托盘 |
+| `qt_ui/`、`run_ui.py` | 桌面窗口和托盘 |
 | `main.py`、`recognition_handler.py` | 自我翻译 |
 | `others_pipeline.py`、`speaker_id.py` | 翻译他人、说话人区分 |
 | `screen_translation.py` | 翻译画面 |
 | `vr_overlay/`、`vr_bridge.py` | SteamVR 手腕字幕和菜单页 |
+| `plugin_manager.py`、`docs/插件开发.md`、`docs/plugin-example/` | 插件：加载和管理、开发说明、示例插件 |
 | `speech_recognizers/`、`streaming_translation/` | 各家识别、翻译接口 |
 | `hot_words/`、`terminology/` | 内置热词和术语 |
 | `tailwind_build/` | 重新编译界面样式用的 Tailwind 配置 |

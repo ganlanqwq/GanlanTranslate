@@ -1,0 +1,305 @@
+/*
+ * 甘岚翻译 安装程序
+ *
+ * 白底绿色，和主软件同一套：颜色令牌、字体、按钮、开关（gl-switch）、入场动画（gl-rise / gl-fade）都来自
+ * 主软件的 style.css / tailwind.css（shared/css/）。这里只放安装窗口自己的排版，颜色一律用 style.css 的令牌。
+ */
+
+html, body { height: 100%; }
+body.setup { overflow: hidden; background: var(--surface); user-select: none; }
+/* Win10 窗口是外壳用 SetWindowRgn 裁的圆角，边框在这里画（Win11 系统自己画圆角和边框） */
+html.frame-region body::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: 300;
+  border: 1px solid rgba(10, 33, 21, 0.24);
+  border-radius: 8px;
+  pointer-events: none;
+}
+/* tailwind 的 inline-flex 之类会盖掉 hidden 属性 */
+.setup [hidden] { display: none !important; }
+.setup-shell { display: flex; flex-direction: column; height: 100vh; min-height: 0; }
+
+/* 中日韩字体：Geist 没有汉字，按界面语言挑系统字体（不然日文会用中文字形） */
+html:lang(ja) body { font-family: "Geist", "Yu Gothic UI", "Meiryo", system-ui, sans-serif; }
+html:lang(ko) body { font-family: "Geist", "Malgun Gothic", system-ui, sans-serif; }
+html:lang(ja) .setup-title { font-family: "Funnel Sans", "Yu Gothic UI", "Meiryo", system-ui, sans-serif; }
+html:lang(ko) .setup-title { font-family: "Funnel Sans", "Malgun Gothic", system-ui, sans-serif; }
+
+/* ---------- 标题栏：窗口没有系统标题栏，这一条当标题栏拖（WebView2 的 app-region） ---------- */
+.setup-titlebar {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 40px;
+  padding-left: 40px;
+  app-region: drag;
+  -webkit-app-region: drag;
+}
+.setup-brand { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.setup-brand-name { font-family: var(--font-display); font-size: 13px; font-weight: 600; color: var(--ink); }
+.setup-brand-sub { font-size: 12px; color: var(--ink-3); }
+.setup-titlebar-tools { display: flex; align-items: stretch; height: 100%; }
+.setup-win-btn {
+  app-region: no-drag;
+  -webkit-app-region: no-drag;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 46px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--ink-2);
+  font-family: "Segoe Fluent Icons", "Segoe MDL2 Assets", sans-serif;
+  font-size: 10px;
+  cursor: default;
+  scale: none !important;
+}
+.setup-win-btn:hover { background: rgba(18, 38, 26, 0.06); }
+.setup-win-btn:active { background: rgba(18, 38, 26, 0.1); }
+.setup-win-btn.close:hover { background: #E81123; color: #FFFFFF; }
+.setup-win-btn.close:active { background: #B91C1C; color: #FFFFFF; }
+
+/* ---------- 每一步的内容 ---------- */
+.setup-main { flex: 1 1 auto; min-height: 0; overflow-y: auto; padding: 14px 40px 18px; }
+.setup-main .app-page { display: flex; flex-direction: column; gap: 18px; }
+.setup-main .app-page.setup-fill { height: 100%; }
+.setup-grow { flex: 1 1 auto; min-height: 0; }
+
+.setup-head { display: flex; flex-direction: column; gap: 5px; }
+.setup-title { margin: 0; font-family: var(--font-display); font-size: 22px; line-height: 1.3; font-weight: 600; color: var(--ink); }
+.setup-sub { margin: 0; font-size: 12.5px; line-height: 1.6; color: var(--ink-3); }
+.setup-body { display: flex; flex-direction: column; gap: 10px; min-height: 0; }
+.setup-text { margin: 0; font-size: 13.5px; line-height: 1.8; color: var(--ink-2); }
+.setup-options { gap: 0; padding-top: 6px; border-top: 1px solid var(--line); }
+
+/* 提示条：更新、正在运行、版本更新、测试模式 */
+.setup-notes { display: flex; flex-direction: column; gap: 8px; margin-top: 4px; }
+.setup-notes:empty { display: none; }
+.setup-note {
+  display: flex;
+  align-items: flex-start;
+  gap: 9px;
+  padding: 10px 12px;
+  border-radius: var(--radius-md);
+  font-size: 12.5px;
+  line-height: 1.6;
+}
+.setup-note svg { flex-shrink: 0; width: 15px; height: 15px; margin-top: 2.5px; }
+.setup-note.info { background: var(--green-50); color: var(--green-900); }
+.setup-note.info svg { color: var(--green-600); }
+.setup-note.warn { background: var(--warn-bg); color: var(--warn); }
+
+/* 许可 */
+.setup-license {
+  flex: 1 1 auto;
+  min-height: 100px;
+  margin: 0;
+  padding: 12px 14px;
+  overflow: auto;
+  border-radius: var(--radius-md);
+  background: var(--surface-soft);
+  outline: 1px solid var(--line);
+  outline-offset: -1px;
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  line-height: 1.65;
+  color: var(--ink-2);
+  white-space: pre-wrap;
+  word-break: break-word;
+  user-select: text;
+}
+
+/* 开关行（gl-switch 来自主软件） */
+.setup-switch-row { display: flex; align-items: center; gap: 10px; padding: 9px 0; cursor: pointer; }
+.setup-switch-row-tall { align-items: flex-start; }
+.setup-switch-row-tall .gl-switch { margin-top: 1px; }
+.setup-switch-text { display: flex; flex-direction: column; gap: 3px; font-size: 13px; color: var(--ink); }
+.setup-switch-hint { font-size: 12px; line-height: 1.6; color: var(--ink-3); white-space: pre-line; }
+
+/* 安装位置 */
+.setup-dir-row { display: flex; align-items: center; gap: 10px; }
+.setup-dir-row input { flex: 1 1 auto; min-width: 0; user-select: text; }
+.setup-dir-row input[readonly] { background: var(--surface-soft); color: var(--ink-2); }
+.setup-dir-row button { flex-shrink: 0; }
+.setup-dir-info { display: flex; flex-wrap: wrap; gap: 4px 16px; min-height: 18px; font-size: 12px; color: var(--ink-3); }
+.setup-dir-info .error { color: var(--danger); }
+.setup-dir-info .warn { color: var(--warn); }
+.setup-path {
+  padding: 10px 12px;
+  border-radius: var(--radius-md);
+  background: var(--surface-soft);
+  outline: 1px solid var(--line);
+  outline-offset: -1px;
+  font-family: var(--font-mono);
+  font-size: 12.5px;
+  color: var(--ink);
+  word-break: break-all;
+  user-select: text;
+}
+
+/* ---------- 安装：动画区 + 进度 + 日志 ---------- */
+/* 留给岚放动画的一块（installer/ui/animation/），透明、居中。
+   高度改 --setup-animation-height；出错提示出来时这块会让出一点地方给日志 */
+.setup { --setup-animation-height: 150px; }
+.setup-anim-section { flex: 0 1 var(--setup-animation-height); min-height: 64px; display: flex; }
+.setup-animation {
+  position: relative;
+  flex: 1 1 auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  min-height: 0;
+  overflow: hidden;
+}
+.setup-animation > img,
+.setup-animation > video,
+.setup-animation > canvas,
+.setup-animation > svg { max-width: 100%; max-height: 100%; object-fit: contain; }
+/* 安装、卸载各放一个动画 */
+body.mode-uninstall .setup-anim-install,
+body:not(.mode-uninstall) .setup-anim-uninstall { display: none; }
+
+.setup-progress-section { flex-shrink: 0; display: flex; flex-direction: column; gap: 8px; }
+.setup-progress-row { display: flex; align-items: baseline; justify-content: space-between; gap: 16px; }
+.setup-progress-status { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 13px; font-weight: 500; color: var(--ink); }
+.setup-progress-percent { flex-shrink: 0; font-family: var(--font-display); font-size: 15px; font-weight: 600; font-variant-numeric: tabular-nums; color: var(--green-700); }
+.setup-progress { position: relative; height: 6px; overflow: hidden; border-radius: 999px; background: var(--green-50); }
+.setup-progress-fill {
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 0;
+  border-radius: inherit;
+  background: linear-gradient(90deg, var(--green-600), var(--green-400));
+}
+.setup-progress.failed .setup-progress-fill { background: var(--danger); }
+.setup-error {
+  padding: 10px 12px;
+  border-radius: var(--radius-md);
+  background: var(--danger-bg);
+  color: var(--danger);
+  font-size: 12.5px;
+  line-height: 1.6;
+  white-space: pre-wrap;
+  word-break: break-word;
+  user-select: text;
+}
+
+.setup-log-section { flex: 1 1 0; min-height: 90px; display: flex; flex-direction: column; gap: 6px; }
+.setup-log-head { display: flex; align-items: baseline; justify-content: space-between; font-size: 12px; color: var(--ink-3); }
+.setup-log-head #log-title { font-weight: 500; color: var(--ink-2); }
+.setup-log-head #log-count { font-variant-numeric: tabular-nums; }
+.setup-log {
+  flex: 1 1 auto;
+  min-height: 0;
+  margin: 0;
+  padding: 10px 12px;
+  overflow: auto;
+  border-radius: var(--radius-md);
+  background: var(--surface-soft);
+  outline: 1px solid var(--line);
+  outline-offset: -1px;
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  line-height: 1.65;
+  color: var(--ink-2);
+  white-space: pre-wrap;
+  word-break: break-all;
+  user-select: text;
+}
+
+/* ---------- 完成 ---------- */
+.setup-done { display: flex; flex-direction: column; align-items: center; gap: 8px; padding-top: 34px; text-align: center; }
+.setup-done-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 60px;
+  height: 60px;
+  margin-bottom: 8px;
+  border-radius: 18px;
+  background: var(--green-50);
+  color: var(--green-600);
+}
+.setup-done-icon svg { width: 30px; height: 30px; }
+.setup-done-text { margin: 0; max-width: 520px; font-size: 13px; line-height: 1.7; color: var(--ink-2); white-space: pre-line; word-break: break-word; }
+.setup-done-links { display: flex; flex-wrap: wrap; justify-content: center; gap: 4px 18px; margin-top: 2px; }
+.setup-link { padding: 2px 0; border: 0; background: none; color: var(--green-600); font-size: 12.5px; font-weight: 500; cursor: pointer; }
+.setup-link:hover { text-decoration: underline; }
+.setup-done-options { align-items: center; border-top: 0; }
+
+/* ---------- 底栏：左边步骤点，右边按钮 ---------- */
+.setup-footer {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  height: 64px;
+  padding: 0 40px;
+  border-top: 1px solid var(--line);
+}
+.setup-steps { display: flex; align-items: center; gap: 6px; }
+.setup-step { width: 7px; height: 7px; border-radius: 999px; background: var(--line-strong); }
+.setup-step.done { background: var(--green-400); }
+.setup-step.active { width: 22px; background: var(--green-600); }
+.setup-footer-note { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; color: var(--ink-3); }
+.setup-footer-buttons { display: flex; align-items: center; gap: 10px; }
+.setup-footer-buttons button { min-width: 88px; }
+.setup-next { transition: background-color 0.15s ease; }
+.setup-next:hover:not(:disabled) { background: var(--green-700); }
+.setup-next.danger { background: var(--danger); }
+.setup-next.danger:hover:not(:disabled) { background: #A8392F; }
+
+/* ---------- 关窗口前确认 ---------- */
+.setup-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(10, 33, 21, 0.32);
+}
+.setup-modal-card {
+  box-sizing: border-box;
+  width: min(380px, calc(100vw - 32px));
+  padding: 20px 22px 18px;
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  box-shadow: var(--shadow-pop);
+}
+.setup-modal-title { font-family: var(--font-display); font-size: 16px; font-weight: 600; color: var(--ink); }
+.setup-modal-text { margin: 8px 0 18px; font-size: 13px; line-height: 1.7; color: var(--ink-2); }
+.setup-modal-buttons { display: flex; justify-content: flex-end; gap: 10px; }
+
+/* ---------- 动画：和主软件一样，系统开了「减少动画」就不播 ---------- */
+@media (prefers-reduced-motion: no-preference) {
+  /* 换一步时内容依次浮上来：.app-page > section 的 gl-rise 在主软件 style.css 里 */
+  .setup-step { transition: width 0.32s cubic-bezier(0.3, 0.8, 0.25, 1), background-color 0.25s ease; }
+  .setup-progress-fill { transition: width 0.35s cubic-bezier(0.3, 0.8, 0.25, 1), background-color 0.2s ease; }
+  .setup-win-btn { transition: background-color 0.12s ease, color 0.12s ease; }
+  .setup-modal:not([hidden]) { animation: gl-fade 0.18s ease; }
+  .setup-modal:not([hidden]) .setup-modal-card { animation: gl-rise 0.28s cubic-bezier(0.2, 0.7, 0.2, 1); }
+  .setup-progress:not(.failed):not(.complete) .setup-progress-fill::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.5), transparent);
+    animation: setup-shine 1.6s ease-in-out infinite;
+  }
+}
+@keyframes setup-shine { from { transform: translateX(-100%); } to { transform: translateX(100%); } }
+
+/* 浏览器里预览、窗口很窄时 */
+@media (max-width: 600px) {
+  .setup-main, .setup-footer { padding-left: 18px; padding-right: 18px; }
+  .setup-footer-note { display: none; }
+}
+
+/* 浏览器预览（installer/preview.py）里把还空着的动画区框出来，看得到在哪；真正的安装程序里不显示 */
+body.preview .setup-animation:not(:has(> :not(script))) { border: 1.5px dashed var(--line-strong); border-radius: var(--radius-md); }
+body.preview .setup-animation:not(:has(> :not(script)))::after { content: "#install-animation · installer/ui/animation/"; font-family: var(--font-mono); font-size: 11.5px; color: var(--ink-4); }

@@ -156,4 +156,5 @@ def folder_paths() -> Dict[str, str]:
         'hot_words': get_user_data_path(HOT_WORDS_PRIVATE_DIR),
         'terminology': get_user_data_path(TERMINOLOGY_PRIVATE_DIR),
         'vr': get_user_data_path('vr_overlay'),
+        'plugins': get_user_data_path('plugins'),
     }

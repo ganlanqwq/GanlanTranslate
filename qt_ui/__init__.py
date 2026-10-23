@@ -96,14 +96,14 @@ def request_quit() -> bool:
 def run_qt_app(
     url: str = "http://127.0.0.1:5001/",
     on_quit: Optional[Callable[[], None]] = None,
-    hide_on_close: bool = True,
-    on_hidden: Optional[Callable[[], None]] = None,
+    tray_title: Optional[str] = None,
+    tray_hidden_message: Optional[Callable[[], str]] = None,
     **_kwargs,
 ) -> int:
     """阻塞运行 Qt 事件循环。返回进程退出码。
 
-    hide_on_close：按 × 只隐藏到托盘（托盘没起来时传 False，按 × 就退出）。
-    on_hidden：每次隐藏到托盘后调用（用来弹「还在托盘里」的通知）。
+    tray_title：给了就建托盘图标（qt_ui.tray），按 × 只隐藏到托盘；托盘没起来时按 × 就退出。
+    tray_hidden_message：第一次隐藏到托盘时弹的通知文字。
     """
     global _app, _window, _bridge
 
@@ -122,7 +122,25 @@ def run_qt_app(
     _bridge.show_requested.connect(_show_now)
     _bridge.quit_requested.connect(_quit_now)
 
-    _window = MainWindow(url=url, on_quit=on_quit, hide_on_close=hide_on_close, on_hidden=on_hidden)
+    tray = None
+    if tray_title:
+        try:
+            from qt_ui.tray import create_tray
+            tray = create_tray(tray_title, load_app_icon(), on_open=_show_now, on_quit=on_quit or _quit_now)
+            print("已挂到系统托盘（关闭窗口会隐藏；托盘可再打开）" if tray else "[tray] 系统没有托盘区，关闭窗口就退出")
+        except Exception as exc:
+            print(f"[tray] 托盘启动失败（不影响主程序）: {exc!r}")
+
+    hidden_notified = []
+
+    def _on_hidden():
+        # 第一次按 × 时提示一下：程序没退出，还在托盘里
+        if tray is not None and tray_hidden_message and not hidden_notified:
+            hidden_notified.append(True)
+            tray.notify(tray_hidden_message())
+
+    # 托盘没起来就别藏窗口，按 × 直接退出（不然藏起来找不回来）
+    _window = MainWindow(url=url, on_quit=on_quit, hide_on_close=tray is not None, on_hidden=_on_hidden)
     _window.show()
     code = _app.exec()
     if not _quitting:
@@ -131,4 +149,6 @@ def run_qt_app(
         loop = QEventLoop()
         _quit_now_into(loop)
         loop.exec()
+    if tray is not None:
+        tray.hide()   # 不然进程没了托盘里还留着图标，鼠标划过才消失
     return code

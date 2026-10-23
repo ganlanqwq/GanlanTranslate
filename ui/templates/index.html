@@ -8,7 +8,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Funnel+Sans:wght@300;400;500;600;700;800&amp;family=Geist:wght@100;200;300;400;500;600;700;800;900&amp;family=Geist+Mono:wght@100;200;300;400;500;600;700;800;900&amp;display=swap" rel="stylesheet">
 <link rel="stylesheet" href="{{ url_for('static', filename='css/tailwind.css') }}?v=7.2">
-<link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}?v=7.2">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}?v=7.5">
 </head>
 <body>
 <div id="toast-area" class="toast-area fixed top-[16px] right-[16px] z-[9999] flex flex-col gap-[8px]" aria-live="polite" aria-atomic="false"></div>
@@ -1077,6 +1077,35 @@
 </div>
 </div>
 </section>
+<section class="box-border w-full h-fit shrink-0 flex flex-col bg-[#FFFFFF] [outline:1px_solid_#E3EAE1] [outline-offset:-0.5px] rounded-[8px] overflow-hidden" id="about-plugins-card">
+<div class="box-border w-full h-fit shrink-0 flex flex-col p-[18px] justify-start items-start gap-[18px]">
+<div class="box-border w-full flex flex-col gap-[6px] items-start">
+<div class="text-[14.5px] leading-normal text-[#12261A] font-['Funnel_Sans',system-ui,sans-serif] font-semibold text-left whitespace-nowrap" data-i18n="about.pluginsTitle">about.pluginsTitle</div>
+<div class="text-[12px]/[17px] text-[#7C9285] font-[Geist,system-ui,sans-serif] font-normal text-left" data-i18n="about.pluginsHint">about.pluginsHint</div>
+</div>
+<div class="box-border w-full h-[1px] shrink-0 bg-[#E3EAE1]"></div>
+<ul class="about-plugins" id="about-plugins"></ul>
+<dl class="about-info">
+<div class="about-row"><dt data-i18n="about.pluginsCount">about.pluginsCount</dt><dd id="about-plugins-count">-</dd></div>
+<div class="about-row"><dt data-i18n="about.pluginsDir">about.pluginsDir</dt><dd id="about-plugins-dir">-</dd></div>
+</dl>
+<div class="word-actions">
+<button type="button" class="box-border h-[34px] px-[13px] inline-flex items-center justify-center gap-[6px] bg-[#FFFFFF] [outline:1px_solid_#CBD9C7] [outline-offset:-0.5px] rounded-[4px] text-[12.5px] leading-none text-[#3F5B49] font-[Geist,system-ui,sans-serif] font-medium cursor-pointer" onclick="openAppFolder('plugins')" data-i18n="about.openPlugins">about.openPlugins</button>
+<button type="button" class="box-border h-[34px] px-[13px] inline-flex items-center justify-center gap-[6px] bg-[#FFFFFF] [outline:1px_solid_#CBD9C7] [outline-offset:-0.5px] rounded-[4px] text-[12.5px] leading-none text-[#3F5B49] font-[Geist,system-ui,sans-serif] font-medium cursor-pointer" onclick="showPluginsPage()" data-i18n="about.managePlugins">about.managePlugins</button>
+</div>
+</div>
+</section>
+<section class="box-border w-full h-fit shrink-0 flex flex-col bg-[#FFFFFF] [outline:1px_solid_#E3EAE1] [outline-offset:-0.5px] rounded-[8px] overflow-hidden" id="uninstall-card">
+<div class="box-border w-full h-fit shrink-0 flex flex-col p-[18px] justify-start items-start gap-[14px]">
+<div class="box-border w-full flex flex-col gap-[6px] items-start">
+<div class="text-[14.5px] leading-normal text-[#12261A] font-['Funnel_Sans',system-ui,sans-serif] font-semibold text-left whitespace-nowrap" data-i18n="about.uninstallTitle">about.uninstallTitle</div>
+<div class="text-[12px]/[17px] text-[#7C9285] font-[Geist,system-ui,sans-serif] font-normal text-left" id="uninstall-hint" data-i18n="about.uninstallHint">about.uninstallHint</div>
+</div>
+<div class="word-actions">
+<button type="button" class="about-uninstall-btn box-border h-[34px] px-[13px] inline-flex items-center justify-center gap-[6px] bg-[#FFFFFF] [outline:1px_solid_#E7C6C6] [outline-offset:-0.5px] rounded-[4px] text-[12.5px] leading-none font-[Geist,system-ui,sans-serif] font-medium cursor-pointer" id="uninstall-btn" onclick="openUninstaller()" disabled data-i18n="about.uninstall">about.uninstall</button>
+</div>
+</div>
+</section>
 </div>
 </div>
 <div id="page-credits" class="app-page" data-app-page="credits" hidden>
@@ -1148,10 +1177,34 @@
 </div>
 <div id="page-plugins" class="app-page" data-app-page="plugins" hidden>
 <section class="box-border w-full h-fit shrink-0 flex flex-col bg-[#FFFFFF] [outline:1px_solid_#E3EAE1] [outline-offset:-0.5px] rounded-[8px] overflow-hidden" id="plugins-card">
-<div class="plugins-empty">
+<div class="box-border w-full h-fit shrink-0 flex flex-col p-[18px] justify-start items-start gap-[18px]">
+<div class="plugins-head">
+<div class="box-border flex flex-col gap-[6px] items-start min-w-0">
+<div class="text-[14.5px] leading-normal text-[#12261A] font-['Funnel_Sans',system-ui,sans-serif] font-semibold text-left whitespace-nowrap" data-i18n="plugins.title">plugins.title</div>
+<div class="text-[12px]/[17px] text-[#7C9285] font-[Geist,system-ui,sans-serif] font-normal text-left" data-i18n="plugins.hint">plugins.hint</div>
+</div>
+<div class="word-actions">
+<button type="button" class="box-border h-[34px] px-[14px] inline-flex items-center justify-center gap-[7px] bg-[#1F7A4D] rounded-[4px] text-[12.5px] leading-none text-[#FFFFFF] font-[Geist,system-ui,sans-serif] font-semibold cursor-pointer border-0" onclick="choosePluginFile()"><svg class="w-[15px] h-[15px]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="m17 8-5-5-5 5"/><path d="M12 3v12"/></svg><span data-i18n="btn.importPlugin">btn.importPlugin</span></button>
+<button type="button" class="box-border h-[34px] px-[13px] inline-flex items-center justify-center gap-[6px] bg-[#FFFFFF] [outline:1px_solid_#CBD9C7] [outline-offset:-0.5px] rounded-[4px] text-[12.5px] leading-none text-[#3F5B49] font-[Geist,system-ui,sans-serif] font-medium cursor-pointer" onclick="refreshPlugins()" data-i18n="btn.refreshPlugins">btn.refreshPlugins</button>
+<button type="button" class="box-border h-[34px] px-[13px] inline-flex items-center justify-center gap-[6px] bg-[#FFFFFF] [outline:1px_solid_#CBD9C7] [outline-offset:-0.5px] rounded-[4px] text-[12.5px] leading-none text-[#3F5B49] font-[Geist,system-ui,sans-serif] font-medium cursor-pointer" onclick="openAppFolder('plugins')" data-i18n="btn.openPluginFolder">btn.openPluginFolder</button>
+</div>
+</div>
+<input type="file" id="plugin-file-input" accept=".zip,application/zip" multiple hidden>
+<div class="box-border w-full h-[1px] shrink-0 bg-[#E3EAE1]"></div>
+<div class="plugin-dropzone" id="plugin-dropzone" role="button" tabindex="0" onclick="choosePluginFile()">
   <span class="plugins-empty-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19.44 7.85c-.05.32.06.65.29.88l1.57 1.57a2.41 2.41 0 0 1 0 3.41l-1.61 1.61a.98.98 0 0 1-.84.28c-.47-.07-.8-.48-.97-.93a2.5 2.5 0 1 0-3.21 3.21c.45.17.86.5.93.97a.98.98 0 0 1-.28.84l-1.61 1.61a2.41 2.41 0 0 1-3.41 0l-1.57-1.57a1.03 1.03 0 0 0-.88-.29c-.49.07-.84.5-1.02.97a2.5 2.5 0 1 1-3.24-3.24c.46-.18.89-.53.97-1.02a1.03 1.03 0 0 0-.29-.88L2.7 13.7a2.41 2.41 0 0 1 0-3.41l1.53-1.53c.24-.24.58-.35.92-.3.51.08.88.53 1.07 1.01a2.5 2.5 0 1 0 3.26-3.26c-.48-.2-.93-.56-1.01-1.07-.05-.34.06-.68.3-.92L10.3 2.7a2.41 2.41 0 0 1 3.41 0l1.57 1.57c.23.23.56.34.88.29.49-.07.84-.5 1.02-.97a2.5 2.5 0 1 1 3.24 3.24c-.46.18-.89.53-.97 1.02Z"/></svg></span>
-  <div class="plugins-empty-title" data-i18n="plugins.emptyTitle">plugins.emptyTitle</div>
-  <p class="plugins-empty-hint" data-i18n="plugins.emptyHint">plugins.emptyHint</p>
+  <div class="plugin-dropzone-text">
+    <div class="plugins-empty-title" data-i18n="plugins.emptyTitle">plugins.emptyTitle</div>
+    <div class="plugin-dropzone-title" data-i18n="plugins.dropTitle">plugins.dropTitle</div>
+    <p class="plugins-empty-hint" data-i18n="plugins.emptyHint">plugins.emptyHint</p>
+  </div>
+</div>
+<div class="plugin-list" id="plugin-list"></div>
+<div class="plugin-broken" id="plugin-broken" hidden>
+  <div class="plugin-broken-title" data-i18n="plugins.brokenTitle">plugins.brokenTitle</div>
+  <ul class="plugin-broken-list" id="plugin-broken-list"></ul>
+</div>
+<p class="plugin-warning"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="M12 8v4"/><path d="M12 16h.01"/></svg><span data-i18n="plugins.warning">plugins.warning</span></p>
 </div>
 </section>
 </div>
@@ -1167,11 +1220,12 @@
 </footer>
 </div>
 <script>window.SYSTEM_UI_LANGUAGE = {{ system_ui_language|tojson }};</script>
-<script src="{{ url_for('static', filename='js/i18n.js') }}?v=7.2"></script>
+<script src="{{ url_for('static', filename='js/i18n.js') }}?v=7.4"></script>
 <script src="{{ url_for('static', filename='js/main.js') }}?v=7.3"></script>
-<script src="{{ url_for('static', filename='js/tabs.js') }}?v=7.2"></script>
-<script src="{{ url_for('static', filename='js/pages.js') }}?v=7.2"></script>
-<script src="{{ url_for('static', filename='js/select-menu.js') }}?v=7.2"></script>
-<script src="{{ url_for('static', filename='js/window-chrome.js') }}?v=7.2"></script>
+<script src="{{ url_for('static', filename='js/tabs.js') }}?v=7.3"></script>
+<script src="{{ url_for('static', filename='js/pages.js') }}?v=7.4"></script>
+<script src="{{ url_for('static', filename='js/plugins.js') }}?v=7.3"></script>
+<script src="{{ url_for('static', filename='js/select-menu.js') }}?v=7.3"></script>
+<script src="{{ url_for('static', filename='js/window-chrome.js') }}?v=7.3"></script>
 </body>
 </html>

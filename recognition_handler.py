@@ -42,6 +42,24 @@ def _translation_context_prefix() -> str:
     return build_translation_context_prefix(getattr(config, 'CONTEXT_PREFIX', ''))
 
 
+def _emit_self_result(*, text, source_lang, translated_text, actual_target, primary_should_translate,
+                      secondary_text, secondary_target, osc_text) -> None:
+    """告诉插件：自我翻译出了一句终句（插件在自己的线程里收到，不耽误发送）。"""
+    try:
+        import plugin_manager
+        plugin_manager.emit('self_result', {
+            'source': text or '',
+            'source_lang': source_lang or '',
+            'translation': (translated_text or '') if primary_should_translate else '',
+            'target_lang': (actual_target or '') if primary_should_translate else '',
+            'secondary_translation': secondary_text or '',
+            'secondary_lang': secondary_target or '',
+            'chatbox': osc_text or '',
+        })
+    except Exception:
+        logger.debug('插件事件发送失败', exc_info=True)
+
+
 def is_doubao_file_backend(backend: str) -> bool:
     return backend == 'doubao_file'
 
@@ -656,6 +674,13 @@ class VRChatRecognitionCallback(SpeechRecognitionCallback):
                     ),
                 )
 
+            _emit_self_result(
+                text=text, source_lang=source_lang, translated_text=translated_text,
+                actual_target=actual_target, primary_should_translate=primary_should_translate,
+                secondary_text=secondary_translated_text if use_secondary_output and secondary_should_translate else None,
+                secondary_target=actual_secondary_target if use_secondary_output and secondary_should_translate else None,
+                osc_text=osc_text,
+            )
             if osc_text:
                 await osc_manager.send_text(osc_text, ongoing=False)
 
@@ -1123,6 +1148,13 @@ class VRChatRecognitionCallback(SpeechRecognitionCallback):
                     ) if use_secondary_output else None,
                 )
 
+            _emit_self_result(
+                text=text, source_lang=source_lang, translated_text=translated_text,
+                actual_target=actual_target, primary_should_translate=primary_should_translate,
+                secondary_text=secondary_translated_text if use_secondary_output and secondary_should_translate else None,
+                secondary_target=actual_secondary_target if use_secondary_output and secondary_should_translate else None,
+                osc_text=osc_text,
+            )
             if osc_text:
                 await osc_manager.send_text(osc_text, ongoing=False)
 
@@ -1169,6 +1201,13 @@ class VRChatRecognitionCallback(SpeechRecognitionCallback):
         is_ongoing = not event.is_final
         should_set_typing_started = is_ongoing and not self._last_osc_typing_ongoing
         self._last_osc_typing_ongoing = is_ongoing
+        if text and not is_ongoing:
+            # 插件可以在翻译前改整句原文（比如加前后缀，这样会跟着一起翻译）；改成空就这句不要
+            import plugin_manager
+            text = plugin_manager.filter_source(text).strip()
+            if not text:
+                osc_manager.set_typing_sync(False)
+                return
         if not text:
             return
         session_generation = self._get_session_generation()
@@ -1499,6 +1538,13 @@ class VRChatRecognitionCallback(SpeechRecognitionCallback):
                 s.update_subtitles(
                     display_source_text, str(display_translated_text), is_ongoing, "",
                 )
+
+        if not is_ongoing:
+            _emit_self_result(
+                text=text, source_lang=source_lang, translated_text=translated_text,
+                actual_target=actual_target, primary_should_translate=primary_translated,
+                secondary_text=None, secondary_target=None, osc_text=osc_text,
+            )
 
         # 悬浮窗始终刷新部分结果；OSC 也必须同步，否则聊天框要等 ASR 终句（可达数十秒）。
         _should_send = bool(osc_text) and (

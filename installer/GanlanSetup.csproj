@@ -1,0 +1,42 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!--
+    甘岚翻译的安装程序外壳：网页界面（WebView2）+ 安装 / 卸载。
+    不要单独发这个 exe：用 installer\build.py 打包，它会先生成 setup_ui.zip，编译完再把安装数据接在 exe 后面。
+    目标 .NET Framework 4.7.1（Win10 1709 起、Win11 自带），用本机装的引用程序集，不联网找引用包。
+  -->
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net471</TargetFramework>
+    <UseWPF>true</UseWPF>
+    <PlatformTarget>x64</PlatformTarget>
+    <LangVersion>latest</LangVersion>
+    <AssemblyName>GanlanSetup</AssemblyName>
+    <RootNamespace>GanlanSetup</RootNamespace>
+    <StartupObject>GanlanSetup.Program</StartupObject>
+    <ApplicationIcon>..\icon.ico</ApplicationIcon>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+    <AutomaticallyUseReferenceAssemblyPackages>false</AutomaticallyUseReferenceAssemblyPackages>
+    <AllowUnsafeBlocks>false</AllowUnsafeBlocks>
+    <DebugType>none</DebugType>
+    <Product>甘岚翻译</Product>
+    <Company>甘岚</Company>
+    <AssemblyTitle>甘岚翻译 安装程序</AssemblyTitle>
+    <Copyright>Copyright (c) 甘岚</Copyright>
+    <!-- build.py 生成：安装界面（installer\ui + 主软件的 css / 图片）打成的 zip -->
+    <SetupUiZip>..\build_installer\setup_ui.zip</SetupUiZip>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Web.WebView2" Version="1.0.4258.31" GeneratePathProperty="true" />
+    <Reference Include="System.IO.Compression" />
+    <Reference Include="System.Web.Extensions" />
+  </ItemGroup>
+
+  <!-- 单个 exe：WebView2 的 DLL 和界面都作为资源打进来，运行时解压到临时目录 -->
+  <ItemGroup>
+    <EmbeddedResource Include="$(SetupUiZip)" LogicalName="ui.zip" />
+    <EmbeddedResource Include="$(PkgMicrosoft_Web_WebView2)\lib\net462\Microsoft.Web.WebView2.Core.dll" LogicalName="Microsoft.Web.WebView2.Core.dll" />
+    <EmbeddedResource Include="$(PkgMicrosoft_Web_WebView2)\lib\net462\Microsoft.Web.WebView2.Wpf.dll" LogicalName="Microsoft.Web.WebView2.Wpf.dll" />
+    <EmbeddedResource Include="$(PkgMicrosoft_Web_WebView2)\runtimes\win-x64\native\WebView2Loader.dll" LogicalName="WebView2Loader.dll" />
+  </ItemGroup>
+</Project>

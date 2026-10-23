@@ -15,6 +15,7 @@ import logging
 import re
 import threading
 import time
+import unicodedata
 from ctypes import wintypes
 from typing import Callable, Optional
 
@@ -344,6 +345,14 @@ _EN_TRAILING_WORDS = {
 _CJK_WRAP_CHARS = 8
 # 英文、韩文一行至少这么多字符，且下一行不是新句子时才拼
 _SPACED_WRAP_CHARS = 28
+# 画面上单独的「AFK」（VRChat 名牌上方的离开标记）不用翻译，整行丢掉；
+# 全角、大小写、外面套括号、一行好几个都算
+_IGNORED_LINE = re.compile(r"^[\W_]*(?:afk[\W_]*)+$", re.IGNORECASE)
+
+
+def _ignored_line(line: str) -> bool:
+    return bool(_IGNORED_LINE.match(unicodedata.normalize("NFKC", line)))
+
 # 拼出来的一段最长多少字符
 _MAX_BLOCK_CHARS = 400
 
@@ -405,8 +414,8 @@ def split_blocks(text: str) -> list[str]:
         marked = line.startswith(("- ", "* ", "• "))
         if marked:
             line = line[2:].strip()
-        # 空行、纯数字 / 符号（时间、帧数、坐标）不用翻译，也是分界
-        if not line or not any(ch.isalpha() for ch in line):
+        # 空行、纯数字 / 符号（时间、帧数、坐标）、单独的 AFK 不用翻译，也是分界
+        if not line or not any(ch.isalpha() for ch in line) or _ignored_line(line):
             if current:
                 merged.append(current)
             current = last_line = ""
@@ -536,6 +545,14 @@ async def translate_screen_once(state) -> None:
 
         await asyncio.gather(*(_translate(item) for item in items))
         _set_status(state, "done", "")
+        try:
+            import plugin_manager
+            plugin_manager.emit('screen_result', {
+                'target_lang': target_lang,
+                'items': [dict(item) for item in items],
+            })
+        except Exception:
+            pass
         for item in items:
             print(f"[Screen] {item['original']}[{item['lang']}] → {item['translated']}")
         print(
