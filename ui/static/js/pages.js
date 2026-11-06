@@ -424,6 +424,22 @@
         }
     }
 
+    // 「导出日志」（1.1.2）：版本、系统、模式状态 + 全部日志，Key 由后端换成 ***
+    async function exportLogsFile() {
+        const button = byId('export-logs-btn');
+        if (button) button.disabled = true;
+        try {
+            const mode = window.GanlanApiMode ? window.GanlanApiMode.getMode() : '';
+            const data = await requestJson(`${API}/logs/export?api_mode=${encodeURIComponent(mode)}`);
+            window.downloadTextFile(data.filename || 'GanlanTranslate-log.txt', data.text || '', 'text/plain');
+            toast(t('msg.logsExported'), 'success');
+        } catch (error) {
+            toast(t('msg.logsExportFailed') + error.message, 'error');
+        } finally {
+            if (button) setTimeout(() => { button.disabled = false; }, 800);
+        }
+    }
+
     // ---------- 事件 ----------
 
     function onPage(page) {
@@ -475,6 +491,7 @@
     window.openAppFolder = openAppFolder;
     window.openUninstaller = openUninstaller;
     window.copyDevEmail = copyDevEmail;
+    window.exportLogsFile = exportLogsFile;
 
     if (document.readyState === 'loading') {
         document.addEventListener('DOMContentLoaded', init);

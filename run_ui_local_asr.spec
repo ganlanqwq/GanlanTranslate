@@ -34,7 +34,6 @@ hiddenimports = [
     'dashscope.audio.asr',
     'dashscope.audio.qwen_omni',
     'dashscope.audio.qwen_omni.omni_realtime',
-    'deepl',
     'flask',
     'flask_cors',
     'pythonosc',

@@ -9,11 +9,13 @@
     on_settings_changed(settings)    网页上保存了这个插件的设置
     filter_source(text)              自我翻译识别出一整句、还没翻译时，返回新原文（None = 不改，"" = 这句不要）；
                                      改过的原文会拿去翻译，所以加的内容也会跟着翻译
+    filter_partial_source(text)      自我翻译说话中的半句（流式翻译、悬浮窗用），返回 "" = 这半句不翻译、不显示、不发
     filter_chatbox(text, ongoing)    发到 VRChat 聊天框之前，返回新文字（None = 不改，"" = 不发）
     on_self_result(event)            自我翻译出了一句终句
     on_others_result(event)          他人翻译出了一句
     on_screen_result(event)          翻译画面完成一次
-filter_source / filter_chatbox 在识别、发送的线程里直接调用，要快；on_*_result 在插件自己的后台线程里排队调用。
+filter_source / filter_partial_source / filter_chatbox 在识别、发送的线程里直接调用，要快；
+on_*_result 在插件自己的后台线程里排队调用。ctx.call_api / ctx.llm_chat 会等网络，别在上面这几个钩子里直接调。
 
 启用状态和每个插件的设置存在 plugins/_config.json；插件自己要写文件用 ctx.data_dir（plugins/_data/<id>）。
 """
@@ -57,6 +59,14 @@ EVENTS = ('self_result', 'others_result', 'screen_result')
 # 一个插件的钩子连续出错这么多次就不再打印（免得刷屏），下次启用时清零
 ERROR_LOG_LIMIT = 5
 SLOW_FILTER_SECONDS = 0.2
+
+# 宿主（ui/app.py）在加载插件前塞进来的功能：call_api(method, path, payload) -> (status, dict)，
+# llm_chat(messages, max_tokens, temperature, timeout) -> str。本模块不能 import ui.app（会循环导入）。
+_HOST: Dict[str, Callable] = {}
+
+
+def set_host(**functions) -> None:
+    _HOST.update({k: v for k, v in functions.items() if callable(v)})
 
 
 class PluginError(Exception):
@@ -140,6 +150,9 @@ def _clean_field(raw: dict, index: int) -> dict:
     elif ftype in TEXT_LIMITS:
         limit = raw.get('max_length')
         field['max_length'] = int(limit) if isinstance(limit, int) and 0 < limit <= TEXT_LIMITS[ftype] else TEXT_LIMITS[ftype]
+        rows = raw.get('rows')
+        if ftype == 'textarea' and isinstance(rows, int) and not isinstance(rows, bool):
+            field['rows'] = max(2, min(40, rows))
     field['default'] = coerce_value(field, raw.get('default'), strict=False)
     return field
 
@@ -389,6 +402,31 @@ class PluginContext:
     def log(self, *parts) -> None:
         """写进网页「运行日志」。"""
         print(f'[插件:{self.name}] ' + ' '.join(str(p) for p in parts))
+
+    def call_api(self, method: str, path: str, payload: Optional[dict] = None) -> dict:
+        """调甘岚翻译自己的网页接口（程序内部直接调，不走网络），比如
+        call_api('POST', '/api/modes/start', {'modes': ['others']})。返回接口的 JSON，外加 'http_status'。
+        接口可能要等好几秒（启动模式），别在 filter_* 钩子里直接调，放到自己的线程里。"""
+        fn = _HOST.get('call_api')
+        if fn is None:
+            raise RuntimeError('程序还没准备好')
+        path = '/' + str(path or '').lstrip('/')
+        if not path.startswith('/api/'):
+            raise ValueError('只能调 /api/ 下面的接口')
+        status, data = fn(str(method or 'GET').upper(), path, payload)
+        result = dict(data) if isinstance(data, dict) else {'data': data}
+        result['http_status'] = status
+        return result
+
+    def llm_chat(self, messages: list, *, max_tokens: int = 300, temperature: float = 0.0,
+                 timeout: float = 30.0) -> str:
+        """用「API 配置」里翻译用的大模型（百炼模式就是百炼的）问一句，返回模型的回复文字（去掉了 <think>）。
+        插件拿不到 Key。网页还没把设置推过来（程序刚启动、还没打开过网页）或者出错时抛 RuntimeError。"""
+        fn = _HOST.get('llm_chat')
+        if fn is None:
+            raise RuntimeError('程序还没准备好')
+        return fn(list(messages), max_tokens=int(max_tokens), temperature=float(temperature),
+                  timeout=float(timeout))
 
     def send_chatbox(self, text: str) -> bool:
         """往 VRChat 聊天框发一句（不经过各插件的 filter_chatbox）。"""
@@ -821,6 +859,9 @@ class PluginManager:
     def filter_source(self, text: str) -> str:
         return self._apply_filters('filter_source', text, (), True, '会拖慢翻译')
 
+    def filter_partial_source(self, text: str) -> str:
+        return self._apply_filters('filter_partial_source', text, (), True, '会拖慢说话中的显示')
+
     def filter_chatbox(self, text: str, ongoing: bool) -> str:
         return self._apply_filters('filter_chatbox', text, (ongoing,), not ongoing, '会拖慢聊天框')
 
@@ -886,6 +927,13 @@ def filter_source(text: str) -> str:
     if not plugin_manager._plugins:
         return text
     return plugin_manager.filter_source(text)
+
+
+def filter_partial_source(text: str) -> str:
+    """给 recognition_handler 用（自我翻译说话中的半句）：插件都没装时直接返回原文。"""
+    if not plugin_manager._plugins:
+        return text
+    return plugin_manager.filter_partial_source(text)
 
 
 def filter_chatbox(text: str, ongoing: bool) -> str:

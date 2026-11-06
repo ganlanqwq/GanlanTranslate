@@ -17,7 +17,6 @@ def _read_config_in_fresh_process(env_overrides: dict[str, str]) -> dict:
         "import json, config; "
         "print(json.dumps({"
         "'api_type': config.TRANSLATION_API_TYPE,"
-        "'template': config.LLM_TEMPLATE,"
         "'base_url': config.LLM_BASE_URL,"
         "'model': config.LLM_MODEL,"
         "'extra_body': config.OPENAI_COMPAT_EXTRA_BODY_JSON,"
@@ -40,7 +39,6 @@ def test_plain_config_import_ignores_user_environment():
     values = _read_config_in_fresh_process(
         {
             "TRANSLATION_API_TYPE": "qwen_mt",
-            "LLM_TEMPLATE": "custom1",
             "LLM_BASE_URL": "https://environment.invalid/v1",
             "LLM_MODEL": "environment-model",
             "OPENAI_COMPAT_EXTRA_BODY_JSON": '{"from": "environment"}',
@@ -51,7 +49,6 @@ def test_plain_config_import_ignores_user_environment():
 
     assert values == {
         "api_type": "openrouter_streaming",
-        "template": "deepseek-v4-flash",
         "base_url": "https://api.deepseek.com",
         "model": "deepseek-v4-flash",
         "extra_body": '{"thinking": {"type": "disabled"}}',
@@ -65,7 +62,6 @@ def test_cli_environment_overlay_is_explicit(monkeypatch):
         name: getattr(config, name)
         for name in (
             "TRANSLATION_API_TYPE",
-            "LLM_TEMPLATE",
             "LLM_BASE_URL",
             "LLM_MODEL",
             "OPENAI_COMPAT_EXTRA_BODY_JSON",
@@ -74,7 +70,6 @@ def test_cli_environment_overlay_is_explicit(monkeypatch):
         )
     }
     monkeypatch.setenv("TRANSLATION_API_TYPE", "qwen_mt")
-    monkeypatch.setenv("LLM_TEMPLATE", "custom1")
     monkeypatch.setenv("LLM_BASE_URL", "https://cli.example/v1")
     monkeypatch.setenv("LLM_MODEL", "cli-model")
     monkeypatch.setenv("OPENAI_COMPAT_EXTRA_BODY_JSON", '{"cli": true}')
@@ -85,7 +80,6 @@ def test_cli_environment_overlay_is_explicit(monkeypatch):
         config.apply_cli_env()
 
         assert config.TRANSLATION_API_TYPE == "qwen_mt"
-        assert config.LLM_TEMPLATE == "custom1"
         assert config.LLM_BASE_URL == "https://cli.example/v1"
         assert config.LLM_MODEL == "cli-model"
         assert config.OPENAI_COMPAT_EXTRA_BODY_JSON == '{"cli": true}'
@@ -102,7 +96,7 @@ def test_web_defaults_are_complete_deepseek_profile():
 
     assert translation["enable_translation"] is True
     assert translation["api_type"] == "openrouter_streaming"
-    assert translation["llm_template"] == "deepseek-v4-flash"
+    assert "llm_template" not in translation
     assert translation["llm_base_url"] == "https://api.deepseek.com"
     assert translation["llm_model"] == "deepseek-v4-flash"
     assert translation["openai_compat_extra_body_json"] == (
@@ -160,7 +154,7 @@ def test_defaults_endpoint_uses_canonical_deepseek_profile():
 
     translation = response.get_json()["translation"]
     assert translation["api_type"] == config.DEFAULT_TRANSLATION_API_TYPE
-    assert translation["llm_template"] == config.DEFAULT_LLM_TEMPLATE
+    assert "llm_template" not in translation
     assert translation["llm_base_url"] == config.DEFAULT_LLM_BASE_URL
     assert translation["llm_model"] == config.DEFAULT_LLM_MODEL
     assert (
@@ -173,18 +167,20 @@ def test_recognizer_credentials_ignore_inherited_environment(monkeypatch):
     from speech_recognizers import recognizer_factory
 
     monkeypatch.setenv("DASHSCOPE_API_KEY", "inherited-dashscope")
-    monkeypatch.setenv("SONIOX_API_KEY", "inherited-soniox")
-    monkeypatch.setenv("DOUBAO_API_KEY", "inherited-doubao")
     monkeypatch.setattr(config, "DASHSCOPE_API_KEY", "")
-    monkeypatch.setattr(config, "SONIOX_API_KEY", "")
-    monkeypatch.setattr(config, "DOUBAO_API_KEY", "")
-    monkeypatch.setattr(config, "DOUBAO_APP_ID", "")
-    monkeypatch.setattr(config, "DOUBAO_ACCESS_KEY", "")
-    monkeypatch.setattr(recognizer_factory, "SonioxSpeechRecognizer", object)
-    monkeypatch.setattr(recognizer_factory, "WEBSOCKETS_AVAILABLE", True)
 
     recognizer_factory.init_dashscope_api_key()
 
     assert recognizer_factory.dashscope.api_key == "<your-dashscope-api-key>"
-    assert recognizer_factory.is_backend_available("soniox") is False
-    assert recognizer_factory._resolve_doubao_credentials() == (None, None, None)
+
+
+def test_removed_backends_migrate_to_default():
+    # 1.1.2 删掉了 Soniox、豆包录音文件识别、DeepL；旧配置里的值换成默认的
+    from speech_recognizers import recognizer_factory
+    from ui import app as ui_app
+
+    for old in ("soni" + "ox", "dou" + "bao_file"):
+        assert old not in config.VALID_ASR_BACKENDS
+        assert ui_app._sanitize_preferred_backend(old) == "qwen_audio3"
+        assert recognizer_factory.select_backend(old, config.VALID_ASR_BACKENDS) == "qwen_audio3"
+    assert config.DEPRECATED_TRANSLATION_API_TYPES["deep" + "l"] == "openrouter_streaming"

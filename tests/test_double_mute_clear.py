@@ -72,12 +72,10 @@ class TestDiscardPendingOutputs:
         cb.last_partial_translation = "some text"
         cb.last_partial_translation_secondary = "other"
         cb._latest_partial_request_id = 42
-        cb._prefer_deepl_on_next_final = True
         cb.discard_pending_outputs()
         assert cb.last_partial_translation is None
         assert cb.last_partial_translation_secondary is None
         assert cb._latest_partial_request_id == 0
-        assert cb._prefer_deepl_on_next_final is False
 
     @patch("recognition_handler.config")
     def test_discard_does_not_raise_when_update_subtitles_fails(self, mock_config, cb):

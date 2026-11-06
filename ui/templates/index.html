@@ -8,14 +8,27 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Funnel+Sans:wght@300;400;500;600;700;800&amp;family=Geist:wght@100;200;300;400;500;600;700;800;900&amp;family=Geist+Mono:wght@100;200;300;400;500;600;700;800;900&amp;display=swap" rel="stylesheet">
 <link rel="stylesheet" href="{{ url_for('static', filename='css/tailwind.css') }}?v=7.2">
-<link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}?v=7.6">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/theme.css') }}?v=1.0">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}?v=7.7">
+<script>
+window.GL_PERSONALIZATION = {{ personalization|tojson }};
+(function () {
+  var hero = (window.GL_PERSONALIZATION || {}).hero || {};
+  window.GL_TEXT_OVERRIDES = { 'hero.issue': hero.eyebrow || '', 'hero.line1': hero.title1 || '', 'hero.line2': hero.title2 || '', 'hero.lede': hero.lede || '' };
+})();
+</script>
+<script src="{{ url_for('static', filename='js/theme.js') }}?v=1.0"></script>
 </head>
 <body>
 <div id="toast-area" class="toast-area fixed top-[16px] right-[16px] z-[9999] flex flex-col gap-[8px]" aria-live="polite" aria-atomic="false"></div>
 <div class="app box-border w-full min-h-screen flex flex-col bg-[#FBFCFA]">
-<section class="hero box-border w-full relative rounded-t-[0px] overflow-hidden">
-<div class="hero-bg absolute inset-0 bg-cover" style="background-image:url('{{ url_for('static', filename='img/hero-bg.jpg') }}');background-position:center 32%"></div>
-<div class="absolute inset-0" style="background-image:linear-gradient(180deg,#0A21159E 0%,#0A211547 46%,#0A2115B0 100%),linear-gradient(90deg,#0A21159A 0%,#0A211500 58%)"></div>
+<section class="hero box-border w-full relative rounded-t-[0px] overflow-hidden" style="--hero-overlay: {{ (personalization.hero.overlay / 100) }}">
+{% if personalization.image.custom %}
+<div class="hero-bg absolute inset-0 bg-cover" id="hero-bg" data-default-src="{{ url_for('static', filename='img/hero-bg.jpg') }}" style="background-image:url('/api/personalization/hero-image?rev={{ personalization.image.rev }}');background-position:center center"></div>
+{% else %}
+<div class="hero-bg absolute inset-0 bg-cover" id="hero-bg" data-default-src="{{ url_for('static', filename='img/hero-bg.jpg') }}" style="background-image:url('{{ url_for('static', filename='img/hero-bg.jpg') }}');background-position:center 32%"></div>
+{% endif %}
+<div class="hero-shade absolute inset-0"></div>
 <div class="relative box-border w-full p-[26px_60px_40px_60px] flex flex-col gap-[70px]">
 <header class="topbar box-border w-full h-[64px] flex justify-between items-center">
 <div class="flex flex-row gap-[12px] items-center">
@@ -125,6 +138,7 @@
   <button type="button" class="page-group-btn page-tab active" data-page-group="settings" aria-pressed="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 7h-9M14 17H5"/><circle cx="17" cy="17" r="3"/><circle cx="7" cy="7" r="3"/></svg><span data-i18n="nav.settings">nav.settings</span></button>
   <button type="button" class="page-group-btn page-tab" data-page-group="features" aria-pressed="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 8 6 6M4 14l6-6 2-3M2 5h12M7 2h1M22 22l-5-10-5 10M14 18h6"/></svg><span data-i18n="nav.features">nav.features</span></button>
   <button type="button" class="page-group-btn page-tab" data-page-group="plugins" aria-pressed="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19.44 7.85c-.05.32.06.65.29.88l1.57 1.57a2.41 2.41 0 0 1 0 3.41l-1.61 1.61a.98.98 0 0 1-.84.28c-.47-.07-.8-.48-.97-.93a2.5 2.5 0 1 0-3.21 3.21c.45.17.86.5.93.97a.98.98 0 0 1-.28.84l-1.61 1.61a2.41 2.41 0 0 1-3.41 0l-1.57-1.57a1.03 1.03 0 0 0-.88-.29c-.49.07-.84.5-1.02.97a2.5 2.5 0 1 1-3.24-3.24c.46-.18.89-.53.97-1.02a1.03 1.03 0 0 0-.29-.88L2.7 13.7a2.41 2.41 0 0 1 0-3.41l1.53-1.53c.24-.24.58-.35.92-.3.51.08.88.53 1.07 1.01a2.5 2.5 0 1 0 3.26-3.26c-.48-.2-.93-.56-1.01-1.07-.05-.34.06-.68.3-.92L10.3 2.7a2.41 2.41 0 0 1 3.41 0l1.57 1.57c.23.23.56.34.88.29.49-.07.84-.5 1.02-.97a2.5 2.5 0 1 1 3.24 3.24c-.46.18-.89.53-.97 1.02Z"/></svg><span data-i18n="nav.plugins">nav.plugins</span></button>
+  <button type="button" class="page-group-btn page-tab" data-page-group="personalize" aria-pressed="false"><svg class="" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="13.5" cy="6.5" r=".5" fill="currentColor"/><circle cx="17.5" cy="10.5" r=".5" fill="currentColor"/><circle cx="8.5" cy="7.5" r=".5" fill="currentColor"/><circle cx="6.5" cy="12.5" r=".5" fill="currentColor"/><path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10c.93 0 1.65-.75 1.65-1.69 0-.44-.18-.84-.44-1.13-.29-.29-.44-.65-.44-1.13a1.64 1.64 0 0 1 1.67-1.67h2c3.05 0 5.55-2.5 5.55-5.55C21.96 6.01 17.46 2 12 2z"/></svg><span data-i18n="nav.personalize">nav.personalize</span></button>
   <button type="button" class="page-group-btn page-tab" data-page-group="info" aria-pressed="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg><span data-i18n="nav.info">nav.info</span></button>
 </div>
 <div class="page-subnav">
@@ -144,6 +158,11 @@
   <span class="page-subtab-indicator" aria-hidden="true"></span>
   <button type="button" class="app-page-btn page-subtab" data-app-page="plugins" aria-pressed="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/></svg><span data-i18n="page.plugins">page.plugins</span></button>
 </div>
+<div class="page-subtabs" data-page-group="personalize" hidden>
+  <span class="page-subtab-indicator" aria-hidden="true"></span>
+  <button type="button" class="app-page-btn page-subtab" data-app-page="theme" aria-pressed="false"><svg class="" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9.06 11.9 8.07-8.06a2.85 2.85 0 1 1 4.03 4.03l-8.06 8.08"/><path d="M7.07 14.94c-1.66 0-3 1.35-3 3.02 0 1.33-2.5 1.52-2 2.02 1.08 1.1 2.49 2.02 4 2.02 2.2 0 4-1.8 4-4.04a3.01 3.01 0 0 0-3-3.02z"/></svg><span data-i18n="page.theme">page.theme</span></button>
+  <button type="button" class="app-page-btn page-subtab" data-app-page="hero" aria-pressed="false"><svg class="" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.1-3.1a2 2 0 0 0-2.8 0L6 21"/></svg><span data-i18n="page.hero">page.hero</span></button>
+</div>
 <div class="page-subtabs" data-page-group="info" hidden>
   <span class="page-subtab-indicator" aria-hidden="true"></span>
   <button type="button" class="app-page-btn page-subtab" data-app-page="about" aria-pressed="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m7.5 4.27 9 5.15"/><path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"/><path d="m3.3 7 8.7 5 8.7-5M12 22V12"/></svg><span data-i18n="page.about">page.about</span></button>
@@ -157,74 +176,171 @@
 <div class="column-left box-border flex flex-col gap-[22px]">
 <section class="box-border w-full h-fit shrink-0 flex flex-col bg-[#FFFFFF] [outline:1px_solid_#E3EAE1] [outline-offset:-0.5px] rounded-[8px] overflow-hidden" id="api-keys-card">
 <div class="box-border w-full flex flex-row gap-[14px] p-[16px_18px] justify-between items-center cursor-pointer" onclick="toggleCollapsible('api-keys')">
-<div class="box-border [flex:1_1_0] h-fit flex flex-col gap-[3px] justify-start items-start">
-<div class="text-[14.5px] leading-normal text-[#12261A] font-['Funnel_Sans',system-ui,sans-serif] font-semibold text-left whitespace-nowrap" data-i18n="simple.asrTitle">simple.asrTitle</div>
-<div class="text-[12px]/[17px] text-[#7C9285] font-[Geist,system-ui,sans-serif] font-normal text-left" data-i18n="simple.asrHint">simple.asrHint</div>
+<div class="box-border [flex:1_1_0] h-fit flex flex-col gap-[3px] justify-start items-start min-w-0">
+<div class="text-[14.5px] leading-normal text-[#12261A] font-['Funnel_Sans',system-ui,sans-serif] font-semibold text-left whitespace-nowrap" data-i18n="api.title">api.title</div>
+<div class="text-[12px]/[17px] text-[#7C9285] font-[Geist,system-ui,sans-serif] font-normal text-left" data-i18n="api.hint">api.hint</div>
 </div>
-
+<span class="api-card-summary" id="api-card-summary"></span>
 <span class="collapse-icon box-border w-[17px] shrink-0 h-[17px] flex items-center justify-center text-[#7C9285]" id="api-keys-icon"><svg data-icon-name="chevron-up" data-icon-set="lucide" viewBox="0 0 14 14" class="box-border w-[17px] shrink-0 h-[17px]"><path d="M3.5 8.75 7 5.25l3.5 3.5" fill="none" stroke="#7C9285" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
 </div>
 <div class="box-border w-full h-[1px] shrink-0 bg-[#E3EAE1]"></div>
 <div class="collapsible-content" id="api-keys">
 <div class="box-border w-full h-fit shrink-0 flex flex-col gap-[16px] p-[18px] justify-start items-start">
-
-<div class="box-border w-full flex flex-row gap-[8px]" id="advanced-asr-provider-toggle">
-  <button type="button" class="simple-provider-btn box-border [flex:1_1_0] h-[38px] inline-flex items-center justify-center gap-[8px] bg-[#FFFFFF] [outline:1px_solid_#E3EAE1] [outline-offset:-0.5px] rounded-[4px] text-[12.5px] text-[#3F5B49] cursor-pointer" data-simple-asr-provider="bailian" data-i18n="simple.asrBailian">simple.asrBailian</button>
-  <button type="button" class="simple-provider-btn box-border [flex:1_1_0] h-[38px] inline-flex items-center justify-center gap-[8px] bg-[#FFFFFF] [outline:1px_solid_#E3EAE1] [outline-offset:-0.5px] rounded-[4px] text-[12.5px] text-[#3F5B49] cursor-pointer" data-simple-asr-provider="openai" data-i18n="simple.asrOpenai">simple.asrOpenai</button>
+<div class="api-mode-switch" id="api-mode-switch" role="radiogroup">
+  <span class="api-mode-indicator" aria-hidden="true"></span>
+  <button type="button" class="api-mode-btn" data-api-mode="bailian" role="radio" aria-checked="true"><svg viewBox="0 0 24 24" class="api-mode-icon" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9z"/><path d="M19 15l.8 2.2L22 18l-2.2.8L19 21l-.8-2.2L16 18l2.2-.8z"/></svg><span class="api-mode-text"><span class="api-mode-name" data-i18n="api.mode.bailian">api.mode.bailian</span><span class="api-mode-sub" data-i18n="api.mode.bailianSub">api.mode.bailianSub</span></span></button>
+  <button type="button" class="api-mode-btn" data-api-mode="custom" role="radio" aria-checked="false"><svg viewBox="0 0 24 24" class="api-mode-icon" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 4h-7M10 4H3M21 12h-9M8 12H3M21 20h-5M12 20H3M14 2v4M8 10v4M16 18v4"/></svg><span class="api-mode-text"><span class="api-mode-name" data-i18n="api.mode.custom">api.mode.custom</span><span class="api-mode-sub" data-i18n="api.mode.customSub">api.mode.customSub</span></span></button>
 </div>
-
-<div class="w-full flex flex-col gap-[14px]" id="advanced-asr-bailian-block">
-<div class="box-border w-full flex flex-col gap-[10px] api-key-group" id="dashscope-key-group">
+<input type="hidden" id="api-mode" value="bailian">
+<div class="api-panels">
+<div class="api-panel" id="api-panel-bailian" data-api-panel="bailian">
+<p class="api-panel-lede" data-i18n="api.bailian.lede">api.bailian.lede</p>
+<div class="api-slot" id="dashscope-slot-bailian">
+<div id="dashscope-fields" class="w-full flex flex-col gap-[12px]">
+<div class="box-border w-full flex flex-col gap-[6px] api-key-group" id="dashscope-key-group">
   <div class="flex flex-row items-center gap-[8px]">
-    <span class="text-[12.5px] leading-normal text-[#3F5B49] font-[Geist,system-ui,sans-serif] font-medium text-left" data-i18n="label.dashscopeKey">label.dashscopeKey</span>
+    <label class="text-[12.5px] leading-normal text-[#3F5B49] font-[Geist,system-ui,sans-serif] font-medium text-left" data-i18n="label.dashscopeKey" for="dashscope-api-key">label.dashscopeKey</label>
     <span id="dashscope-key-required-badge" class="hidden inline-flex items-center h-[22px] px-[9px] bg-[#E4F2E8] rounded-[999px] text-[11px] leading-none text-[#0D3A23] font-[Geist,system-ui,sans-serif] font-medium" data-i18n="badge.required">badge.required</span>
   </div>
-  <div class="relative w-full"><input type="password" class="box-border w-full h-[36px] px-[11px] bg-[#FFFFFF] [outline:1px_solid_#CBD9C7] [outline-offset:-0.5px] rounded-[4px] text-[13px] leading-normal text-[#12261A] font-[Geist,system-ui,sans-serif] placeholder:text-[#9AAFA1] focus:[outline:1.5px_solid_#1F7A4D] pr-[34px]" id="dashscope-api-key" placeholder="sk-..." ></div>
-  <div class="text-[11.5px]/[16px] text-[#7C9285] font-[Geist,system-ui,sans-serif] font-normal text-left" id="dashscope-key-hint" data-i18n="hint.dashscopeKey">hint.dashscopeKey</div>
-  <label class="box-border w-full flex flex-row gap-[12px] justify-start items-start cursor-pointer items-start">
+  <div class="relative w-full"><input type="password" class="box-border w-full h-[36px] px-[11px] bg-[#FFFFFF] [outline:1px_solid_#CBD9C7] [outline-offset:-0.5px] rounded-[4px] text-[13px] leading-normal text-[#12261A] font-[Geist,system-ui,sans-serif] placeholder:text-[#9AAFA1] focus:[outline:1.5px_solid_#1F7A4D] pr-[34px]" id="dashscope-api-key" placeholder="sk-..." autocomplete="off"><button type="button" class="secret-visibility-toggle absolute right-[8px] top-1/2 -translate-y-1/2 text-[#7C9285]" id="dashscope-api-key-visibility-toggle" data-target-input="dashscope-api-key" aria-label="toggle"><svg viewBox="0 0 24 24" class="w-[15px] h-[15px]" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg></button></div>
+  <div class="api-key-hint-row"><span class="text-[11.5px]/[16px] text-[#7C9285] font-[Geist,system-ui,sans-serif] font-normal text-left" id="dashscope-key-hint" data-i18n="api.bailian.keyHint">api.bailian.keyHint</span><a class="api-console-link" id="bailian-console-link" href="https://bailian.console.aliyun.com/" target="_blank" rel="noopener" data-i18n="api.bailian.getKey">api.bailian.getKey</a></div>
+</div>
+<label class="box-border w-full flex flex-row gap-[12px] justify-start items-start cursor-pointer">
 <div class="box-border [flex:1_1_0] h-fit flex flex-col gap-[3px] justify-start items-start">
 <div class="text-[12.5px] leading-normal text-[#3F5B49] font-[Geist,system-ui,sans-serif] font-medium text-left" data-i18n="label.international">label.international</div>
-
+<div class="text-[11.5px]/[16px] text-[#7C9285] font-[Geist,system-ui,sans-serif] font-normal text-left" data-i18n="api.bailian.intlHint">api.bailian.intlHint</div>
 </div>
 <input type="checkbox" class="peer sr-only" id="use-international-endpoint" onchange="handleInternationalEndpointChange(event)" data-restart-required="true"><span class="box-border w-[18px] h-[18px] shrink-0 mt-[1px] flex items-center justify-center bg-[#FFFFFF] [outline:1.5px_solid_#CBD9C7] [outline-offset:-0.75px] rounded-[4px] text-[#FFFFFF]"><svg viewBox="0 0 24 24" class="w-[13px] h-[13px] opacity-0" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg></span>
 </label>
 </div>
-<div id="advanced-slot-bailian-model">
+</div>
+<div class="api-fixed-url"><svg viewBox="0 0 24 24" class="" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg><span data-i18n="api.bailian.address">api.bailian.address</span><code id="bailian-address">dashscope.aliyuncs.com</code><span class="api-fixed-tag" data-i18n="api.bailian.fixed">api.bailian.fixed</span></div>
+<div class="api-sub" data-api-sub="models">
+<div class="api-sub-head collapsible-header" onclick="toggleCollapsible('bailian-models')">
+  <span class="api-sub-icon"><svg viewBox="0 0 24 24" class="" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="4" width="16" height="16" rx="2"/><rect x="9" y="9" width="6" height="6"/><path d="M15 2v2M15 20v2M2 15h2M2 9h2M20 15h2M20 9h2M9 2v2M9 20v2"/></svg></span>
+  <span class="api-sub-text"><span class="api-sub-title" data-i18n="api.bailian.models">api.bailian.models</span><span class="api-sub-summary" id="bailian-models-summary"></span></span>
+  <span class="collapse-icon api-sub-chevron" id="bailian-models-icon"><svg data-icon-name="chevron-up" data-icon-set="lucide" viewBox="0 0 14 14" class="box-border w-[17px] shrink-0 h-[17px]"><path d="M3.5 8.75 7 5.25l3.5 3.5" fill="none" stroke="#7C9285" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+</div>
+<div class="collapsible-content collapsed" id="bailian-models"><div class="api-sub-body">
+<div class="api-slot w-full" id="asr-model-slot-bailian">
 <div class="box-border w-full flex flex-col gap-[6px] justify-start items-start" id="fg-qwen-audio3-model">
-<label class="text-[12.5px] leading-normal text-[#3F5B49] font-[Geist,system-ui,sans-serif] font-medium text-left" data-i18n="label.qwenAudio3Model" for="qwen-audio3-model">label.qwenAudio3Model</label>
-<input type="text" class="box-border w-full h-[36px] px-[11px] bg-[#FFFFFF] [outline:1px_solid_#CBD9C7] [outline-offset:-0.5px] rounded-[4px] text-[13px] leading-normal text-[#12261A] font-[Geist,system-ui,sans-serif] placeholder:text-[#9AAFA1] focus:[outline:1.5px_solid_#1F7A4D]" id="qwen-audio3-model" placeholder="qwen-audio-3.0-asr-flash-streaming" value="qwen-audio-3.0-asr-flash-streaming" autocomplete="off" spellcheck="false" onblur="onSettingChange()" data-restart-required="true">
+<label class="text-[12.5px] leading-normal text-[#3F5B49] font-[Geist,system-ui,sans-serif] font-medium text-left" data-i18n="api.model.asr" for="qwen-audio3-model">api.model.asr</label>
+<input type="text" class="box-border w-full h-[36px] px-[11px] bg-[#FFFFFF] [outline:1px_solid_#CBD9C7] [outline-offset:-0.5px] rounded-[4px] text-[13px] leading-normal text-[#12261A] font-[Geist,system-ui,sans-serif] placeholder:text-[#9AAFA1] focus:[outline:1.5px_solid_#1F7A4D]" id="qwen-audio3-model" placeholder="qwen-audio-3.1-asr-flash-streaming" value="qwen-audio-3.1-asr-flash-streaming" autocomplete="off" spellcheck="false" onblur="onSettingChange()" data-restart-required="true">
 <div class="text-[11.5px]/[16px] text-[#7C9285] font-[Geist,system-ui,sans-serif] font-normal text-left" data-i18n="hint.qwenAudio3Model">hint.qwenAudio3Model</div>
 </div>
 </div>
+<div class="box-border w-full flex flex-col gap-[6px] justify-start items-start" id="fg-bailian-llm-model">
+<label class="text-[12.5px] leading-normal text-[#3F5B49] font-[Geist,system-ui,sans-serif] font-medium text-left" data-i18n="api.model.llm" for="bailian-llm-model">api.model.llm</label>
+<input type="text" class="box-border w-full h-[36px] px-[11px] bg-[#FFFFFF] [outline:1px_solid_#CBD9C7] [outline-offset:-0.5px] rounded-[4px] text-[13px] leading-normal text-[#12261A] font-[Geist,system-ui,sans-serif] placeholder:text-[#9AAFA1] focus:[outline:1.5px_solid_#1F7A4D]" id="bailian-llm-model" placeholder="qwen3.7-flash" value="qwen3.7-flash" autocomplete="off" spellcheck="false" onblur="onSettingChange()">
+<div class="text-[11.5px]/[16px] text-[#7C9285] font-[Geist,system-ui,sans-serif] font-normal text-left" data-i18n="api.bailian.llmModelHint">api.bailian.llmModelHint</div>
 </div>
-
-<div class="w-full flex flex-col gap-[14px]" id="advanced-asr-openai-block" style="display:none">
+<div class="box-border w-full flex flex-col gap-[6px] justify-start items-start" id="fg-bailian-ocr-model">
+<label class="text-[12.5px] leading-normal text-[#3F5B49] font-[Geist,system-ui,sans-serif] font-medium text-left" data-i18n="api.model.ocr" for="bailian-ocr-model">api.model.ocr</label>
+<input type="text" class="box-border w-full h-[36px] px-[11px] bg-[#FFFFFF] [outline:1px_solid_#CBD9C7] [outline-offset:-0.5px] rounded-[4px] text-[13px] leading-normal text-[#12261A] font-[Geist,system-ui,sans-serif] placeholder:text-[#9AAFA1] focus:[outline:1.5px_solid_#1F7A4D]" id="bailian-ocr-model" placeholder="qwen3.5-ocr" value="qwen3.5-ocr" autocomplete="off" spellcheck="false" onblur="onSettingChange()">
+<div class="text-[11.5px]/[16px] text-[#7C9285] font-[Geist,system-ui,sans-serif] font-normal text-left" data-i18n="hint.screenOcrModel">hint.screenOcrModel</div>
+</div>
+<button type="button" class="api-link-btn" onclick="GanlanApiMode.resetBailianModels()" data-i18n="api.bailian.resetModels">api.bailian.resetModels</button>
+</div></div>
+</div>
+</div>
+<div class="api-panel" id="api-panel-custom" data-api-panel="custom" hidden>
+<p class="api-panel-lede" data-i18n="api.custom.lede">api.custom.lede</p>
+<div class="api-sub" data-api-sub="asr">
+<div class="api-sub-head collapsible-header" onclick="toggleCollapsible('api-sub-asr')">
+  <span class="api-sub-icon"><svg viewBox="0 0 24 24" class="" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2M12 19v3"/></svg></span>
+  <span class="api-sub-text"><span class="api-sub-title" data-i18n="api.sub.asr">api.sub.asr</span><span class="api-sub-summary" id="api-sub-asr-summary"></span></span>
+  <span class="api-sub-status" id="api-sub-asr-status"></span>
+  <span class="collapse-icon api-sub-chevron" id="api-sub-asr-icon"><svg data-icon-name="chevron-up" data-icon-set="lucide" viewBox="0 0 14 14" class="box-border w-[17px] shrink-0 h-[17px]"><path d="M3.5 8.75 7 5.25l3.5 3.5" fill="none" stroke="#7C9285" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+</div>
+<div class="collapsible-content" id="api-sub-asr"><div class="api-sub-body">
+<div class="w-full flex flex-col gap-[14px]">
 <div class="box-border w-full flex flex-col gap-[6px] justify-start items-start" id="fg-custom-api-base-url">
 <label class="text-[12.5px] leading-normal text-[#3F5B49] font-[Geist,system-ui,sans-serif] font-medium text-left" data-i18n="label.customApiBaseUrl" for="custom-api-base-url">label.customApiBaseUrl</label>
-<input type="text" class="box-border w-full h-[36px] px-[11px] bg-[#FFFFFF] [outline:1px_solid_#CBD9C7] [outline-offset:-0.5px] rounded-[4px] text-[13px] leading-normal text-[#12261A] font-[Geist,system-ui,sans-serif] placeholder:text-[#9AAFA1] focus:[outline:1.5px_solid_#1F7A4D]" id="custom-api-base-url" placeholder="https://api.openai.com/v1" onblur="onSettingChange()">
-<div class="text-[11.5px]/[16px] text-[#7C9285] font-[Geist,system-ui,sans-serif] font-normal text-left" data-i18n="hint.customApiBaseUrl">hint.customApiBaseUrl</div>
+<input type="text" class="box-border w-full h-[36px] px-[11px] bg-[#FFFFFF] [outline:1px_solid_#CBD9C7] [outline-offset:-0.5px] rounded-[4px] text-[13px] leading-normal text-[#12261A] font-[Geist,system-ui,sans-serif] placeholder:text-[#9AAFA1] focus:[outline:1.5px_solid_#1F7A4D]" id="custom-api-base-url" placeholder="https://api.openai.com/v1" value="" autocomplete="off" spellcheck="false" onblur="onSettingChange()">
+<div class="text-[11.5px]/[16px] text-[#7C9285] font-[Geist,system-ui,sans-serif] font-normal text-left" data-i18n="api.asr.baseUrlHint">api.asr.baseUrlHint</div>
 </div>
 <div class="box-border w-full flex flex-col gap-[6px]" id="fg-custom-api-key">
-  <label class="text-[12.5px] leading-normal text-[#3F5B49] font-[Geist,system-ui,sans-serif] font-medium text-left" data-i18n="label.customApiKey">label.customApiKey</label>
-  <div class="relative w-full"><input type="password" class="box-border w-full h-[36px] px-[11px] bg-[#FFFFFF] [outline:1px_solid_#CBD9C7] [outline-offset:-0.5px] rounded-[4px] text-[13px] leading-normal text-[#12261A] font-[Geist,system-ui,sans-serif] placeholder:text-[#9AAFA1] focus:[outline:1.5px_solid_#1F7A4D] pr-[34px]" id="custom-api-key" placeholder="sk-..." ><button type="button" class="secret-visibility-toggle absolute right-[8px] top-1/2 -translate-y-1/2 text-[#7C9285]" id="custom-api-key-visibility-toggle" data-target-input="custom-api-key" aria-label="toggle"><svg viewBox="0 0 24 24" class="w-[15px] h-[15px]" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg></button></div>
-  <div class="text-[11.5px]/[16px] text-[#7C9285] font-[Geist,system-ui,sans-serif] font-normal text-left" data-i18n="hint.customApiKey">hint.customApiKey</div>
+  <label class="text-[12.5px] leading-normal text-[#3F5B49] font-[Geist,system-ui,sans-serif] font-medium text-left" data-i18n="label.customApiKey" for="custom-api-key">label.customApiKey</label>
+  <div class="relative w-full"><input type="password" class="box-border w-full h-[36px] px-[11px] bg-[#FFFFFF] [outline:1px_solid_#CBD9C7] [outline-offset:-0.5px] rounded-[4px] text-[13px] leading-normal text-[#12261A] font-[Geist,system-ui,sans-serif] placeholder:text-[#9AAFA1] focus:[outline:1.5px_solid_#1F7A4D] pr-[34px]" id="custom-api-key" placeholder="sk-..." autocomplete="off"><button type="button" class="secret-visibility-toggle absolute right-[8px] top-1/2 -translate-y-1/2 text-[#7C9285]" id="custom-api-key-visibility-toggle" data-target-input="custom-api-key" aria-label="toggle"><svg viewBox="0 0 24 24" class="w-[15px] h-[15px]" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg></button></div>
 </div>
 <div class="box-border w-full flex flex-col gap-[6px] justify-start items-start" id="fg-custom-api-model">
 <label class="text-[12.5px] leading-normal text-[#3F5B49] font-[Geist,system-ui,sans-serif] font-medium text-left" data-i18n="label.customApiModel" for="custom-api-model">label.customApiModel</label>
-<input type="text" class="box-border w-full h-[36px] px-[11px] bg-[#FFFFFF] [outline:1px_solid_#CBD9C7] [outline-offset:-0.5px] rounded-[4px] text-[13px] leading-normal text-[#12261A] font-[Geist,system-ui,sans-serif] placeholder:text-[#9AAFA1] focus:[outline:1.5px_solid_#1F7A4D]" id="custom-api-model" placeholder="" onblur="onSettingChange()">
-<div class="text-[11.5px]/[16px] text-[#7C9285] font-[Geist,system-ui,sans-serif] font-normal text-left" data-i18n="hint.customApiModel">hint.customApiModel</div>
+<input type="text" class="box-border w-full h-[36px] px-[11px] bg-[#FFFFFF] [outline:1px_solid_#CBD9C7] [outline-offset:-0.5px] rounded-[4px] text-[13px] leading-normal text-[#12261A] font-[Geist,system-ui,sans-serif] placeholder:text-[#9AAFA1] focus:[outline:1.5px_solid_#1F7A4D]" id="custom-api-model" placeholder="whisper-1" value="" autocomplete="off" spellcheck="false" onblur="onSettingChange()">
+<div class="text-[11.5px]/[16px] text-[#7C9285] font-[Geist,system-ui,sans-serif] font-normal text-left" data-i18n="api.asr.modelHint">api.asr.modelHint</div>
 </div>
 <div class="flex flex-row items-center gap-[12px]">
   <button type="button" class="box-border h-[34px] px-[13px] inline-flex items-center justify-center gap-[6px] bg-[#FFFFFF] [outline:1px_solid_#CBD9C7] [outline-offset:-0.5px] rounded-[4px] text-[12.5px] leading-none text-[#3F5B49] font-[Geist,system-ui,sans-serif] font-medium cursor-pointer" id="custom-api-test-btn" onclick="testCustomApi()" data-i18n="btn.testCustomApi">btn.testCustomApi</button>
   <span class="text-[11.5px]/[16px] text-[#7C9285] font-[Geist,system-ui,sans-serif] font-normal text-left" id="custom-api-test-result"></span>
 </div>
 </div>
+</div></div>
+</div>
+<div class="api-sub" data-api-sub="llm">
+<div class="api-sub-head collapsible-header" onclick="toggleCollapsible('api-sub-llm')">
+  <span class="api-sub-icon"><svg viewBox="0 0 24 24" class="" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 8 6 6M4 14l6-6 2-3M2 5h12M7 2h1M22 22l-5-10-5 10M14 18h6"/></svg></span>
+  <span class="api-sub-text"><span class="api-sub-title" data-i18n="api.sub.llm">api.sub.llm</span><span class="api-sub-summary" id="api-sub-llm-summary"></span></span>
+  <span class="api-sub-status" id="api-sub-llm-status"></span>
+  <span class="collapse-icon api-sub-chevron" id="api-sub-llm-icon"><svg data-icon-name="chevron-up" data-icon-set="lucide" viewBox="0 0 14 14" class="box-border w-[17px] shrink-0 h-[17px]"><path d="M3.5 8.75 7 5.25l3.5 3.5" fill="none" stroke="#7C9285" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+</div>
+<div class="collapsible-content" id="api-sub-llm"><div class="api-sub-body">
+<div class="box-border w-full flex flex-col gap-[6px] justify-start items-start" id="fg-llm-base-url">
+<label class="text-[12.5px] leading-normal text-[#3F5B49] font-[Geist,system-ui,sans-serif] font-medium text-left" data-i18n="label.llmBaseUrl" for="llm-base-url">label.llmBaseUrl</label>
+<input type="text" class="box-border w-full h-[36px] px-[11px] bg-[#FFFFFF] [outline:1px_solid_#CBD9C7] [outline-offset:-0.5px] rounded-[4px] text-[13px] leading-normal text-[#12261A] font-[Geist,system-ui,sans-serif] placeholder:text-[#9AAFA1] focus:[outline:1.5px_solid_#1F7A4D]" id="llm-base-url" placeholder="https://api.deepseek.com" value="" autocomplete="off" spellcheck="false" onblur="onSettingChange()">
+<div class="text-[11.5px]/[16px] text-[#7C9285] font-[Geist,system-ui,sans-serif] font-normal text-left" data-i18n="hint.llmBaseUrl">hint.llmBaseUrl</div>
+</div>
+<div class="box-border w-full flex flex-col gap-[6px]" id="fg-llm-api-key">
+  <label class="text-[12.5px] leading-normal text-[#3F5B49] font-[Geist,system-ui,sans-serif] font-medium text-left" data-i18n="label.llmKey" for="llm-api-key" id="llm-api-key-label">label.llmKey</label>
+  <div class="relative w-full"><input type="password" class="box-border w-full h-[36px] px-[11px] bg-[#FFFFFF] [outline:1px_solid_#CBD9C7] [outline-offset:-0.5px] rounded-[4px] text-[13px] leading-normal text-[#12261A] font-[Geist,system-ui,sans-serif] placeholder:text-[#9AAFA1] focus:[outline:1.5px_solid_#1F7A4D] pr-[34px]" id="llm-api-key" placeholder="sk-..." autocomplete="off"><button type="button" class="secret-visibility-toggle absolute right-[8px] top-1/2 -translate-y-1/2 text-[#7C9285]" id="llm-api-key-visibility-toggle" data-target-input="llm-api-key" aria-label="toggle"><svg viewBox="0 0 24 24" class="w-[15px] h-[15px]" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg></button></div>
+  <div class="text-[11.5px]/[16px] text-[#7C9285] font-[Geist,system-ui,sans-serif] font-normal text-left" data-i18n="hint.llmKey">hint.llmKey</div>
+</div>
+<div class="box-border w-full flex flex-col gap-[6px] justify-start items-start" id="fg-llm-model">
+<label class="text-[12.5px] leading-normal text-[#3F5B49] font-[Geist,system-ui,sans-serif] font-medium text-left" data-i18n="label.llmModel" for="llm-model">label.llmModel</label>
+<input type="text" class="box-border w-full h-[36px] px-[11px] bg-[#FFFFFF] [outline:1px_solid_#CBD9C7] [outline-offset:-0.5px] rounded-[4px] text-[13px] leading-normal text-[#12261A] font-[Geist,system-ui,sans-serif] placeholder:text-[#9AAFA1] focus:[outline:1.5px_solid_#1F7A4D]" id="llm-model" placeholder="deepseek-chat" value="" autocomplete="off" spellcheck="false" onblur="onSettingChange()">
+</div>
+<div class="box-border w-full flex flex-col gap-[6px] justify-start items-start">
+<label class="text-[12.5px] leading-normal text-[#3F5B49] font-[Geist,system-ui,sans-serif] font-medium text-left" data-i18n="label.openaiCompatExtraBodyJson" for="openai-compat-extra-body-json">label.openaiCompatExtraBodyJson</label>
+<input type="text" class="box-border w-full h-[36px] px-[11px] bg-[#FFFFFF] [outline:1px_solid_#CBD9C7] [outline-offset:-0.5px] rounded-[4px] text-[13px] leading-normal text-[#12261A] font-[Geist,system-ui,sans-serif] placeholder:text-[#9AAFA1] focus:[outline:1.5px_solid_#1F7A4D]" id="openai-compat-extra-body-json" placeholder='{"thinking": {"type": "disabled"}}' value="" autocomplete="off" spellcheck="false" onblur="onSettingChange()">
+<div class="text-[11.5px]/[16px] text-[#7C9285] font-[Geist,system-ui,sans-serif] font-normal text-left" data-i18n="hint.openaiCompatExtraBodyJson">hint.openaiCompatExtraBodyJson</div>
+</div>
+<div class="flex flex-row items-center gap-[12px]">
+  <button type="button" class="box-border h-[34px] px-[13px] inline-flex items-center justify-center gap-[6px] bg-[#FFFFFF] [outline:1px_solid_#CBD9C7] [outline-offset:-0.5px] rounded-[4px] text-[12.5px] leading-none text-[#3F5B49] font-[Geist,system-ui,sans-serif] font-medium cursor-pointer" id="llm-test-btn" onclick="GanlanApiMode.testApi('llm')" data-i18n="btn.testCustomApi">btn.testCustomApi</button>
+  <span class="text-[11.5px]/[16px] text-[#7C9285] font-[Geist,system-ui,sans-serif] font-normal text-left" id="llm-test-result"></span>
+</div>
+</div></div>
+</div>
+<div class="api-sub" data-api-sub="ocr">
+<div class="api-sub-head collapsible-header" onclick="toggleCollapsible('api-sub-ocr')">
+  <span class="api-sub-icon"><svg viewBox="0 0 24 24" class="" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 7V5a2 2 0 0 1 2-2h2M17 3h2a2 2 0 0 1 2 2v2M21 17v2a2 2 0 0 1-2 2h-2M7 21H5a2 2 0 0 1-2-2v-2"/><path d="M7 8h10M7 12h10M7 16h6"/></svg></span>
+  <span class="api-sub-text"><span class="api-sub-title" data-i18n="api.sub.ocr">api.sub.ocr</span><span class="api-sub-summary" id="api-sub-ocr-summary"></span></span>
+  <span class="api-sub-status" id="api-sub-ocr-status"></span>
+  <span class="collapse-icon api-sub-chevron" id="api-sub-ocr-icon"><svg data-icon-name="chevron-up" data-icon-set="lucide" viewBox="0 0 14 14" class="box-border w-[17px] shrink-0 h-[17px]"><path d="M3.5 8.75 7 5.25l3.5 3.5" fill="none" stroke="#7C9285" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+</div>
+<div class="collapsible-content" id="api-sub-ocr"><div class="api-sub-body">
+<div class="box-border w-full flex flex-col gap-[6px] justify-start items-start" id="fg-screen-ocr-base-url">
+<label class="text-[12.5px] leading-normal text-[#3F5B49] font-[Geist,system-ui,sans-serif] font-medium text-left" data-i18n="label.screenOcrBaseUrl" for="screen-ocr-base-url">label.screenOcrBaseUrl</label>
+<input type="text" class="box-border w-full h-[36px] px-[11px] bg-[#FFFFFF] [outline:1px_solid_#CBD9C7] [outline-offset:-0.5px] rounded-[4px] text-[13px] leading-normal text-[#12261A] font-[Geist,system-ui,sans-serif] placeholder:text-[#9AAFA1] focus:[outline:1.5px_solid_#1F7A4D]" id="screen-ocr-base-url" placeholder="https://api.openai.com/v1" value="" autocomplete="off" spellcheck="false" onblur="onSettingChange()">
+<div class="text-[11.5px]/[16px] text-[#7C9285] font-[Geist,system-ui,sans-serif] font-normal text-left" data-i18n="api.ocr.baseUrlHint">api.ocr.baseUrlHint</div>
+</div>
+<div class="box-border w-full flex flex-col gap-[6px]" id="fg-screen-ocr-api-key">
+  <label class="text-[12.5px] leading-normal text-[#3F5B49] font-[Geist,system-ui,sans-serif] font-medium text-left" data-i18n="label.screenOcrKey" for="screen-ocr-api-key">label.screenOcrKey</label>
+  <div class="relative w-full"><input type="password" class="box-border w-full h-[36px] px-[11px] bg-[#FFFFFF] [outline:1px_solid_#CBD9C7] [outline-offset:-0.5px] rounded-[4px] text-[13px] leading-normal text-[#12261A] font-[Geist,system-ui,sans-serif] placeholder:text-[#9AAFA1] focus:[outline:1.5px_solid_#1F7A4D] pr-[34px]" id="screen-ocr-api-key" placeholder="sk-..." autocomplete="off"><button type="button" class="secret-visibility-toggle absolute right-[8px] top-1/2 -translate-y-1/2 text-[#7C9285]" id="screen-ocr-api-key-visibility-toggle" data-target-input="screen-ocr-api-key" aria-label="toggle"><svg viewBox="0 0 24 24" class="w-[15px] h-[15px]" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg></button></div>
+</div>
+<div class="box-border w-full flex flex-col gap-[6px] justify-start items-start" id="fg-screen-ocr-model">
+<label class="text-[12.5px] leading-normal text-[#3F5B49] font-[Geist,system-ui,sans-serif] font-medium text-left" data-i18n="label.screenOcrModel" for="screen-ocr-model">label.screenOcrModel</label>
+<input type="text" class="box-border w-full h-[36px] px-[11px] bg-[#FFFFFF] [outline:1px_solid_#CBD9C7] [outline-offset:-0.5px] rounded-[4px] text-[13px] leading-normal text-[#12261A] font-[Geist,system-ui,sans-serif] placeholder:text-[#9AAFA1] focus:[outline:1.5px_solid_#1F7A4D]" id="screen-ocr-model" placeholder="gpt-4o-mini" value="" autocomplete="off" spellcheck="false" onblur="onSettingChange()">
+<div class="text-[11.5px]/[16px] text-[#7C9285] font-[Geist,system-ui,sans-serif] font-normal text-left" data-i18n="api.ocr.modelHint">api.ocr.modelHint</div>
+</div>
+<div class="flex flex-row items-center gap-[12px]">
+  <button type="button" class="box-border h-[34px] px-[13px] inline-flex items-center justify-center gap-[6px] bg-[#FFFFFF] [outline:1px_solid_#CBD9C7] [outline-offset:-0.5px] rounded-[4px] text-[12.5px] leading-none text-[#3F5B49] font-[Geist,system-ui,sans-serif] font-medium cursor-pointer" id="ocr-test-btn" onclick="GanlanApiMode.testApi('ocr')" data-i18n="btn.testCustomApi">btn.testCustomApi</button>
+  <span class="text-[11.5px]/[16px] text-[#7C9285] font-[Geist,system-ui,sans-serif] font-normal text-left" id="ocr-test-result"></span>
+</div>
+</div></div>
+</div>
+</div>
+</div>
 
-<!-- 其他密钥/高级参数已从 UI 移除；保留隐藏字段供配置读写 -->
+<!-- 自定义语音识别接口的几个高级参数不在界面上显示，保留隐藏字段供配置读写 -->
 <div class="hidden" aria-hidden="true">
-  <input type="password" id="deepl-api-key" value="">
-  <input type="password" id="doubao-api-key" value="">
-  <input type="password" id="soniox-api-key" value="">
   <input type="text" id="custom-api-target-language" value="ja">
   <input type="number" id="custom-api-timeout" value="30">
   <select id="custom-api-audio-format"><option value="wav" selected>wav</option><option value="mp3">mp3</option><option value="flac">flac</option></select>
@@ -237,8 +353,8 @@
 <section class="box-border w-full h-fit shrink-0 flex flex-col bg-[#FFFFFF] [outline:1px_solid_#E3EAE1] [outline-offset:-0.5px] rounded-[8px] overflow-hidden" id="translation-llm-card">
 <div class="box-border w-full flex flex-row gap-[14px] p-[16px_18px] justify-between items-center cursor-pointer" onclick="toggleCollapsible('translation-api')">
 <div class="box-border [flex:1_1_0] h-fit flex flex-col gap-[3px] justify-start items-start">
-<div class="text-[14.5px] leading-normal text-[#12261A] font-['Funnel_Sans',system-ui,sans-serif] font-semibold text-left whitespace-nowrap" data-i18n="simple.llmTitle">simple.llmTitle</div>
-<div class="text-[12px]/[17px] text-[#7C9285] font-[Geist,system-ui,sans-serif] font-normal text-left" data-i18n="simple.llmHint">simple.llmHint</div>
+<div class="text-[14.5px] leading-normal text-[#12261A] font-['Funnel_Sans',system-ui,sans-serif] font-semibold text-left whitespace-nowrap" data-i18n="api.translationTitle">api.translationTitle</div>
+<div class="text-[12px]/[17px] text-[#7C9285] font-[Geist,system-ui,sans-serif] font-normal text-left" data-i18n="api.translationHint">api.translationHint</div>
 </div>
 <span class="collapse-icon w-[17px] h-[17px] flex items-center justify-center text-[#7C9285]" id="translation-api-icon"><svg data-icon-name="chevron-up" data-icon-set="lucide" viewBox="0 0 14 14" class="box-border w-[17px] shrink-0 h-[17px]"><path d="M3.5 8.75 7 5.25l3.5 3.5" fill="none" stroke="#7C9285" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
 </div>
@@ -246,30 +362,8 @@
 <div class="collapsible-content" id="translation-api"><div class="box-border w-full h-fit shrink-0 flex flex-col gap-[16px] p-[18px] justify-start items-start">
 <select class="hidden" id="translation-api-type" onchange="handleTranslationApiChange(event)" aria-hidden="true"><option value="openrouter" selected>openrouter</option></select>
 <div id="translation-api-warning" class="hidden text-[11.5px] text-[#B45309]"></div>
-<div id="qwen-mt-sensitive-words-hint" class="hidden" data-i18n="hint.sensitiveWordsRisk">hint.sensitiveWordsRisk</div>
 <div id="llm-settings-wrapper" class="w-full flex flex-col gap-[14px]">
   <div class="collapsible-content w-full flex flex-col gap-[14px]" id="llm-settings" style="max-height:none;overflow:visible">
-    <div class="hidden" id="llm-template-buttons" aria-hidden="true"></div>
-    <div class="box-border w-full flex flex-col gap-[6px] justify-start items-start" id="fg-llm-base-url">
-<label class="text-[12.5px] leading-normal text-[#3F5B49] font-[Geist,system-ui,sans-serif] font-medium text-left" data-i18n="label.llmBaseUrl" for="llm-base-url">label.llmBaseUrl</label>
-<input type="text" class="box-border w-full h-[36px] px-[11px] bg-[#FFFFFF] [outline:1px_solid_#CBD9C7] [outline-offset:-0.5px] rounded-[4px] text-[13px] leading-normal text-[#12261A] font-[Geist,system-ui,sans-serif] placeholder:text-[#9AAFA1] focus:[outline:1.5px_solid_#1F7A4D]" id="llm-base-url" placeholder="https://api.openai.com/v1" value="" onblur="onSettingChange()">
-<div class="text-[11.5px]/[16px] text-[#7C9285] font-[Geist,system-ui,sans-serif] font-normal text-left" data-i18n="hint.llmBaseUrl">hint.llmBaseUrl</div>
-</div>
-    <div class="box-border w-full flex flex-col gap-[6px] justify-start items-start" id="fg-llm-model">
-<label class="text-[12.5px] leading-normal text-[#3F5B49] font-[Geist,system-ui,sans-serif] font-medium text-left" data-i18n="label.llmModel" for="llm-model">label.llmModel</label>
-<input type="text" class="box-border w-full h-[36px] px-[11px] bg-[#FFFFFF] [outline:1px_solid_#CBD9C7] [outline-offset:-0.5px] rounded-[4px] text-[13px] leading-normal text-[#12261A] font-[Geist,system-ui,sans-serif] placeholder:text-[#9AAFA1] focus:[outline:1.5px_solid_#1F7A4D]" id="llm-model" placeholder="model-name" value="" onblur="onSettingChange()">
-
-</div>
-    <div class="box-border w-full flex flex-col gap-[6px]" id="fg-llm-api-key">
-      <label class="text-[12.5px] leading-normal text-[#3F5B49] font-[Geist,system-ui,sans-serif] font-medium text-left" data-i18n="label.llmKey" id="llm-api-key-label">label.llmKey</label>
-      <div class="relative w-full"><input type="password" class="box-border w-full h-[36px] px-[11px] bg-[#FFFFFF] [outline:1px_solid_#CBD9C7] [outline-offset:-0.5px] rounded-[4px] text-[13px] leading-normal text-[#12261A] font-[Geist,system-ui,sans-serif] placeholder:text-[#9AAFA1] focus:[outline:1.5px_solid_#1F7A4D] pr-[34px]" id="llm-api-key" placeholder="sk-..." ><button type="button" class="secret-visibility-toggle absolute right-[8px] top-1/2 -translate-y-1/2 text-[#7C9285]" id="llm-api-key-visibility-toggle" data-target-input="llm-api-key" aria-label="toggle"><svg viewBox="0 0 24 24" class="w-[15px] h-[15px]" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg></button></div>
-      <span class="text-[11.5px]/[16px] text-[#7C9285] font-[Geist,system-ui,sans-serif] font-normal text-left" id="llm-api-key-hint" data-i18n="hint.llmKey">hint.llmKey</span>
-      <a id="llm-api-key-deepseek-hint" class="hidden text-[11.5px] text-[#1F7A4D] underline" data-i18n="link.getDeepseekKey" href="https://platform.deepseek.com/api_keys" target="_blank">link.getDeepseekKey</a>
-    </div>
-    <div id="llm-template-key-source-hint" class="hidden text-[11.5px] text-[#7C9285]">
-      <span data-i18n="label.llmKeySource">label.llmKeySource</span>: <span id="llm-template-key-source-label"></span>
-      <a id="llm-template-key-source-link" class="underline text-[#1F7A4D]" href="#" target="_blank">link.getApiKey</a>
-    </div>
     <div id="openrouter-streaming-mode-group" class="w-full">
   <label class="box-border w-full flex flex-row gap-[12px] justify-start items-start cursor-pointer items-start">
 <div class="box-border [flex:1_1_0] h-fit flex flex-col gap-[3px] justify-start items-start">
@@ -296,46 +390,11 @@
   </div>
 </div>
     <div class="box-border w-full flex flex-col gap-[6px] justify-start items-start">
-<label class="text-[12.5px] leading-normal text-[#3F5B49] font-[Geist,system-ui,sans-serif] font-medium text-left" data-i18n="label.openaiCompatExtraBodyJson" for="openai-compat-extra-body-json">label.openaiCompatExtraBodyJson</label>
-<input type="text" class="box-border w-full h-[36px] px-[11px] bg-[#FFFFFF] [outline:1px_solid_#CBD9C7] [outline-offset:-0.5px] rounded-[4px] text-[13px] leading-normal text-[#12261A] font-[Geist,system-ui,sans-serif] placeholder:text-[#9AAFA1] focus:[outline:1.5px_solid_#1F7A4D]" id="openai-compat-extra-body-json" placeholder='{"thinking": {"type": "disabled"}}' value="" onblur="onSettingChange()">
-<div class="text-[11.5px]/[16px] text-[#7C9285] font-[Geist,system-ui,sans-serif] font-normal text-left" data-i18n="hint.openaiCompatExtraBodyJson">hint.openaiCompatExtraBodyJson</div>
-</div>
-    <div class="box-border w-full flex flex-col gap-[6px] justify-start items-start">
 <label class="text-[12.5px] leading-normal text-[#3F5B49] font-[Geist,system-ui,sans-serif] font-medium text-left" data-i18n="label.llmParallelFastestMode" for="llm-parallel-fastest-mode">label.llmParallelFastestMode</label>
 <select class="box-border w-full h-[36px] px-[11px] bg-[#FFFFFF] [outline:1px_solid_#CBD9C7] [outline-offset:-0.5px] rounded-[4px] text-[13px] leading-normal text-[#12261A] font-[Geist,system-ui,sans-serif] placeholder:text-[#9AAFA1] focus:[outline:1.5px_solid_#1F7A4D] appearance-none pr-[30px]" id="llm-parallel-fastest-mode" onchange="onSettingChange()"><option value="off" data-i18n="option.llmParallelFastest.off">option.llmParallelFastest.off</option><option value="final_only" data-i18n="option.llmParallelFastest.finalOnly">option.llmParallelFastest.finalOnly</option><option value="all" data-i18n="option.llmParallelFastest.all">option.llmParallelFastest.all</option></select>
 <div class="text-[11.5px]/[16px] text-[#7C9285] font-[Geist,system-ui,sans-serif] font-normal text-left" data-i18n="hint.llmParallelFastestMode">hint.llmParallelFastestMode</div>
 </div>
   </div>
-</div>
-</div></div>
-</section>
-<section class="box-border w-full h-fit shrink-0 flex flex-col bg-[#FFFFFF] [outline:1px_solid_#E3EAE1] [outline-offset:-0.5px] rounded-[8px] overflow-hidden" id="screen-ocr-card">
-<div class="box-border w-full flex flex-row gap-[14px] p-[16px_18px] justify-between items-center cursor-pointer" onclick="toggleCollapsible('screen-ocr-settings')">
-<div class="box-border [flex:1_1_0] h-fit flex flex-col gap-[3px] justify-start items-start">
-<div class="text-[14.5px] leading-normal text-[#12261A] font-['Funnel_Sans',system-ui,sans-serif] font-semibold text-left whitespace-nowrap" data-i18n="section.screenOcr">section.screenOcr</div>
-<div class="text-[12px]/[17px] text-[#7C9285] font-[Geist,system-ui,sans-serif] font-normal text-left" data-i18n="hint.screenOcrSection">hint.screenOcrSection</div>
-</div>
-<span class="collapse-icon w-[17px] h-[17px] flex items-center justify-center text-[#7C9285]" id="screen-ocr-settings-icon"><svg data-icon-name="chevron-up" data-icon-set="lucide" viewBox="0 0 14 14" class="box-border w-[17px] shrink-0 h-[17px]"><path d="M3.5 8.75 7 5.25l3.5 3.5" fill="none" stroke="#7C9285" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
-</div>
-<div class="box-border w-full h-[1px] shrink-0 bg-[#E3EAE1]"></div>
-<div class="collapsible-content" id="screen-ocr-settings"><div class="box-border w-full h-fit shrink-0 flex flex-col gap-[16px] p-[18px] justify-start items-start">
-<div class="box-border w-full flex flex-row gap-[8px]">
-  <button type="button" class="simple-provider-btn box-border [flex:1_1_0] h-[38px] inline-flex items-center justify-center gap-[8px] bg-[#FFFFFF] [outline:1px_solid_#E3EAE1] [outline-offset:-0.5px] rounded-[4px] text-[12.5px] text-[#3F5B49] cursor-pointer" onclick="applyScreenOcrPreset('qwen')" data-i18n="btn.screenOcrQwen">btn.screenOcrQwen</button>
-  <button type="button" class="simple-provider-btn box-border [flex:1_1_0] h-[38px] inline-flex items-center justify-center gap-[8px] bg-[#FFFFFF] [outline:1px_solid_#E3EAE1] [outline-offset:-0.5px] rounded-[4px] text-[12.5px] text-[#3F5B49] cursor-pointer" onclick="applyScreenOcrPreset('openai')" data-i18n="btn.screenOcrOpenai">btn.screenOcrOpenai</button>
-</div>
-<div class="box-border w-full flex flex-col gap-[6px] justify-start items-start">
-<label class="text-[12.5px] leading-normal text-[#3F5B49] font-[Geist,system-ui,sans-serif] font-medium text-left" for="screen-ocr-base-url" data-i18n="label.screenOcrBaseUrl">label.screenOcrBaseUrl</label>
-<input type="text" class="box-border w-full h-[36px] px-[11px] bg-[#FFFFFF] [outline:1px_solid_#CBD9C7] [outline-offset:-0.5px] rounded-[4px] text-[13px] leading-normal text-[#12261A] font-[Geist,system-ui,sans-serif] placeholder:text-[#9AAFA1] focus:[outline:1.5px_solid_#1F7A4D]" id="screen-ocr-base-url" placeholder="https://dashscope.aliyuncs.com/compatible-mode/v1" value="https://dashscope.aliyuncs.com/compatible-mode/v1" onblur="onSettingChange()">
-</div>
-<div class="box-border w-full flex flex-col gap-[6px] justify-start items-start">
-<label class="text-[12.5px] leading-normal text-[#3F5B49] font-[Geist,system-ui,sans-serif] font-medium text-left" for="screen-ocr-model" data-i18n="label.screenOcrModel">label.screenOcrModel</label>
-<input type="text" class="box-border w-full h-[36px] px-[11px] bg-[#FFFFFF] [outline:1px_solid_#CBD9C7] [outline-offset:-0.5px] rounded-[4px] text-[13px] leading-normal text-[#12261A] font-[Geist,system-ui,sans-serif] placeholder:text-[#9AAFA1] focus:[outline:1.5px_solid_#1F7A4D]" id="screen-ocr-model" placeholder="qwen-vl-ocr" value="qwen-vl-ocr" onblur="onSettingChange()">
-<div class="text-[11.5px]/[16px] text-[#7C9285] font-[Geist,system-ui,sans-serif] font-normal text-left" data-i18n="hint.screenOcrModel">hint.screenOcrModel</div>
-</div>
-<div class="box-border w-full flex flex-col gap-[6px]">
-<label class="text-[12.5px] leading-normal text-[#3F5B49] font-[Geist,system-ui,sans-serif] font-medium text-left" for="screen-ocr-api-key" data-i18n="label.screenOcrKey">label.screenOcrKey</label>
-<div class="relative w-full"><input type="password" class="box-border w-full h-[36px] px-[11px] bg-[#FFFFFF] [outline:1px_solid_#CBD9C7] [outline-offset:-0.5px] rounded-[4px] text-[13px] leading-normal text-[#12261A] font-[Geist,system-ui,sans-serif] placeholder:text-[#9AAFA1] focus:[outline:1.5px_solid_#1F7A4D] pr-[34px]" id="screen-ocr-api-key" placeholder="sk-..."><button type="button" class="secret-visibility-toggle absolute right-[8px] top-1/2 -translate-y-1/2 text-[#7C9285]" data-target-input="screen-ocr-api-key" aria-label="toggle"><svg viewBox="0 0 24 24" class="w-[15px] h-[15px]" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg></button></div>
-<span class="text-[11.5px]/[16px] text-[#7C9285] font-[Geist,system-ui,sans-serif] font-normal text-left" data-i18n="hint.screenOcrKey">hint.screenOcrKey</span>
 </div>
 </div></div>
 </section>
@@ -353,6 +412,7 @@
 <div class="box-border w-full h-[1px] shrink-0 bg-[#E3EAE1]"></div>
 <div class="collapsible-content" id="logs-settings"><div class="box-border w-full h-fit shrink-0 flex flex-col gap-[16px] p-[18px] justify-start items-start">
 <div class="flex flex-row items-center gap-[12px]">
+  <button type="button" class="log-analyze-btn box-border h-[34px] px-[13px] inline-flex items-center justify-center gap-[6px] bg-[#FFFFFF] [outline:1px_solid_#CBD9C7] [outline-offset:-0.5px] rounded-[4px] text-[12.5px] leading-none text-[#3F5B49] font-[Geist,system-ui,sans-serif] font-medium cursor-pointer" id="log-analyze-btn" onclick="analyzeLogs()"><svg class="w-[15px] h-[15px]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9z"/><path d="M19 15l.8 2.2L22 18l-2.2.8L19 21l-.8-2.2L16 18l2.2-.8z"/></svg><span data-i18n="btn.analyzeLogs">btn.analyzeLogs</span></button>
   <button type="button" class="box-border h-[34px] px-[13px] inline-flex items-center justify-center gap-[6px] bg-[#FFFFFF] [outline:1px_solid_#CBD9C7] [outline-offset:-0.5px] rounded-[4px] text-[12.5px] leading-none text-[#3F5B49] font-[Geist,system-ui,sans-serif] font-medium cursor-pointer" onclick="clearLogs()" data-i18n="btn.clearLogs">btn.clearLogs</button>
   <span class="text-[11.5px]/[16px] text-[#7C9285] font-[Geist,system-ui,sans-serif] font-normal text-left" id="logs-status"></span>
 </div>
@@ -470,7 +530,7 @@
   </div>
   <!-- 启用翻译由上方「仅语音识别 / 识别+翻译」切换控制，保留隐藏 checkbox 供配置读写 -->
   <input type="checkbox" class="hidden" id="enable-translation" checked onchange="onSettingChange(); toggleTranslationOptions()" aria-hidden="true" tabindex="-1">
-  <label class="box-border w-full flex flex-row gap-[12px] justify-start items-start cursor-pointer items-start">
+  <label class="box-border w-full flex flex-row gap-[12px] justify-start items-start cursor-pointer items-start" id="fg-show-partial-results">
 <div class="box-border [flex:1_1_0] h-fit flex flex-col gap-[3px] justify-start items-start">
 <div class="text-[12.5px] leading-normal text-[#3F5B49] font-[Geist,system-ui,sans-serif] font-medium text-left" data-i18n="label.showPartialResults">label.showPartialResults</div>
 <div class="text-[11.5px]/[16px] text-[#7C9285] font-[Geist,system-ui,sans-serif] font-normal text-left" data-i18n="hint.partialResults">hint.partialResults</div>
@@ -520,8 +580,6 @@
   <option value="qwen_audio3" selected>qwen_audio3</option>
   <option value="qwen">qwen</option>
   <option value="dashscope">dashscope</option>
-  <option value="doubao_file">doubao_file</option>
-  <option value="soniox">soniox</option>
   <option value="custom_audio">custom_audio</option>
   <option value="custom_stt">custom_stt</option>
 </select>
@@ -530,7 +588,7 @@
 <div class="language-combo relative w-full"><input type="text" class="language-combo-input box-border w-full h-[36px] px-[11px] bg-[#FFFFFF] [outline:1px_solid_#CBD9C7] [outline-offset:-0.5px] rounded-[4px] text-[13px] leading-normal text-[#12261A] font-[Geist,system-ui,sans-serif] placeholder:text-[#9AAFA1] focus:[outline:1.5px_solid_#1F7A4D]" id="source-language" placeholder="auto" onchange="onSettingChange()" data-restart-required="true"><button type="button" class="language-combo-clear hidden absolute right-[30px] top-1/2 -translate-y-1/2 text-[#7C9285]">x</button><button type="button" class="language-combo-toggle absolute right-[8px] top-1/2 -translate-y-1/2 text-[#7C9285]"><svg viewBox="0 0 24 24" class="w-[15px] h-[15px]" fill="none" stroke="currentColor" stroke-width="2"><path d="m6 9 6 6 6-6"/></svg></button></div>
 <div class="text-[11.5px]/[16px] text-[#7C9285] font-[Geist,system-ui,sans-serif] font-normal text-left" data-i18n="hint.sourceLanguage">hint.sourceLanguage</div>
 </div>
-<div id="fg-mic-control" class="w-full">
+<div id="fg-mic-control" class="hidden" aria-hidden="true">
   <label class="box-border w-full flex flex-row gap-[12px] justify-start items-start cursor-pointer items-start">
 <div class="box-border [flex:1_1_0] h-fit flex flex-col gap-[3px] justify-start items-start">
 <div class="text-[12.5px] leading-normal text-[#3F5B49] font-[Geist,system-ui,sans-serif] font-medium text-left" data-i18n="label.pauseOnMute">label.pauseOnMute</div>
@@ -697,20 +755,7 @@
 </div>
 <div class="box-border w-full h-[1px] shrink-0 bg-[#E3EAE1]"></div>
 <div class="text-[11.5px]/[16px] text-[#7C9285] font-[Geist,system-ui,sans-serif] font-normal text-left" data-i18n="hint.othersHotWords">hint.othersHotWords</div>
-<div class="box-border w-full flex flex-col gap-[6px] justify-start items-start">
-<label class="text-[12.5px] leading-normal text-[#3F5B49] font-[Geist,system-ui,sans-serif] font-medium text-left" for="others-asr-backend" data-i18n="label.othersAsrBackend">label.othersAsrBackend</label>
-<select id="others-asr-backend" class="box-border w-full h-[36px] px-[11px] bg-[#FFFFFF] [outline:1px_solid_#CBD9C7] [outline-offset:-0.5px] rounded-[4px] text-[13px] leading-normal text-[#12261A] font-[Geist,system-ui,sans-serif]" onchange="onSettingChange()" data-restart-required="true">
-  <option value="" selected data-i18n="option.othersAsrFollow">option.othersAsrFollow</option>
-  <option value="qwen_audio3">qwen_audio3</option>
-  <option value="soniox">soniox</option>
-  <option value="dashscope">dashscope</option>
-  <option value="qwen">qwen</option>
-  <option value="doubao_file">doubao_file</option>
-  <option value="custom_audio">custom_audio</option>
-  <option value="custom_stt">custom_stt</option>
-</select>
-<div class="text-[11.5px]/[16px] text-[#7C9285] font-[Geist,system-ui,sans-serif] font-normal text-left" data-i18n="hint.othersAsrBackend">hint.othersAsrBackend</div>
-</div>
+<div class="text-[11.5px]/[16px] text-[#7C9285] font-[Geist,system-ui,sans-serif] font-normal text-left" data-i18n="hint.othersAsrFollowsApi">hint.othersAsrFollowsApi</div>
 <div class="box-border w-full flex flex-col gap-[6px] justify-start items-start">
 <div class="text-[12.5px] leading-normal text-[#3F5B49] font-[Geist,system-ui,sans-serif] font-medium text-left" data-i18n="label.othersTargetLanguage">label.othersTargetLanguage</div>
 <div class="language-combo relative w-full"><input type="text" class="language-combo-input box-border w-full h-[36px] px-[11px] bg-[#FFFFFF] [outline:1px_solid_#CBD9C7] [outline-offset:-0.5px] rounded-[4px] text-[13px] leading-normal text-[#12261A] font-[Geist,system-ui,sans-serif] placeholder:text-[#9AAFA1] focus:[outline:1.5px_solid_#1F7A4D]" id="others-target-language" placeholder="zh-CN" oninput="onSettingChange()" onchange="onSettingChange()"><button type="button" class="language-combo-toggle absolute right-[8px] top-1/2 -translate-y-1/2 text-[#7C9285]"><svg viewBox="0 0 24 24" class="w-[15px] h-[15px]" fill="none" stroke="currentColor" stroke-width="2"><path d="m6 9 6 6 6-6"/></svg></button></div>
@@ -1074,6 +1119,29 @@
 <div class="word-actions">
 <button type="button" class="box-border h-[34px] px-[13px] inline-flex items-center justify-center gap-[6px] bg-[#FFFFFF] [outline:1px_solid_#CBD9C7] [outline-offset:-0.5px] rounded-[4px] text-[12.5px] leading-none text-[#3F5B49] font-[Geist,system-ui,sans-serif] font-medium cursor-pointer" onclick="openAppFolder('data')" data-i18n="about.openData">about.openData</button>
 <button type="button" class="box-border h-[34px] px-[13px] inline-flex items-center justify-center gap-[6px] bg-[#FFFFFF] [outline:1px_solid_#CBD9C7] [outline-offset:-0.5px] rounded-[4px] text-[12.5px] leading-none text-[#3F5B49] font-[Geist,system-ui,sans-serif] font-medium cursor-pointer" onclick="openAppFolder('vr')" data-i18n="about.openVr">about.openVr</button>
+<button type="button" class="box-border h-[34px] px-[14px] inline-flex items-center justify-center gap-[7px] bg-[#1F7A4D] rounded-[4px] text-[12.5px] leading-none text-[#FFFFFF] font-[Geist,system-ui,sans-serif] font-semibold cursor-pointer border-0" id="export-logs-btn" onclick="exportLogsFile()"><svg class="w-[15px] h-[15px]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="m7 10 5 5 5-5"/><path d="M12 15V3"/></svg><span data-i18n="about.exportLogs">about.exportLogs</span></button>
+</div>
+<div class="text-[12px]/[17px] text-[#7C9285] font-[Geist,system-ui,sans-serif] font-normal text-left" data-i18n="about.exportLogsHint">about.exportLogsHint</div>
+</div>
+</section>
+<section class="box-border w-full h-fit shrink-0 flex flex-col bg-[#FFFFFF] [outline:1px_solid_#E3EAE1] [outline-offset:-0.5px] rounded-[8px] overflow-hidden" id="about-links-card">
+<div class="box-border w-full h-fit shrink-0 flex flex-col p-[18px] justify-start items-start gap-[16px]">
+<div class="box-border w-full flex flex-col gap-[6px] items-start">
+<div class="text-[14.5px] leading-normal text-[#12261A] font-['Funnel_Sans',system-ui,sans-serif] font-semibold text-left whitespace-nowrap" data-i18n="about.linksTitle">about.linksTitle</div>
+<div class="text-[12px]/[17px] text-[#7C9285] font-[Geist,system-ui,sans-serif] font-normal text-left" data-i18n="about.linksHint">about.linksHint</div>
+</div>
+<div class="box-border w-full h-[1px] shrink-0 bg-[#E3EAE1]"></div>
+<div class="about-links">
+<a class="about-link" id="about-repo-link" href="{{ repo_url }}" target="_blank" rel="noopener">
+  <span class="about-link-icon"><svg class="" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 22v-4a4.8 4.8 0 0 0-1-3.5c3 0 6-2 6-5.5.08-1.25-.27-2.48-1-3.5.28-1.15.28-2.35 0-3.5 0 0-1 0-3 1.5-2.64-.5-5.36-.5-8 0C6 2 5 2 5 2c-.3 1.15-.3 2.35 0 3.5A5.4 5.4 0 0 0 4 9c0 3.5 3 5.5 6 5.5-.39.49-.68 1.05-.85 1.65-.17.6-.22 1.23-.15 1.85v4"/><path d="M9 18c-4.51 2-5-2-7-2"/></svg></span>
+  <span class="about-link-text"><span class="about-link-title" data-i18n="about.repo">about.repo</span><span class="about-link-url">github.com/ganlanqwq/GanlanTranslate</span></span>
+  <span class="about-link-go"><svg class="" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 3h6v6"/><path d="M10 14 21 3"/><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/></svg></span>
+</a>
+<a class="about-link" id="about-release-link" href="{{ releases_url }}" target="_blank" rel="noopener">
+  <span class="about-link-icon"><svg class="" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12.6 2.6A2 2 0 0 0 11.2 2H4a2 2 0 0 0-2 2v7.2a2 2 0 0 0 .6 1.4l8.7 8.7a2.4 2.4 0 0 0 3.4 0l6.6-6.6a2.4 2.4 0 0 0 0-3.4z"/><circle cx="7.5" cy="7.5" r=".5" fill="currentColor"/></svg></span>
+  <span class="about-link-text"><span class="about-link-title" data-i18n="about.latestRelease">about.latestRelease</span><span class="about-link-url" data-i18n="about.latestReleaseHint">about.latestReleaseHint</span></span>
+  <span class="about-link-go"><svg class="" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 3h6v6"/><path d="M10 14 21 3"/><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/></svg></span>
+</a>
 </div>
 </div>
 </section>
@@ -1175,6 +1243,130 @@
 </section>
 </div>
 </div>
+<div id="page-theme" class="app-page" data-app-page="theme" hidden>
+<div class="grid grid-cols-1 lg:grid-cols-2 gap-[22px] items-start">
+<section class="box-border w-full h-fit shrink-0 flex flex-col bg-[#FFFFFF] [outline:1px_solid_#E3EAE1] [outline-offset:-0.5px] rounded-[8px] overflow-hidden" id="theme-card">
+<div class="box-border w-full h-fit shrink-0 flex flex-col p-[18px] justify-start items-start gap-[18px]">
+<div class="box-border w-full flex flex-col gap-[6px] items-start">
+<div class="text-[14.5px] leading-normal text-[#12261A] font-['Funnel_Sans',system-ui,sans-serif] font-semibold text-left whitespace-nowrap" data-i18n="theme.title">theme.title</div>
+<div class="text-[12px]/[17px] text-[#7C9285] font-[Geist,system-ui,sans-serif] font-normal text-left" data-i18n="theme.hint">theme.hint</div>
+</div>
+<div class="box-border w-full h-[1px] shrink-0 bg-[#E3EAE1]"></div>
+<div class="theme-section-label" data-i18n="theme.presets">theme.presets</div>
+<div class="theme-presets" id="theme-presets" role="radiogroup"></div>
+<div class="theme-section-label" data-i18n="theme.colors">theme.colors</div>
+<div class="theme-colors" id="theme-colors"></div>
+<p class="theme-contrast" id="theme-contrast" hidden></p>
+</div>
+</section>
+<section class="box-border w-full h-fit shrink-0 flex flex-col bg-[#FFFFFF] [outline:1px_solid_#E3EAE1] [outline-offset:-0.5px] rounded-[8px] overflow-hidden" id="theme-preview-card">
+<div class="box-border w-full h-fit shrink-0 flex flex-col p-[18px] justify-start items-start gap-[18px]">
+<div class="box-border w-full flex flex-col gap-[6px] items-start">
+<div class="text-[14.5px] leading-normal text-[#12261A] font-['Funnel_Sans',system-ui,sans-serif] font-semibold text-left whitespace-nowrap" data-i18n="theme.previewTitle">theme.previewTitle</div>
+<div class="text-[12px]/[17px] text-[#7C9285] font-[Geist,system-ui,sans-serif] font-normal text-left" data-i18n="theme.previewHint">theme.previewHint</div>
+</div>
+<div class="box-border w-full h-[1px] shrink-0 bg-[#E3EAE1]"></div>
+<div class="theme-preview" id="theme-preview">
+  <div class="theme-preview-hero"><div class="theme-preview-hero-bg"></div><div class="theme-preview-hero-shade"></div>
+    <div class="theme-preview-hero-text"><span class="tp-eyebrow" data-i18n="hero.issue">hero.issue</span><span class="tp-line" data-i18n="hero.line1">hero.line1</span><span class="tp-line tp-em" data-i18n="hero.line2">hero.line2</span></div>
+  </div>
+  <div class="theme-preview-body">
+    <div class="tp-card">
+      <div class="tp-title" data-i18n="theme.sampleTitle">theme.sampleTitle</div>
+      <div class="tp-text" data-i18n="theme.sampleText">theme.sampleText</div>
+      <div class="tp-input" data-i18n="theme.sampleInput">theme.sampleInput</div>
+      <div class="tp-row">
+        <span class="tp-btn tp-btn-primary" data-i18n="theme.samplePrimary">theme.samplePrimary</span>
+        <span class="tp-btn" data-i18n="theme.sampleSecondary">theme.sampleSecondary</span>
+        <span class="tp-badge" data-i18n="theme.sampleBadge">theme.sampleBadge</span>
+        <span class="tp-switch" aria-hidden="true"><span></span></span>
+      </div>
+    </div>
+    <div class="tp-console"><span>[12:00:01] [Self] 你好 → こんにちは</span><span class="tp-console-warn">[12:00:03] [Screen] …</span></div>
+  </div>
+</div>
+</div>
+</section>
+</div>
+<section class="box-border w-full h-fit shrink-0 flex flex-col bg-[#FFFFFF] [outline:1px_solid_#E3EAE1] [outline-offset:-0.5px] rounded-[8px] overflow-hidden personalize-config-card">
+<div class="box-border w-full h-fit shrink-0 flex flex-col p-[18px] justify-start items-start gap-[14px]">
+<div class="personalize-config-row">
+<div class="box-border flex flex-col gap-[6px] items-start min-w-0">
+<div class="text-[14.5px] leading-normal text-[#12261A] font-['Funnel_Sans',system-ui,sans-serif] font-semibold text-left whitespace-nowrap" data-i18n="personalize.configTitle">personalize.configTitle</div>
+<div class="text-[12px]/[17px] text-[#7C9285] font-[Geist,system-ui,sans-serif] font-normal text-left" data-i18n="personalize.configHint">personalize.configHint</div>
+</div>
+<div class="word-actions">
+<button type="button" class="box-border h-[34px] px-[13px] inline-flex items-center justify-center gap-[6px] bg-[#FFFFFF] [outline:1px_solid_#CBD9C7] [outline-offset:-0.5px] rounded-[4px] text-[12.5px] leading-none text-[#3F5B49] font-[Geist,system-ui,sans-serif] font-medium cursor-pointer" data-personalize-action="export"><svg class="w-[15px] h-[15px]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="m7 10 5 5 5-5"/><path d="M12 15V3"/></svg><span data-i18n="personalize.export">personalize.export</span></button>
+<button type="button" class="box-border h-[34px] px-[13px] inline-flex items-center justify-center gap-[6px] bg-[#FFFFFF] [outline:1px_solid_#CBD9C7] [outline-offset:-0.5px] rounded-[4px] text-[12.5px] leading-none text-[#3F5B49] font-[Geist,system-ui,sans-serif] font-medium cursor-pointer" data-personalize-action="import"><svg class="w-[15px] h-[15px]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="m17 8-5-5-5 5"/><path d="M12 3v12"/></svg><span data-i18n="personalize.import">personalize.import</span></button>
+<button type="button" class="personalize-reset-btn box-border h-[34px] px-[13px] inline-flex items-center justify-center gap-[6px] bg-[#FFFFFF] [outline:1px_solid_#CBD9C7] [outline-offset:-0.5px] rounded-[4px] text-[12.5px] leading-none text-[#3F5B49] font-[Geist,system-ui,sans-serif] font-medium cursor-pointer" data-personalize-action="reset"><svg class="w-[15px] h-[15px]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg><span data-i18n="personalize.resetAll">personalize.resetAll</span></button>
+</div>
+</div>
+</div>
+</section>
+</div>
+<div id="page-hero" class="app-page" data-app-page="hero" hidden>
+<div class="grid grid-cols-1 lg:grid-cols-2 gap-[22px] items-start">
+<section class="box-border w-full h-fit shrink-0 flex flex-col bg-[#FFFFFF] [outline:1px_solid_#E3EAE1] [outline-offset:-0.5px] rounded-[8px] overflow-hidden" id="hero-image-card">
+<div class="box-border w-full h-fit shrink-0 flex flex-col p-[18px] justify-start items-start gap-[18px]">
+<div class="box-border w-full flex flex-col gap-[6px] items-start">
+<div class="text-[14.5px] leading-normal text-[#12261A] font-['Funnel_Sans',system-ui,sans-serif] font-semibold text-left whitespace-nowrap" data-i18n="heroEdit.imageTitle">heroEdit.imageTitle</div>
+<div class="text-[12px]/[17px] text-[#7C9285] font-[Geist,system-ui,sans-serif] font-normal text-left" data-i18n="heroEdit.imageHint">heroEdit.imageHint</div>
+</div>
+<div class="box-border w-full h-[1px] shrink-0 bg-[#E3EAE1]"></div>
+<div class="hero-preview" id="hero-preview" tabindex="0" role="button" data-i18n-title="heroEdit.dropHere">
+  <div class="hero-preview-bg" id="hero-preview-bg"></div>
+  <div class="hero-preview-shade"></div>
+  <div class="hero-preview-text">
+    <span class="hp-eyebrow" data-i18n="hero.issue">hero.issue</span>
+    <span class="hp-line" data-i18n="hero.line1">hero.line1</span>
+    <span class="hp-line hp-em" data-i18n="hero.line2">hero.line2</span>
+    <span class="hp-lede" data-i18n="hero.lede">hero.lede</span>
+  </div>
+  <div class="hero-preview-drop"><span><svg class="" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="m17 8-5-5-5 5"/><path d="M12 3v12"/></svg></span><span data-i18n="heroEdit.dropHere">heroEdit.dropHere</span></div>
+</div>
+<input type="file" id="hero-image-input" accept="image/jpeg,image/png,image/webp,image/gif,image/bmp" hidden>
+<div class="word-actions">
+<button type="button" class="box-border h-[34px] px-[14px] inline-flex items-center justify-center gap-[7px] bg-[#1F7A4D] rounded-[4px] text-[12.5px] leading-none text-[#FFFFFF] font-[Geist,system-ui,sans-serif] font-semibold cursor-pointer border-0" id="hero-image-choose"><svg class="w-[15px] h-[15px]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.1-3.1a2 2 0 0 0-2.8 0L6 21"/></svg><span data-i18n="heroEdit.choose">heroEdit.choose</span></button>
+<button type="button" class="box-border h-[34px] px-[13px] inline-flex items-center justify-center gap-[6px] bg-[#FFFFFF] [outline:1px_solid_#CBD9C7] [outline-offset:-0.5px] rounded-[4px] text-[12.5px] leading-none text-[#3F5B49] font-[Geist,system-ui,sans-serif] font-medium cursor-pointer" id="hero-image-recrop" disabled><svg class="w-[15px] h-[15px]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 2v14a2 2 0 0 0 2 2h14"/><path d="M18 22V8a2 2 0 0 0-2-2H2"/></svg><span data-i18n="heroEdit.recrop">heroEdit.recrop</span></button>
+<button type="button" class="box-border h-[34px] px-[13px] inline-flex items-center justify-center gap-[6px] bg-[#FFFFFF] [outline:1px_solid_#CBD9C7] [outline-offset:-0.5px] rounded-[4px] text-[12.5px] leading-none text-[#3F5B49] font-[Geist,system-ui,sans-serif] font-medium cursor-pointer" id="hero-image-default" disabled><svg class="w-[15px] h-[15px]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg><span data-i18n="heroEdit.useDefault">heroEdit.useDefault</span></button>
+</div>
+<div class="hero-overlay-row">
+  <div class="hero-overlay-head"><label class="text-[12.5px] leading-normal text-[#3F5B49] font-[Geist,system-ui,sans-serif] font-medium" for="hero-overlay" data-i18n="heroEdit.overlay">heroEdit.overlay</label><span class="hero-overlay-value" id="hero-overlay-value">100%</span></div>
+  <input type="range" class="gl-range" id="hero-overlay" min="0" max="160" step="5" value="100">
+  <div class="text-[12px]/[17px] text-[#7C9285] font-[Geist,system-ui,sans-serif] font-normal text-left" data-i18n="heroEdit.overlayHint">heroEdit.overlayHint</div>
+</div>
+</div>
+</section>
+<section class="box-border w-full h-fit shrink-0 flex flex-col bg-[#FFFFFF] [outline:1px_solid_#E3EAE1] [outline-offset:-0.5px] rounded-[8px] overflow-hidden" id="hero-text-card">
+<div class="box-border w-full h-fit shrink-0 flex flex-col p-[18px] justify-start items-start gap-[18px]">
+<div class="box-border w-full flex flex-col gap-[6px] items-start">
+<div class="text-[14.5px] leading-normal text-[#12261A] font-['Funnel_Sans',system-ui,sans-serif] font-semibold text-left whitespace-nowrap" data-i18n="heroEdit.textTitle">heroEdit.textTitle</div>
+<div class="text-[12px]/[17px] text-[#7C9285] font-[Geist,system-ui,sans-serif] font-normal text-left" data-i18n="heroEdit.textHint">heroEdit.textHint</div>
+</div>
+<div class="box-border w-full h-[1px] shrink-0 bg-[#E3EAE1]"></div>
+<div class="hero-text-fields" id="hero-text-fields"></div>
+<div class="word-actions">
+<button type="button" class="box-border h-[34px] px-[13px] inline-flex items-center justify-center gap-[6px] bg-[#FFFFFF] [outline:1px_solid_#CBD9C7] [outline-offset:-0.5px] rounded-[4px] text-[12.5px] leading-none text-[#3F5B49] font-[Geist,system-ui,sans-serif] font-medium cursor-pointer" id="hero-text-reset"><svg class="w-[15px] h-[15px]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg><span data-i18n="heroEdit.resetText">heroEdit.resetText</span></button>
+</div>
+</div>
+</section>
+</div>
+<section class="box-border w-full h-fit shrink-0 flex flex-col bg-[#FFFFFF] [outline:1px_solid_#E3EAE1] [outline-offset:-0.5px] rounded-[8px] overflow-hidden personalize-config-card">
+<div class="box-border w-full h-fit shrink-0 flex flex-col p-[18px] justify-start items-start gap-[14px]">
+<div class="personalize-config-row">
+<div class="box-border flex flex-col gap-[6px] items-start min-w-0">
+<div class="text-[14.5px] leading-normal text-[#12261A] font-['Funnel_Sans',system-ui,sans-serif] font-semibold text-left whitespace-nowrap" data-i18n="personalize.configTitle">personalize.configTitle</div>
+<div class="text-[12px]/[17px] text-[#7C9285] font-[Geist,system-ui,sans-serif] font-normal text-left" data-i18n="personalize.configHint">personalize.configHint</div>
+</div>
+<div class="word-actions">
+<button type="button" class="box-border h-[34px] px-[13px] inline-flex items-center justify-center gap-[6px] bg-[#FFFFFF] [outline:1px_solid_#CBD9C7] [outline-offset:-0.5px] rounded-[4px] text-[12.5px] leading-none text-[#3F5B49] font-[Geist,system-ui,sans-serif] font-medium cursor-pointer" data-personalize-action="export"><svg class="w-[15px] h-[15px]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="m7 10 5 5 5-5"/><path d="M12 15V3"/></svg><span data-i18n="personalize.export">personalize.export</span></button>
+<button type="button" class="box-border h-[34px] px-[13px] inline-flex items-center justify-center gap-[6px] bg-[#FFFFFF] [outline:1px_solid_#CBD9C7] [outline-offset:-0.5px] rounded-[4px] text-[12.5px] leading-none text-[#3F5B49] font-[Geist,system-ui,sans-serif] font-medium cursor-pointer" data-personalize-action="import"><svg class="w-[15px] h-[15px]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="m17 8-5-5-5 5"/><path d="M12 3v12"/></svg><span data-i18n="personalize.import">personalize.import</span></button>
+<button type="button" class="personalize-reset-btn box-border h-[34px] px-[13px] inline-flex items-center justify-center gap-[6px] bg-[#FFFFFF] [outline:1px_solid_#CBD9C7] [outline-offset:-0.5px] rounded-[4px] text-[12.5px] leading-none text-[#3F5B49] font-[Geist,system-ui,sans-serif] font-medium cursor-pointer" data-personalize-action="reset"><svg class="w-[15px] h-[15px]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg><span data-i18n="personalize.resetAll">personalize.resetAll</span></button>
+</div>
+</div>
+</div>
+</section>
+</div>
 <div id="page-plugins" class="app-page" data-app-page="plugins" hidden>
 <section class="box-border w-full h-fit shrink-0 flex flex-col bg-[#FFFFFF] [outline:1px_solid_#E3EAE1] [outline-offset:-0.5px] rounded-[8px] overflow-hidden" id="plugins-card">
 <div class="box-border w-full h-fit shrink-0 flex flex-col p-[18px] justify-start items-start gap-[18px]">
@@ -1190,6 +1382,7 @@
 </div>
 </div>
 <input type="file" id="plugin-file-input" accept=".zip,application/zip" multiple hidden>
+<input type="file" id="personalize-import-input" accept=".json,application/json" hidden>
 <div class="box-border w-full h-[1px] shrink-0 bg-[#E3EAE1]"></div>
 <div class="plugin-dropzone" id="plugin-dropzone" role="button" tabindex="0" onclick="choosePluginFile()">
   <span class="plugins-empty-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19.44 7.85c-.05.32.06.65.29.88l1.57 1.57a2.41 2.41 0 0 1 0 3.41l-1.61 1.61a.98.98 0 0 1-.84.28c-.47-.07-.8-.48-.97-.93a2.5 2.5 0 1 0-3.21 3.21c.45.17.86.5.93.97a.98.98 0 0 1-.28.84l-1.61 1.61a2.41 2.41 0 0 1-3.41 0l-1.57-1.57a1.03 1.03 0 0 0-.88-.29c-.49.07-.84.5-1.02.97a2.5 2.5 0 1 1-3.24-3.24c.46-.18.89-.53.97-1.02a1.03 1.03 0 0 0-.29-.88L2.7 13.7a2.41 2.41 0 0 1 0-3.41l1.53-1.53c.24-.24.58-.35.92-.3.51.08.88.53 1.07 1.01a2.5 2.5 0 1 0 3.26-3.26c-.48-.2-.93-.56-1.01-1.07-.05-.34.06-.68.3-.92L10.3 2.7a2.41 2.41 0 0 1 3.41 0l1.57 1.57c.23.23.56.34.88.29.49-.07.84-.5 1.02-.97a2.5 2.5 0 1 1 3.24 3.24c-.46.18-.89.53-.97 1.02Z"/></svg></span>
@@ -1220,12 +1413,14 @@
 </footer>
 </div>
 <script>window.SYSTEM_UI_LANGUAGE = {{ system_ui_language|tojson }};</script>
-<script src="{{ url_for('static', filename='js/i18n.js') }}?v=7.5"></script>
-<script src="{{ url_for('static', filename='js/dialog.js') }}?v=7.4"></script>
-<script src="{{ url_for('static', filename='js/main.js') }}?v=7.4"></script>
-<script src="{{ url_for('static', filename='js/tabs.js') }}?v=7.3"></script>
-<script src="{{ url_for('static', filename='js/pages.js') }}?v=7.4"></script>
-<script src="{{ url_for('static', filename='js/plugins.js') }}?v=7.4"></script>
+<script src="{{ url_for('static', filename='js/i18n.js') }}?v=8.1"></script>
+<script src="{{ url_for('static', filename='js/dialog.js') }}?v=7.5"></script>
+<script src="{{ url_for('static', filename='js/main.js') }}?v=7.9"></script>
+<script src="{{ url_for('static', filename='js/api-mode.js') }}?v=1.3"></script>
+<script src="{{ url_for('static', filename='js/tabs.js') }}?v=7.4"></script>
+<script src="{{ url_for('static', filename='js/pages.js') }}?v=7.5"></script>
+<script src="{{ url_for('static', filename='js/plugins.js') }}?v=7.6"></script>
+<script src="{{ url_for('static', filename='js/personalize.js') }}?v=1.0"></script>
 <script src="{{ url_for('static', filename='js/select-menu.js') }}?v=7.3"></script>
 <script src="{{ url_for('static', filename='js/window-chrome.js') }}?v=7.3"></script>
 </body>

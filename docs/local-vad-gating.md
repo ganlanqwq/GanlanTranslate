@@ -4,7 +4,7 @@
 
 甘岚翻译的 VAD 设置现在统一由 `VAD_ENABLED` 和一组 `LOCAL_VAD_*` 参数控制：
 
-- 在线 API 后端（Qwen/DashScope/Soniox/Doubao）：客户端使用 Silero VAD 做发送门控，静音时不向 ASR 发送音频帧以减少无效计费。
+- 在线 API 后端（Qwen/DashScope/OpenAI 兼容）：客户端使用 Silero VAD 做发送门控，静音时不向 ASR 发送音频帧以减少无效计费。
 - 本地 ASR 后端：采集侧不做发送门控，继续把连续音频交给本地识别器，由本地识别器内部 VAD 做自动分段。
 
 Web UI 中的入口为「高级设置 -> VAD」。本地音频识别卡片只保留引擎、增量识别和中间结果间隔；VAD 参数统一移到高级设置。

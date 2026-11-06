@@ -22,7 +22,7 @@ class TranslationConfig:
 
         cfg = TranslationConfig(
             target_language="ja",
-            translation_api_type="deepl",
+            translation_api_type="openrouter_streaming",
             context_prefix="VRChat conversation:",
             proxy_url="http://127.0.0.1:7890",
         )
@@ -99,15 +99,11 @@ class TranslationConfig:
     # ── API keys (injected externally) ────────────────────────────────
     # The library does **not** read host configuration here. Callers inject
     # credentials explicitly through the module/object passed below.
-    deepl_api_key: Optional[str] = None
     dashscope_api_key: Optional[str] = None
     llm_api_key: Optional[str] = None
     openai_api_key: Optional[str] = None
 
     # ── Formality / style overrides ───────────────────────────────────
-    deepl_formality: str = "default"
-    """DeepL formality setting (``"default"``, ``"prefer_more"``, ``"prefer_less"``)."""
-
     terminology_enabled: bool = True
 
 
@@ -158,10 +154,8 @@ def config_from_module(module: object) -> TranslationConfig:
         llm_app_title=getattr(module, "LLM_APP_TITLE", ""),
         use_international_endpoint=getattr(module, "USE_INTERNATIONAL_ENDPOINT", False),
         proxy_url=None,
-        deepl_api_key=getattr(module, "DEEPL_API_KEY", None),
         dashscope_api_key=getattr(module, "DASHSCOPE_API_KEY", None),
         llm_api_key=getattr(module, "LLM_API_KEY", None),
         openai_api_key=getattr(module, "OPENAI_API_KEY", None),
-        deepl_formality=getattr(module, "DEEPL_FORMALITY", "default"),
         terminology_enabled=getattr(module, "TERMINOLOGY_ENABLED", True),
     )

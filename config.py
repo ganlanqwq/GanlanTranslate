@@ -46,14 +46,15 @@ USE_INTERNATIONAL_ENDPOINT = False
 # 注意：'qwen'（Qwen3-ASR-Flash-Realtime）将于 2026-10-10 由阿里云下线，
 # 官方推荐替换为 Fun-ASR-Realtime（已更名为 Qwen-Audio-3.0-ASR 系列），
 # 即本项目中的 'qwen_audio3' 后端，故默认后端改为 'qwen_audio3'。
-PREFERRED_ASR_BACKEND = 'qwen_audio3'  # 可选: 'dashscope', 'qwen', 'qwen_audio3', 'soniox', 'doubao_file', 'local', 'custom_audio', 'custom_stt'
+PREFERRED_ASR_BACKEND = 'qwen_audio3'  # 可选: 'dashscope', 'qwen', 'qwen_audio3', 'local', 'custom_audio', 'custom_stt'
                                 # 注意: 'dashscope' (Fun-ASR) 仅支持中国大陆版
 
 # 有效的后端列表
-VALID_ASR_BACKENDS = {'dashscope', 'qwen', 'qwen_audio3', 'soniox', 'doubao_file', 'local', 'custom_audio', 'custom_stt'}
+VALID_ASR_BACKENDS = {'dashscope', 'qwen', 'qwen_audio3', 'local', 'custom_audio', 'custom_stt'}
 
-# 已废弃/即将下线的后端 → 迁移目标（阿里云 2026-10-10 下线 qwen3-asr-flash-realtime）
-DEPRECATED_ASR_BACKENDS = {'qwen': 'qwen_audio3'}
+# 已废弃/即将下线的后端 → 迁移目标（阿里云 2026-10-10 下线 qwen3-asr-flash-realtime；
+# 1.1.2 删掉了 Soniox、豆包录音文件识别，旧配置里的这两个换成默认的 Qwen-Audio-3）
+DEPRECATED_ASR_BACKENDS = {'qwen': 'qwen_audio3', 'soniox': 'qwen_audio3', 'doubao_file': 'qwen_audio3'}
 
 # ============================================================================
 # 语音识别模型配置
@@ -72,37 +73,11 @@ QWEN_ASR_URL = 'wss://dashscope.aliyuncs.com/api-ws/v1/realtime'
 QWEN_ASR_URL_INTERNATIONAL = 'wss://dashscope-intl.aliyuncs.com/api-ws/v1/realtime'
 
 # Qwen-Audio-3.0 后端使用的模型（与 Fun-ASR 共用 Recognition run-task 协议）
-QWEN_AUDIO3_ASR_MODEL = 'qwen-audio-3.0-asr-flash-streaming'
+QWEN_AUDIO3_ASR_MODEL = 'qwen-audio-3.1-asr-flash-streaming'
 
 # Recognition（run-task）协议的 WebSocket URL；国际版需要切到 dashscope-intl
 DASHSCOPE_RECOGNITION_URL = 'wss://dashscope.aliyuncs.com/api-ws/v1/inference'
 DASHSCOPE_RECOGNITION_URL_INTERNATIONAL = 'wss://dashscope-intl.aliyuncs.com/api-ws/v1/inference'
-
-# ============================================================================
-# Soniox 配置
-# ============================================================================
-
-# Soniox WebSocket URL
-SONIOX_WEBSOCKET_URL = 'wss://stt-rt.soniox.com/transcribe-websocket'
-
-# Soniox 模型
-SONIOX_MODEL = 'stt-rt-v3'
-
-# Soniox 语言提示（用于提高识别准确度）
-SONIOX_LANGUAGE_HINTS = ['en', 'zh', 'ja', 'ko']
-
-# 是否启用端点检测（自动断句）
-SONIOX_ENABLE_ENDPOINT_DETECTION = True
-
-# ============================================================================
-# 豆包录音文件识别（极速版）配置
-# ============================================================================
-
-DOUBAO_ASR_FLASH_URL = 'https://openspeech.bytedance.com/api/v3/auc/bigmodel/recognize/flash'
-DOUBAO_ASR_RESOURCE_ID = 'volc.seedasr.auc'
-DOUBAO_ASR_MODEL_NAME = 'bigmodel'
-DOUBAO_ASR_TIMEOUT_SECONDS = 60
-DOUBAO_ASR_MAX_BUFFER_SECONDS = 60
 
 # ============================================================================
 # 本地语音识别配置（默认值沿用 LiveTranslate）
@@ -219,15 +194,16 @@ def bump_config_applied_at_ms() -> int:
 # ============================================================================
 
 # 翻译 API 类型
-# 可选: 'google_web', 'google_dictionary', 'deepl', 'openrouter',
-#      'openrouter_streaming', 'openrouter_streaming_deepl_hybrid', 'qwen_mt'
+# 可选: 'google_web', 'google_dictionary', 'openrouter', 'openrouter_streaming', 'qwen_mt'
 # 注意:
 # - openrouter / openrouter_streaming 表示基于 OpenAI 兼容接口的 LLM 翻译
 # - openrouter_streaming 是 LLM 翻译的流式模式，支持翻译部分结果
-# - openrouter_streaming_deepl_hybrid 在静音触发终译时，按流式更新次数阈值决定
-#   使用 DeepL（更新次数较少）或 LLM（更新次数较多）进行最终翻译
 DEFAULT_TRANSLATION_API_TYPE = 'openrouter_streaming'
-DEFAULT_LLM_TEMPLATE = 'deepseek-v4-flash'
+# 1.1.2 删掉了 DeepL：旧配置里的 DeepL / LLM 流式 + DeepL 混合都换成 LLM 流式翻译
+DEPRECATED_TRANSLATION_API_TYPES = {
+    'deepl': 'openrouter_streaming',
+    'openrouter_streaming_deepl_hybrid': 'openrouter_streaming',
+}
 DEFAULT_LLM_BASE_URL = 'https://api.deepseek.com'
 DEFAULT_LLM_MODEL = 'deepseek-v4-flash'
 DEFAULT_LLM_EXTRA_BODY_JSON = '{"thinking": {"type": "disabled"}}'
@@ -239,7 +215,6 @@ TRANSLATION_API_TYPE = DEFAULT_TRANSLATION_API_TYPE
 # LLM（OpenAI 兼容接口）配置
 LLM_BASE_URL = DEFAULT_LLM_BASE_URL
 LLM_MODEL = DEFAULT_LLM_MODEL
-LLM_TEMPLATE = DEFAULT_LLM_TEMPLATE
 LLM_TRANSLATION_TEMPERATURE = 0.2
 LLM_TRANSLATION_TIMEOUT = 30
 LLM_TRANSLATION_MAX_RETRIES = 3
@@ -273,13 +248,8 @@ VRCHAT_MIC_USER_OPEN = None
 # 运行期凭据。WebUI 只会通过页面请求更新这些进程内字段，不会读取或写入
 # os.environ；旧版 CLI 则由 ``apply_cli_env`` 从 .env 显式填充。
 DASHSCOPE_API_KEY = ''
-DEEPL_API_KEY = ''
 LLM_API_KEY = ''
 OPENAI_API_KEY = ''
-SONIOX_API_KEY = ''
-DOUBAO_API_KEY = ''
-DOUBAO_APP_ID = ''
-DOUBAO_ACCESS_KEY = ''
 LLM_APP_URL = ''
 LLM_APP_TITLE = ''
 
@@ -332,7 +302,7 @@ SCREEN_TARGET_LANGUAGE = "zh-CN"
 SCREEN_HOTKEY = "Ctrl+Alt+F8"
 # 图像识别模型（OpenAI 兼容接口）。Key 留空时用 DASHSCOPE_API_KEY
 SCREEN_OCR_BASE_URL = "https://dashscope.aliyuncs.com/compatible-mode/v1"
-SCREEN_OCR_MODEL = "qwen-vl-ocr"
+SCREEN_OCR_MODEL = "qwen3.5-ocr"
 SCREEN_OCR_API_KEY = ""
 SCREEN_OCR_TIMEOUT = 30
 # 一次最多翻译多少段文字
@@ -344,17 +314,12 @@ DISPLAY_MODE = "desktop"
 VR_OVERLAY_UDP_PORT = 5012
 
 # 是否启用流式翻译（翻译部分结果）
-# 当 TRANSLATION_API_TYPE 为 'openrouter_streaming' 或
-# 'openrouter_streaming_deepl_hybrid' 时自动启用
+# 当 TRANSLATION_API_TYPE 为 'openrouter_streaming' 时自动启用
 TRANSLATE_PARTIAL_RESULTS = True
 
 # 触发流式中间翻译所需的最小文本长度（字符数）
 # 仅影响中间翻译触发，不影响最终整句翻译
 MIN_PARTIAL_TRANSLATION_CHARS = 2
-
-# 混合模式阈值：静音触发终译时，若本句已发送的流式翻译请求次数 <= 此值，优先用 DeepL 终译
-# 否则沿用 LLM 终译，降低译文大幅跳变的概率
-STREAMING_FINAL_DEEPL_MAX_UPDATES = 1
 
 # 是否为日语译文添加假名标注（仅目标语言为日语时生效）
 ENABLE_JA_FURIGANA = False
@@ -594,11 +559,10 @@ def apply_cli_env() -> None:
     global LOCAL_QWEN_LOG_PIPELINE_TIMING, LOCAL_QWEN_ENCODER_USE_DML
     global SAVE_POST_RESAMPLE_AUDIO, SAVE_PRE_RESAMPLE_AUDIO
     global DEBUG_AUDIO_OUTPUT_DIR, ENABLE_VAD_GATING_VERBOSE
-    global TRANSLATION_API_TYPE, LLM_BASE_URL, LLM_MODEL, LLM_TEMPLATE
+    global TRANSLATION_API_TYPE, LLM_BASE_URL, LLM_MODEL
     global LLM_TRANSLATION_FORMALITY, LLM_TRANSLATION_STYLE
     global OPENAI_COMPAT_EXTRA_BODY_JSON, TRANSLATE_PARTIAL_RESULTS
-    global DASHSCOPE_API_KEY, DEEPL_API_KEY, LLM_API_KEY, OPENAI_API_KEY
-    global SONIOX_API_KEY, DOUBAO_API_KEY, DOUBAO_APP_ID, DOUBAO_ACCESS_KEY
+    global DASHSCOPE_API_KEY, LLM_API_KEY, OPENAI_API_KEY
     global LLM_APP_URL, LLM_APP_TITLE
     global PANEL_WIDTH
     global OSC_SEND_TARGET_PORT, OSC_COMPAT_MODE, OSC_COMPAT_LISTEN_PORT
@@ -678,6 +642,9 @@ def apply_cli_env() -> None:
     TRANSLATION_API_TYPE = _read_first_env(
         'TRANSLATION_API_TYPE', default=TRANSLATION_API_TYPE
     )
+    TRANSLATION_API_TYPE = DEPRECATED_TRANSLATION_API_TYPES.get(
+        TRANSLATION_API_TYPE, TRANSLATION_API_TYPE
+    )
     LLM_BASE_URL = _read_first_env(
         'LLM_BASE_URL',
         'OPENAI_BASE_URL',
@@ -690,7 +657,6 @@ def apply_cli_env() -> None:
         'OPENROUTER_TRANSLATION_MODEL',
         default=LLM_MODEL,
     )
-    LLM_TEMPLATE = _read_first_env('LLM_TEMPLATE', default=LLM_TEMPLATE)
     LLM_TRANSLATION_FORMALITY = _read_first_env(
         'LLM_TRANSLATION_FORMALITY', default=LLM_TRANSLATION_FORMALITY
     ).lower()
@@ -702,20 +668,12 @@ def apply_cli_env() -> None:
     ).strip()
     TRANSLATE_PARTIAL_RESULTS = _read_env_bool(
         'TRANSLATE_PARTIAL_RESULTS',
-        TRANSLATION_API_TYPE in (
-            'openrouter_streaming',
-            'openrouter_streaming_deepl_hybrid',
-        ),
+        TRANSLATION_API_TYPE == 'openrouter_streaming',
     )
 
     DASHSCOPE_API_KEY = _read_first_env('DASHSCOPE_API_KEY')
-    DEEPL_API_KEY = _read_first_env('DEEPL_API_KEY')
     LLM_API_KEY = _read_first_env('LLM_API_KEY', 'OPENROUTER_API_KEY')
     OPENAI_API_KEY = _read_first_env('OPENAI_API_KEY')
-    SONIOX_API_KEY = _read_first_env('SONIOX_API_KEY')
-    DOUBAO_API_KEY = _read_first_env('DOUBAO_API_KEY')
-    DOUBAO_APP_ID = _read_first_env('DOUBAO_APP_ID')
-    DOUBAO_ACCESS_KEY = _read_first_env('DOUBAO_ACCESS_KEY')
     LLM_APP_URL = _read_first_env('LLM_APP_URL', 'OPENROUTER_APP_URL')
     LLM_APP_TITLE = _read_first_env('LLM_APP_TITLE', 'OPENROUTER_APP_TITLE')
 
@@ -770,7 +728,6 @@ def get_default_ui_config() -> dict:
             'secondary_target_language': None,
             'fallback_language': 'en',
             'api_type': DEFAULT_TRANSLATION_API_TYPE,
-            'llm_template': DEFAULT_LLM_TEMPLATE,
             'llm_base_url': DEFAULT_LLM_BASE_URL,
             'llm_model': DEFAULT_LLM_MODEL,
             'llm_translation_formality': DEFAULT_LLM_TRANSLATION_FORMALITY,

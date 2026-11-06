@@ -1,0 +1,134 @@
+/*
+ * 配色变量接管 tailwind.css 里写死的颜色（1.1.2 个性化配色）。
+ *
+ * tailwind.css 是预编译的，index.html 里的颜色类（bg-[#1F7A4D] 之类）都是写死的十六进制。
+ * 这里用同样的选择器、放在 tailwind.css 后面加载，把它们换成 style.css 第 1 节的变量。
+ * 默认配色下变量就等于原来的值，样子完全不变；theme.js 改变量后整页跟着变。
+ * index.html 里新写了别的颜色类，要在这里补一条。
+ */
+
+/* ---------- 底色 ---------- */
+.bg-\[\#FFFFFF\] { background-color: var(--surface); }
+.bg-\[\#FBFCFA\] { background-color: var(--bg); }
+.bg-\[\#F4F7F3\] { background-color: var(--surface-hover); }
+.bg-\[\#E4F2E8\] { background-color: var(--green-50); }
+.bg-\[\#E7F2EA\] { background-color: var(--green-75); }
+.bg-\[\#E3EAE1\] { background-color: var(--line); }
+.bg-\[\#CBD9C7\] { background-color: var(--line-strong); }
+.bg-\[\#1F7A4D\] { background-color: var(--green-600); }
+.bg-\[\#5FC08D\] { background-color: var(--green-400); }
+.bg-\[\#0D2016\] { background-color: var(--console-bg); }
+
+/* ---------- 文字 ---------- */
+.text-\[\#12261A\] { color: var(--ink); }
+.text-\[\#3F5B49\] { color: var(--ink-2); }
+.text-\[\#5E7A6A\] { color: var(--ink-mid); }
+.text-\[\#7C9285\] { color: var(--ink-3); }
+.text-\[\#8FA79B\] { color: var(--ink-soft); }
+.text-\[\#0D3A23\] { color: var(--green-900); }
+.text-\[\#1F7A4D\],
+.hover\:text-\[\#1F7A4D\]:hover { color: var(--green-600); }
+.text-\[\#8FDCB4\] { color: var(--hero-accent); }
+.text-\[\#7FD3A6\] { color: var(--hero-accent-2); }
+.text-\[\#C7DFD0\] { color: var(--console-ink); }
+.placeholder\:text-\[\#9AAFA1\]::placeholder { color: var(--ink-4); }
+/* 主题色按钮上的字：主题色很浅时 theme.js 会把 --on-accent 换成深色 */
+.bg-\[\#1F7A4D\].text-\[\#FFFFFF\] { color: var(--on-accent); }
+
+/* ---------- 描边 ---------- */
+.border-\[\#E3EAE1\],
+.\[border-color\:\#E3EAE1\] { border-color: var(--line); }
+.\[outline\:1px_solid_\#E3EAE1\] { outline-color: var(--line); }
+.\[outline\:1px_solid_\#CBD9C7\],
+.\[outline\:1\.5px_solid_\#CBD9C7\] { outline-color: var(--line-strong); }
+.\[outline\:1\.5px_solid_\#1F7A4D\],
+.focus\:\[outline\:1\.5px_solid_\#1F7A4D\]:focus { outline-color: var(--green-600); }
+.\[outline\:1px_solid_\#5FC08D\] { outline-color: var(--green-400); }
+
+/* ---------- tailwind.css 里手写的几条组件样式 ---------- */
+.logs-scroll::-webkit-scrollbar-track { background: var(--console-bg); }
+.logs-scroll::-webkit-scrollbar-thumb { background: var(--console-thumb); }
+.language-combo-menu { background: var(--surface); border-color: var(--line-strong); }
+.language-combo-option { color: var(--ink); }
+.language-combo-option:hover { background: var(--surface-hover); }
+.language-combo-option.active { background: var(--green-50); color: var(--green-900); }
+.toast-area .message.success { background: var(--green-50); border-color: var(--line-strong); color: var(--green-900); }
+.status-dot { background-color: var(--ink-3); }
+.status-dot.running { background-color: var(--green-400); }
+.simple-translation-mode-btn.active { background-color: var(--green-600) !important; color: var(--on-accent) !important; }
+.local-asr-status-box[data-state=ready] { background-color: var(--green-50); border-color: var(--line-strong); color: var(--green-900); }
+.secret-visibility-toggle,
+.language-combo-clear { color: var(--ink-3); }
+.secret-visibility-toggle:hover,
+.language-combo-clear:hover { color: var(--green-600); }
+.peer:checked + span { background-color: var(--green-600) !important; outline-color: var(--green-600) !important; color: var(--on-accent); }
+.peer:focus-visible + span { outline-color: var(--green-600); }
+
+/* 折叠卡片右边的小箭头（SVG 里写死了 stroke） */
+.collapse-icon svg path[stroke="#7C9285"] { stroke: var(--ink-3); }
+
+/* ---------- 换配色时的过渡（1.1.2，岚：换配色时加一点过渡，让颜色有一个变化的过程） ----------
+   把配色变量注册成颜色，浏览器才能在两个颜色之间插值；所有用 var() 的地方（包括渐变、阴影）一起慢慢变。
+   只在 personalize.js 换色时给 <html> 加 gl-theme-animating，打开页面时不播。 */
+@property --bg { syntax: '<color>'; inherits: true; initial-value: #FBFCFA; }
+@property --surface { syntax: '<color>'; inherits: true; initial-value: #FFFFFF; }
+@property --surface-soft { syntax: '<color>'; inherits: true; initial-value: #F5F8F4; }
+@property --surface-tint { syntax: '<color>'; inherits: true; initial-value: #EEF5F0; }
+@property --surface-hover { syntax: '<color>'; inherits: true; initial-value: #F4F7F3; }
+@property --green-50 { syntax: '<color>'; inherits: true; initial-value: #E4F2E8; }
+@property --green-75 { syntax: '<color>'; inherits: true; initial-value: #E7F2EA; }
+@property --green-100 { syntax: '<color>'; inherits: true; initial-value: #CFE6D7; }
+@property --green-400 { syntax: '<color>'; inherits: true; initial-value: #5FC08D; }
+@property --green-500 { syntax: '<color>'; inherits: true; initial-value: #2E8F5E; }
+@property --green-600 { syntax: '<color>'; inherits: true; initial-value: #1F7A4D; }
+@property --green-700 { syntax: '<color>'; inherits: true; initial-value: #17643E; }
+@property --green-900 { syntax: '<color>'; inherits: true; initial-value: #0D3A23; }
+@property --ink { syntax: '<color>'; inherits: true; initial-value: #12261A; }
+@property --ink-2 { syntax: '<color>'; inherits: true; initial-value: #3F5B49; }
+@property --ink-mid { syntax: '<color>'; inherits: true; initial-value: #5E7A6A; }
+@property --ink-3 { syntax: '<color>'; inherits: true; initial-value: #7C9285; }
+@property --ink-soft { syntax: '<color>'; inherits: true; initial-value: #8FA79B; }
+@property --ink-4 { syntax: '<color>'; inherits: true; initial-value: #9AAFA1; }
+@property --line { syntax: '<color>'; inherits: true; initial-value: #E3EAE1; }
+@property --line-strong { syntax: '<color>'; inherits: true; initial-value: #CBD9C7; }
+@property --hero-accent { syntax: '<color>'; inherits: true; initial-value: #8FDCB4; }
+@property --hero-accent-2 { syntax: '<color>'; inherits: true; initial-value: #7FD3A6; }
+@property --hero-shade { syntax: '<color>'; inherits: true; initial-value: #0A2115; }
+@property --console-bg { syntax: '<color>'; inherits: true; initial-value: #0D2016; }
+@property --console-ink { syntax: '<color>'; inherits: true; initial-value: #C7DFD0; }
+@property --console-thumb { syntax: '<color>'; inherits: true; initial-value: #24402F; }
+@property --on-accent { syntax: '<color>'; inherits: true; initial-value: #FFFFFF; }
+
+@media (prefers-reduced-motion: no-preference) {
+  :root.gl-theme-animating {
+    transition:
+    --bg 0.45s ease,
+    --surface 0.45s ease,
+    --surface-soft 0.45s ease,
+    --surface-tint 0.45s ease,
+    --surface-hover 0.45s ease,
+    --green-50 0.45s ease,
+    --green-75 0.45s ease,
+    --green-100 0.45s ease,
+    --green-400 0.45s ease,
+    --green-500 0.45s ease,
+    --green-600 0.45s ease,
+    --green-700 0.45s ease,
+    --green-900 0.45s ease,
+    --ink 0.45s ease,
+    --ink-2 0.45s ease,
+    --ink-mid 0.45s ease,
+    --ink-3 0.45s ease,
+    --ink-soft 0.45s ease,
+    --ink-4 0.45s ease,
+    --line 0.45s ease,
+    --line-strong 0.45s ease,
+    --hero-accent 0.45s ease,
+    --hero-accent-2 0.45s ease,
+    --hero-shade 0.45s ease,
+    --console-bg 0.45s ease,
+    --console-ink 0.45s ease,
+    --console-thumb 0.45s ease,
+    --on-accent 0.45s ease;
+  }
+}

@@ -14,7 +14,7 @@ import sys
 from typing import Callable, Optional
 
 from PySide6.QtCore import QEvent, QFile, QIODevice, QObject, QPoint, QPointF, QRectF, QStandardPaths, QUrl, Qt, QTimer, Slot
-from PySide6.QtGui import QCloseEvent, QIcon
+from PySide6.QtGui import QCloseEvent, QDesktopServices, QIcon
 from PySide6.QtWidgets import QFileDialog, QMainWindow, QVBoxLayout, QWidget
 
 try:
@@ -30,8 +30,6 @@ if FRAMELESS:
 
 DEFAULT_UI_URL = "http://127.0.0.1:5001/"
 
-# 没最大化时窗口四周 1px 的边
-WINDOW_BORDER = "#2A4636"
 # 网页还没告诉我们之前（还在加载），最上面这么高（逻辑像素）一条先当拖动区
 DEFAULT_DRAG_HEIGHT = 32
 
@@ -92,13 +90,39 @@ def release_persistent_profile() -> None:
         _PROFILE = None
 
 
+def is_external_url(url: QUrl) -> bool:
+    """本机控制页以外的 http(s) 网址（GitHub、各家 API 控制台）。"""
+    return url.scheme() in ("http", "https") and url.host().lower() not in ("127.0.0.1", "localhost", "")
+
+
+class _ExternalLinkPage(QWebEnginePage):
+    """网页里 target=_blank 的链接 / window.open：不在窗口里开新页面，交给系统浏览器。"""
+
+    def acceptNavigationRequest(self, url, nav_type, is_main_frame):  # noqa: N802
+        if url.isEmpty() or url.scheme() == "about":
+            return True   # 新页面先是空白页，真正的网址随后才来
+        if is_external_url(url):
+            QDesktopServices.openUrl(url)
+        self.deleteLater()
+        return False
+
+
 class _QuietPage(QWebEnginePage):
-    """抑制无关控制台噪音，保留页面功能。"""
+    """抑制无关控制台噪音，保留页面功能。外部链接用系统浏览器打开（1.1.2「软件信息」页的 GitHub 链接）。"""
 
     def javaScriptConsoleMessage(self, level, message, lineNumber, sourceID):  # noqa: N802
         # 开发时可取消注释：
         # print(f"[web] {message} ({sourceID}:{lineNumber})")
         return
+
+    def acceptNavigationRequest(self, url, nav_type, is_main_frame):  # noqa: N802
+        if is_main_frame and is_external_url(url):
+            QDesktopServices.openUrl(url)
+            return False
+        return super().acceptNavigationRequest(url, nav_type, is_main_frame)
+
+    def createWindow(self, window_type):  # noqa: N802
+        return _ExternalLinkPage(self.profile(), self)
 
 
 def _qwebchannel_script() -> Optional[QWebEngineScript]:
@@ -281,14 +305,14 @@ class MainWindow(QMainWindow):
         )
 
     def _sync_frame_border(self) -> None:
-        """没最大化时四周留 1px 的边（中间那层的底色就是边的颜色），最大化时贴满屏幕。"""
+        """网页铺满整个窗口，四周不留边。
+
+        以前没最大化时四周留 1px 深绿描边（WINDOW_BORDER），1.1.2 岚：「窗口边框有一圈深绿色细描边，删掉」。
+        窗口外面的阴影还是系统画的（window_frame 里 DwmExtendFrameIntoClientArea）。
+        """
         frame = self._frame_layout.parentWidget()
-        if not FRAMELESS:
-            frame.setStyleSheet("#windowFrame { background: #0A2115; }")
-            return
-        width = 0 if self.isMaximized() or self.isFullScreen() else 1
-        self._frame_layout.setContentsMargins(width, width, width, width)
-        frame.setStyleSheet(f"#windowFrame {{ background: {WINDOW_BORDER}; }}")
+        self._frame_layout.setContentsMargins(0, 0, 0, 0)
+        frame.setStyleSheet("#windowFrame { background: #0A2115; }")
 
     def _on_download_requested(self, download) -> None:
         """网页里的下载（导出预设等）：让用户选保存位置。"""

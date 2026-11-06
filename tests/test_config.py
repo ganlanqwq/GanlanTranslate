@@ -26,7 +26,6 @@ class TestTranslationConfig:
         assert cfg.smart_target_secondary_enabled is False
         assert cfg.smart_target_strategy == "most_common"
         assert cfg.proxy_url is None
-        assert cfg.deepl_api_key is None
         assert cfg.dashscope_api_key is None
         assert cfg.llm_api_key is None
 
@@ -34,17 +33,17 @@ class TestTranslationConfig:
         cfg = TranslationConfig(
             target_language="de",
             source_language="en",
-            translation_api_type="deepl",
+            translation_api_type="qwen_mt",
             proxy_url="http://localhost:7890",
-            deepl_api_key="test-key",
+            dashscope_api_key="test-key",
             smart_target_primary_enabled=True,
             translation_context_size=10,
         )
         assert cfg.target_language == "de"
         assert cfg.source_language == "en"
-        assert cfg.translation_api_type == "deepl"
+        assert cfg.translation_api_type == "qwen_mt"
         assert cfg.proxy_url == "http://localhost:7890"
-        assert cfg.deepl_api_key == "test-key"
+        assert cfg.dashscope_api_key == "test-key"
         assert cfg.smart_target_primary_enabled is True
         assert cfg.translation_context_size == 10
 
@@ -75,10 +74,10 @@ class TestConfigFromModule:
     def test_partial_module(self):
         class PartialModule:
             TARGET_LANGUAGE = "fr"
-            TRANSLATION_API_TYPE = "deepl"
+            TRANSLATION_API_TYPE = "qwen_mt"
         cfg = config_from_module(PartialModule)
         assert cfg.target_language == "fr"
-        assert cfg.translation_api_type == "deepl"
+        assert cfg.translation_api_type == "qwen_mt"
         assert cfg.source_language == "auto"  # default
 
     def test_full_module(self):
@@ -137,7 +136,6 @@ class TestConfigFromModule:
 
     def test_does_not_read_runtime_api_keys_from_environment(self, monkeypatch):
         monkeypatch.setenv("LLM_API_KEY", "llm-key")
-        monkeypatch.setenv("DEEPL_API_KEY", "deepl-key")
         monkeypatch.setenv("DASHSCOPE_API_KEY", "dashscope-key")
 
         class Empty:
@@ -146,17 +144,14 @@ class TestConfigFromModule:
         cfg = config_from_module(Empty)
 
         assert cfg.llm_api_key is None
-        assert cfg.deepl_api_key is None
         assert cfg.dashscope_api_key is None
 
     def test_reads_runtime_api_keys_from_module(self):
         class RuntimeConfig:
             LLM_API_KEY = "llm-key"
-            DEEPL_API_KEY = "deepl-key"
             DASHSCOPE_API_KEY = "dashscope-key"
 
         cfg = config_from_module(RuntimeConfig)
 
         assert cfg.llm_api_key == "llm-key"
-        assert cfg.deepl_api_key == "deepl-key"
         assert cfg.dashscope_api_key == "dashscope-key"

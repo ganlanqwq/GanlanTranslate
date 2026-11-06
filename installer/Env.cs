@@ -34,6 +34,7 @@ namespace GanlanSetup
         {
             "presets.json", "plugins", "hot_words_private", "terminology_private",
             "models", "local_asr_models", @"vr_overlay\settings.json",
+            "personalization.json", "personalization",
         };
 
         /// <summary>程序运行时自己生成、不算用户数据的文件，卸载时一起删。</summary>

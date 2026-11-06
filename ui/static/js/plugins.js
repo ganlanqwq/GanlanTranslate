@@ -251,6 +251,7 @@
             control = el('textarea', 'word-textarea plugin-textarea');
             control.value = value == null ? '' : String(value);
             control.maxLength = field.max_length || 20000;
+            if (field.rows) control.rows = field.rows;
             control.addEventListener('input', () => { draft[field.key] = control.value; markDirty(plugin.id); });
         } else {
             control = el('input', INPUT_CLASS);
@@ -516,26 +517,31 @@
         overlay.classList.toggle('show', show);
     }
 
+    // 「个性化 → 首页」页上拖进来的是首页图片，由 personalize.js 接，这里不管（1.1.2）
+    function heroPageActive() {
+        return Boolean(window.GanlanUiPages && window.GanlanUiPages.getPage() === 'hero');
+    }
+
     function initDragAndDrop() {
         window.addEventListener('dragenter', (event) => {
-            if (!hasFiles(event)) return;
+            if (!hasFiles(event) || heroPageActive()) return;
             event.preventDefault();
             dragDepth += 1;
             showOverlay(true);
         });
         window.addEventListener('dragover', (event) => {
-            if (!hasFiles(event)) return;
+            if (!hasFiles(event) || heroPageActive()) return;
             // 不拦的话，文件掉在页面上浏览器会直接打开或下载它
             event.preventDefault();
             event.dataTransfer.dropEffect = 'copy';
         });
         window.addEventListener('dragleave', (event) => {
-            if (!hasFiles(event)) return;
+            if (!hasFiles(event) || heroPageActive()) return;
             dragDepth = Math.max(0, dragDepth - 1);
             if (dragDepth === 0) showOverlay(false);
         });
         window.addEventListener('drop', (event) => {
-            if (!hasFiles(event)) return;
+            if (!hasFiles(event) || heroPageActive()) return;
             event.preventDefault();
             dragDepth = 0;
             showOverlay(false);

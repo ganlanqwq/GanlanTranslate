@@ -30,6 +30,7 @@ Also included:
 - **VR wrist subtitles**: read translations with your headset on. Raise your wrist in SteamVR to see them, and switch modes or languages from the SteamVR dashboard.
 - **Words**: add your own recognition hot words (friends' names, world names, community slang) and decide how specific words should be translated.
 - **Plugins**: drop a .zip plugin package onto the window to install it; each plugin can be turned on or off, configured and deleted on its own.
+- **Personalize**: change the theme color (the whole palette follows), the home image (with cropping) and the home text, and export these settings on their own.
 - **Four UI languages**: Simplified Chinese, English, Japanese and Korean. Follows your Windows display language by default.
 
 ## Features
@@ -37,7 +38,7 @@ Also included:
 ### Self translation
 
 - **Translates while you speak**: streaming LLM translation lets others see the meaning before you finish the sentence. This uses more tokens and can be turned off.
-- **Choice of speech recognition**: Qwen-Audio-3 on Alibaba Cloud Model Studio by default. You can also choose Qwen3 ASR, Fun-ASR, Soniox or Doubao, or use any OpenAI-compatible speech endpoint (a multimodal LLM that can listen, or a Whisper-compatible transcription API).
+- **Choice of speech recognition**: Bailian mode uses real-time Qwen-Audio-3 on Alibaba Cloud Model Studio; OpenAI-compatible mode works with any Whisper-compatible transcription endpoint (`/audio/transcriptions`).
 - **Translation by LLM**: any OpenAI-compatible endpoint works, for example Model Studio's compatible mode, DeepSeek or OpenRouter. You can set the formality (chatting with friends / first meeting / very polite) and sentence style.
 - **Two languages at once**: set a second output language to show two translations in the chatbox. You can also set a fallback language that is used when you are already speaking the target language.
 - **Follows your VRChat mic**: nothing is recognized (and nothing is billed) while you are muted in VRChat; recognition starts when you unmute. Toggling the mic twice within 0.8 seconds clears the chatbox (this can be turned off in Advanced).
@@ -54,7 +55,7 @@ Also included:
 ### Translate screen
 
 - Press the global hotkey (default `Ctrl+Alt+F8`) or the camera button on the screen overlay to capture the VRChat window once. It works even if VRChat is covered by other windows (but not when it is minimized).
-- A vision model reads the text in the capture (Qwen OCR `qwen-vl-ocr` by default, or any OpenAI-compatible model that can see images). A sentence that wraps onto several lines on screen is joined back into one block, then each block is labeled with its language and translated.
+- A vision model reads the text in the capture (Qwen OCR `qwen3.5-ocr` by default, `qwen-vl-ocr` on the international site, or any OpenAI-compatible model that can see images). A sentence that wraps onto several lines on screen is joined back into one block, then each block is labeled with its language and translated.
 - Handy for signs, menus and instructions inside worlds.
 
 ### VR wrist subtitles (SteamVR)
@@ -74,13 +75,20 @@ Also included:
 
 - A plugin is a .zip package whose `plugin.json` records its name, version, author and settings. Drop it onto the Ganlan Translate window (any page works), or click **Import plugin** on the **Plugins** page.
 - On the **Plugins** page you can enable, disable and delete plugins, and the gear button opens each plugin's own settings. **Info → App info** lists the installed plugins and opens the plugins folder.
-- Plugins can change what you said before it is translated (anything they add gets translated too), change the text sent to the chatbox, and receive every translation. The example plugin, "Chatbox Prefix & Suffix", adds your own text before and after every sentence you say.
+- Plugins can change what you said before it is translated (anything they add gets translated too), change the text sent to the chatbox, and receive every translation. The example plugin, "Chatbox Prefix & Suffix", adds your own text before and after every sentence you say. The "Voice Control" plugin lets you start / stop translation, translate the screen once, change the main and second language and set the VR wrist cards by voice (fixed phrases, or say a wake word and let the LLM work out what you mean); the command itself is not translated or sent to the chatbox.
 - Plugins live in the `plugins` folder next to the program and are left alone when you upgrade. Plugins can run code, so only install ones you trust.
-- To write your own, see the [plugin guide](docs/插件开发.md) (in Chinese) and the example in [`docs/plugin-example/`](docs/plugin-example/).
+- To write your own, see the [plugin guide](docs/插件开发.md) (in Chinese) and the examples in [`docs/plugin-example/`](docs/plugin-example/) and [`docs/plugin-voice-control/`](docs/plugin-voice-control/).
+
+### Personalize
+
+- In **Personalize → Colors**, pick a preset or your own theme color (type a hex code or use the color picker). The whole palette follows the theme color while text contrast stays the same; background, cards, text, the home accent and the home overlay can also be set on their own.
+- In **Personalize → Home**, change the home image: crop it after choosing (Banner 5:2, Wide 16:9, Ultrawide 21:9) and crop again later if you like; the overlay strength is adjustable. The small heading, the two title lines and the description can be replaced with your own words.
+- Personalization is stored on its own in `personalization.json` and the `personalization` folder in the program folder, separate from presets. Export it as a single file (images included) and import it on another PC.
 
 ### More
 
-- **Presets**: save a whole set of settings as a preset, switch between presets at any time, or export them to a file to share with friends. Presets never contain API keys.
+- **Presets**: save a whole set of settings as a preset, switch between presets at any time, or export them to a file to share with friends. The exported file is named after the preset (for example `test.json`). API keys are left out by default; to include them you have to tick the option and confirm three warnings, and the keys are stored as plain text.
+- **Run log**: the **Analyze errors** button in **Run Logs** on the **Core** page checks the log with built-in rules when no API key is filled in, and otherwise asks your translation model to explain the cause and fix in a pop-up (keys are removed before sending). **Info → App info** can export the log so you can send it to the developer.
 - **Overlays**: the self, others and screen overlays open separately and can float on top of other windows.
 - **Tray**: closing the main window only minimizes it to the tray. Opening the program again brings back the existing window instead of starting a second copy. Right-click the tray icon to start or stop each mode and open or close each overlay.
 
@@ -94,14 +102,14 @@ Requirements: Windows 10 / 11 (64-bit). VR wrist subtitles need SteamVR.
 
 When you install over a beta version (program name `GanLan.exe`), your presets, custom hot words and terms, VR companion settings and downloaded models are moved to the new folder automatically, and the old folder is removed.
 
-To uninstall, click **Uninstall…** in **Info → App info**, or uninstall from **Settings → Apps** in Windows. You can choose to keep your presets, plugins, custom hot words and terms, and downloaded models (they are kept by default).
+To uninstall, click **Uninstall…** in **Info → App info**, or uninstall from **Settings → Apps** in Windows. You can choose to keep your presets, plugins, personalization, custom hot words and terms, and downloaded models (they are kept by default).
 
 ## Quick start
 
-1. **Get your keys**
-   - An Alibaba Cloud Model Studio (DashScope) key: used by the default speech recognition and screen text recognition. Create one in the [Model Studio console](https://modelstudio.console.aliyun.com/ap-southeast-1?tab=doc#/api-key); new accounts usually get a free quota. For keys from the international site, tick **International**.
-   - A key for the translation LLM: any OpenAI-compatible endpoint works. For Model Studio (international), use the base URL `https://dashscope-intl.aliyuncs.com/compatible-mode/v1` and a model such as `qwen-plus`.
-2. **Enter them in the app**: open Ganlan Translate and fill in the keys, the LLM base URL and the model name on the **Core** page. Settings are saved automatically.
+1. **Get a key**: the easiest way is to create an Alibaba Cloud Model Studio (Bailian / DashScope) API key in the [Model Studio console](https://modelstudio.console.aliyun.com/ap-southeast-1?tab=doc#/api-key); new accounts usually get a free quota.
+2. **Enter it in the app**: open Ganlan Translate and pick a mode under **Core → API settings**. Settings are saved automatically.
+   - **Bailian** (recommended): one Bailian key covers speech recognition, translation and image recognition; no addresses to fill in. Tick **International** for keys from the international site. The three models are under **Models** and can be changed.
+   - **OpenAI-compatible**: fill in the endpoint, key and model separately for speech recognition, translation and image recognition (e.g. DeepSeek, OpenAI, OpenRouter); speech recognition needs a Whisper-style `/audio/transcriptions` endpoint.
 3. **Turn on OSC in VRChat**: Action Menu → `Options` → `OSC` → `Enable`.
 4. **Set your languages**: set the target language on the **Self translation** page (for example `ja` or `en`), and the language you want to read on the **Translate others** and **Translate screen** pages (for example `en`).
 5. **Start**: start the modes you need from the service card in the top right, or click **Start all**. Click **Overlay** on the right of each row when you want to see the translations.
@@ -110,9 +118,9 @@ Stop the service when you are not using it, so it doesn't keep using your recogn
 
 ## Data and privacy
 
-- API keys are stored only in the program on your PC. They are never written into preset files and never sent anywhere except to the matching service provider.
+- API keys are stored only in the program on your PC. They are never written into preset files and never sent anywhere except to the matching service provider. If you choose to include keys when exporting a preset, they are stored in the file as plain text — only use such files between your own PCs.
 - Your voice, screenshots and text are only sent to the recognition / translation / image recognition services you configure (plus Google Translate when **Reverse Translation** is enabled).
-- Presets, hot words, terms and VR settings are stored in the install folder and are kept when you upgrade.
+- Presets, hot words, terms, VR settings, plugins and personalization are stored in the install folder and are kept when you upgrade.
 - Plugins run inside the Ganlan Translate process and can read and write files and use the network. Do not install plugins from unknown sources.
 
 ## FAQ
@@ -122,7 +130,7 @@ Stop the service when you are not using it, so it doesn't keep using your recogn
 
 - Self translation only listens while VRChat is running and your mic is on. Check that VRChat is running, OSC is enabled, and you are not muted in the game.
 - Check that the right microphone is selected on the **Self translation** page.
-- Look at **Run Logs** at the bottom of the **Core** page. Errors are shown there.
+- Look at **Run Logs** on the **Core** page. Errors are shown there; click **Analyze errors** to see the cause and how to fix it.
 
 </details>
 
@@ -207,7 +215,9 @@ The installer is written to `build_installer\GanlanTranslate-Setup-<version>.exe
 | `others_pipeline.py`, `speaker_id.py` | Translate others, speaker labels |
 | `screen_translation.py` | Translate screen |
 | `vr_overlay/`, `vr_bridge.py` | SteamVR wrist subtitles and dashboard page |
-| `plugin_manager.py`, `docs/插件开发.md`, `docs/plugin-example/` | Plugins: loading and management, developer guide, example plugin |
+| `plugin_manager.py`, `docs/插件开发.md`, `docs/plugin-example/`, `docs/plugin-voice-control/` | Plugins: loading and management, developer guide, example plugin, Voice Control plugin |
+| `personalization.py`, `ui/static/js/personalize.js`, `ui/static/js/theme.js` | Personalization: colors, home image and text |
+| `log_tools.py` | Log export and **Analyze errors** |
 | `speech_recognizers/`, `streaming_translation/` | Speech recognition and translation providers |
 | `hot_words/`, `terminology/` | Built-in hot words and terms |
 | `tailwind_build/` | Tailwind setup for rebuilding the UI styles |

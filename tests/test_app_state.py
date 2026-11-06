@@ -13,7 +13,6 @@ class TestAppState:
         assert state.translator is None
         assert state.secondary_translator is None
         assert state.backwards_translator is None
-        assert state.deepl_fallback_translator is None
         assert state.translation_api_type is None
         assert state.target_language is None
         assert state.secondary_target_language is None

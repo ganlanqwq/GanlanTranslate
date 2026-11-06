@@ -18,7 +18,7 @@ TERMINOLOGY_PRIVATE_DIR = 'terminology_private'
 
 # 与 HotWordsManager.ENABLED_LANGUAGES 一致：只有这几种文件会被识别加载
 HOT_WORD_LANGUAGES = ('zh-cn', 'en', 'ja')
-HOT_WORDS_LIMIT = 500   # HotWordsManager / Soniox 都只取前 500 个
+HOT_WORDS_LIMIT = 500   # HotWordsManager 只取前 500 个
 
 # 按译文语言分文件（文件名 = 翻译时的目标语言代码）
 TERM_LANGUAGES = ('ja', 'en', 'zh-CN', 'zh-TW', 'ko', 'ru', 'es', 'fr', 'de', 'pt', 'it', 'id')

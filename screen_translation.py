@@ -37,6 +37,20 @@ OCR_PROMPT = (
     "If there is no readable text, output nothing."
 )
 
+# qwen-vl-ocr / qwen3.5-ocr 这类专门的 OCR 模型用阿里云文档里的提示词：2026-11 岚本机 qwen-vl-ocr
+# 对上面那段长提示词只回文字位置（「50,88,15,18,90 …」），一个字都没有
+OCR_MODEL_PROMPT = "Please output only the text content from the image without any additional descriptions or formatting."
+_COORD_TOKEN = re.compile(r"^-?\d+(?:\.\d+)?(?:,-?\d+(?:\.\d+)?){2,}$")
+
+
+def _is_ocr_model(model: str) -> bool:
+    return "ocr" in str(model or "").lower()
+
+
+def _only_coordinates(content: str) -> bool:
+    tokens = str(content or "").split()
+    return bool(tokens) and all(_COORD_TOKEN.match(t.strip(",;")) for t in tokens)
+
 # 长边超过这个值就缩小再上传，避免图太大拖慢识别
 MAX_UPLOAD_SIDE = 2560
 # 同时翻译的段数
@@ -257,12 +271,17 @@ def _ocr_base_url() -> str:
 # 阿里云已经下线的模型名 → 现在的名字。2026-10-11 岚本机：qwen-vl-ocr-latest 返回 404「Model not exist」，
 # 官方文档里只剩 qwen-vl-ocr（稳定版）、qwen-vl-ocr-2025-11-20、qwen3.5-ocr。浏览器里存的旧名字照样能用。
 _RETIRED_OCR_MODELS = {"qwen-vl-ocr-latest": "qwen-vl-ocr"}
-DEFAULT_OCR_MODEL = "qwen-vl-ocr"
+DEFAULT_OCR_MODEL = "qwen3.5-ocr"
+# 国际版（新加坡）没有 qwen3.5-ocr，只有 qwen-vl-ocr
+_INTL_OCR_FALLBACK = {"qwen3.5-ocr": "qwen-vl-ocr"}
 
 
 def _ocr_model() -> str:
     model = (getattr(config, "SCREEN_OCR_MODEL", "") or "").strip() or DEFAULT_OCR_MODEL
-    return _RETIRED_OCR_MODELS.get(model, model)
+    model = _RETIRED_OCR_MODELS.get(model, model)
+    if _ocr_base_url().rstrip("/") == INTL_DASHSCOPE_COMPAT_URL:
+        model = _INTL_OCR_FALLBACK.get(model, model)
+    return model
 
 
 def _ocr_api_key() -> str:
@@ -297,17 +316,28 @@ def recognize_text(image) -> list[str]:
 
     refresh_system_proxy_env()
     client = OpenAI(api_key=api_key, base_url=_ocr_base_url(), timeout=timeout)
-    try:
-        resp = client.chat.completions.create(
+    data_url = _image_to_data_url(image)
+
+    def ask(prompt: str):
+        return client.chat.completions.create(
             model=model,
             messages=[{
                 "role": "user",
                 "content": [
-                    {"type": "image_url", "image_url": {"url": _image_to_data_url(image)}},
-                    {"type": "text", "text": OCR_PROMPT},
+                    {"type": "image_url", "image_url": {"url": data_url}},
+                    {"type": "text", "text": prompt},
                 ],
             }],
         )
+
+    try:
+        prompt = OCR_MODEL_PROMPT if _is_ocr_model(model) else OCR_PROMPT
+        resp = ask(prompt)
+        first = (resp.choices[0].message.content or "") if resp.choices else ""
+        if _only_coordinates(first):
+            # 只回了文字位置：换另一段提示词再问一次
+            print(f"[Screen] 识别模型「{model}」只回了文字位置，换提示词再试一次")
+            resp = ask(OCR_PROMPT if prompt == OCR_MODEL_PROMPT else OCR_MODEL_PROMPT)
     except Exception as exc:
         text = str(exc)
         if "model_not_found" in text or "Model not exist" in text:
@@ -322,7 +352,27 @@ def recognize_text(image) -> list[str]:
         except Exception:
             pass
     content = (resp.choices[0].message.content or "") if resp.choices else ""
-    return split_blocks(content)
+    if _only_coordinates(content):
+        raise RuntimeError(f"识别模型「{model}」只返回了文字的位置、没有文字，换一个图像识别模型试试")
+    blocks = split_blocks(content)
+    if not blocks:
+        # 以前只打「画面里没有识别到文字」，看不出是模型没认出来、回了别的，还是截到的画面是空的
+        reply = " ".join(str(content).split())[:160]
+        if reply:
+            print(f"[Screen] 识别模型「{model}」的回复里没有可用的文字：{reply}")
+        else:
+            print(f"[Screen] 识别模型「{model}」返回了空内容（不支持图片的模型常这样）")
+        if _looks_blank(image):
+            print("[Screen] 截到的画面几乎是一种颜色（VRChat 窗口可能最小化了，或是独占全屏）")
+    return blocks
+
+
+def _looks_blank(image) -> bool:
+    try:
+        lo, hi = image.convert("L").getextrema()
+        return hi - lo < 10
+    except Exception:
+        return False
 
 
 # 识别模型（尤其 qwen-vl-ocr）常常不管提示词，照画面一行一行输出，一句话被折行拆成好几段。
@@ -524,7 +574,6 @@ async def translate_screen_once(state) -> None:
             def _do():
                 return translate_with_backend(
                     translator,
-                    getattr(state, "deepl_fallback_translator", None),
                     item["original"],
                     target_lang,
                     detected_source_language=None if lang == "und" else lang,

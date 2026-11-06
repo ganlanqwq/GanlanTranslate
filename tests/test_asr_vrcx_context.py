@@ -272,29 +272,6 @@ def test_qwen_audio3_context_rounds_respect_server_limits():
     assert packed == ["\n".join(["short line"] * 5)]
 
 
-def test_soniox_config_merges_vrcx_context_with_existing_context(monkeypatch):
-    import speech_recognizers.soniox_speech_recognizer as soniox_mod
-
-    _store_vrcx_context()
-    monkeypatch.setattr(soniox_mod, "WEBSOCKETS_AVAILABLE", True)
-
-    recognizer = soniox_mod.SonioxSpeechRecognizer(
-        callback=DummyCallback(),
-        api_key="test-key",
-        context={"terms": ["ExistingTerm"], "text": "Existing text"},
-    )
-
-    config = recognizer._build_config()
-    context = config["context"]
-
-    assert "ExistingTerm" in context["terms"]
-    assert "Test World" in context["terms"]
-    assert "Alice" in context["terms"]
-    assert "Existing text" in context["text"]
-    assert "VRChat ASR hints" in context["text"]
-    assert "Bob" in context["text"]
-
-
 def test_local_qwen3_asr_receives_fresh_vrcx_context(monkeypatch):
     from speech_recognizers.local_speech_recognizer import LocalSpeechRecognizer
 

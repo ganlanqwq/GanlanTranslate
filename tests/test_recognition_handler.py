@@ -212,15 +212,6 @@ class TestVRChatRecognitionCallbackInit:
         assert callback._final_output_version == 0
         assert callback._last_osc_typing_ongoing is False
 
-    def test_mute_finalization(self):
-        state = MagicMock()
-        callback = VRChatRecognitionCallback(state)
-        assert callback._prefer_deepl_on_next_final is False
-        callback.mark_mute_finalization_requested()
-        assert callback._prefer_deepl_on_next_final is True
-        callback.clear_mute_finalization_requested()
-        assert callback._prefer_deepl_on_next_final is False
-
 
 class TestSeqManagement:
     @pytest.fixture
@@ -283,18 +274,15 @@ class TestSeqManagement:
         cb.last_partial_translation = "some text"
         cb.last_partial_translation_secondary = "other"
         cb._latest_partial_request_id = 42
-        cb._prefer_deepl_on_next_final = True
         cb._reset_partial_translation_state()
         assert cb.last_partial_translation is None
         assert cb._latest_partial_request_id == 0
-        assert cb._prefer_deepl_on_next_final is False
 
 
 class TestSessionLifecycle:
     def test_on_session_started(self):
         cb = VRChatRecognitionCallback(MagicMock())
         old_gen = cb._get_session_generation()
-        cb.mark_mute_finalization_requested()
         cb._last_osc_typing_ongoing = True
         cb.last_partial_translation = "old text"
         cb.on_session_started()
@@ -348,8 +336,6 @@ def _make_mock_state(executor=None, loop=None):
     state.ensure_asr_send_executor = MagicMock()
     state.translator = MagicMock()
     state.secondary_translator = None
-    state.deepl_fallback_translator = None
-    state.secondary_deepl_fallback_translator = None
     state.backwards_translator = MagicMock()
     state.language_detector = MagicMock()
     state.language_detector.detect.return_value = {"language": "zh-cn"}
@@ -375,7 +361,7 @@ class TestASRNotBlockedByTranslation:
         mock_config.SHOW_ORIGINAL_AND_LANG_TAG = True
         mock_config.SMART_TARGET_PRIMARY_ENABLED = False
         mock_config.SMART_TARGET_SECONDARY_ENABLED = False
-        mock_config.TRANSLATION_API_TYPE = "deepl"
+        mock_config.TRANSLATION_API_TYPE = "openrouter"
         mock_config.get_effective_osc_text_max_length.return_value = None
 
         executor = ThreadPoolExecutor(max_workers=2)
@@ -423,7 +409,7 @@ class TestASRNotBlockedByTranslation:
         mock_config.SHOW_ORIGINAL_AND_LANG_TAG = True
         mock_config.SMART_TARGET_PRIMARY_ENABLED = False
         mock_config.SMART_TARGET_SECONDARY_ENABLED = False
-        mock_config.TRANSLATION_API_TYPE = "deepl"
+        mock_config.TRANSLATION_API_TYPE = "openrouter"
         mock_config.get_effective_osc_text_max_length.return_value = None
 
         executor = ThreadPoolExecutor(max_workers=2)
@@ -533,7 +519,6 @@ class TestASRNotBlockedByTranslation:
                         primary_should_translate=True,
                         secondary_should_translate=False,
                         use_secondary_output=False,
-                        use_deepl_final=False,
                         previous_translation=None,
                         previous_translation_secondary=None,
                         previous_source_segment=None,
@@ -618,7 +603,7 @@ class TestExecutorDispatchPath:
         mock_config.ENABLE_REVERSE_TRANSLATION = False
         mock_config.SOURCE_LANGUAGE = "auto"
         mock_config.CONTEXT_PREFIX = ""
-        mock_config.TRANSLATION_API_TYPE = "deepl"
+        mock_config.TRANSLATION_API_TYPE = "openrouter"
 
         executor = ThreadPoolExecutor(max_workers=1)
         state = _make_mock_state(executor=executor)
@@ -641,7 +626,6 @@ class TestExecutorDispatchPath:
                 primary_should_translate=True,
                 secondary_should_translate=False,
                 use_secondary_output=False,
-                use_deepl_final=False,
                 previous_translation=None,
                 previous_translation_secondary=None,
                 previous_source_segment=None,
@@ -663,7 +647,7 @@ class TestExecutorDispatchPath:
         mock_config.ENABLE_REVERSE_TRANSLATION = False
         mock_config.SOURCE_LANGUAGE = "auto"
         mock_config.CONTEXT_PREFIX = ""
-        mock_config.TRANSLATION_API_TYPE = "deepl"
+        mock_config.TRANSLATION_API_TYPE = "openrouter"
 
         executor = ThreadPoolExecutor(max_workers=1)
         state = _make_mock_state(executor=executor)
@@ -685,7 +669,6 @@ class TestExecutorDispatchPath:
                 primary_should_translate=True,
                 secondary_should_translate=False,
                 use_secondary_output=False,
-                use_deepl_final=False,
                 previous_translation=None,
                 previous_translation_secondary=None,
                 previous_source_segment=None,
@@ -705,7 +688,7 @@ class TestExecutorDispatchPath:
         mock_config.ENABLE_REVERSE_TRANSLATION = False
         mock_config.SOURCE_LANGUAGE = "auto"
         mock_config.CONTEXT_PREFIX = ""
-        mock_config.TRANSLATION_API_TYPE = "deepl"
+        mock_config.TRANSLATION_API_TYPE = "openrouter"
 
         executor = ThreadPoolExecutor(max_workers=1)
         state = _make_mock_state(executor=executor)
@@ -724,7 +707,6 @@ class TestExecutorDispatchPath:
                 primary_should_translate=True,
                 secondary_should_translate=False,
                 use_secondary_output=False,
-                use_deepl_final=False,
                 previous_translation=None,
                 previous_translation_secondary=None,
                 previous_source_segment=None,
@@ -744,7 +726,7 @@ class TestExecutorDispatchPath:
         mock_config.ENABLE_REVERSE_TRANSLATION = False
         mock_config.SOURCE_LANGUAGE = "auto"
         mock_config.CONTEXT_PREFIX = ""
-        mock_config.TRANSLATION_API_TYPE = "deepl"
+        mock_config.TRANSLATION_API_TYPE = "openrouter"
 
         executor = ThreadPoolExecutor(max_workers=1)
         state = _make_mock_state(executor=executor)
@@ -768,7 +750,6 @@ class TestExecutorDispatchPath:
                 primary_should_translate=True,
                 secondary_should_translate=False,
                 use_secondary_output=False,
-                use_deepl_final=False,
                 previous_translation=None,
                 previous_translation_secondary=None,
                 previous_source_segment=None,

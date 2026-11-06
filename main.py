@@ -254,8 +254,6 @@ async def _apply_mic_gate(state, is_muted):
 
     if is_muted:
         if state.recognition_active:
-            if state.recognition_callback is not None:
-                state.recognition_callback.mark_mute_finalization_requested()
             if state.mute_delay_task and not state.mute_delay_task.done():
                 state.mute_delay_task.cancel()
 
@@ -278,8 +276,6 @@ async def _apply_mic_gate(state, is_muted):
                 await stop_recognition_async(state)
                 logger.info('[ASR] 语音识别已%s', stop_word)
     else:
-        if state.recognition_callback is not None:
-            state.recognition_callback.clear_mute_finalization_requested()
         if state.mute_delay_task and not state.mute_delay_task.done():
             state.mute_delay_task.cancel()
             print('[ASR] 检测到取消静音，已取消延迟停止任务')

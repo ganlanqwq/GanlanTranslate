@@ -628,6 +628,20 @@ class OverlayApp:
         elif kind == 'screen_translate':
             link.screen_translate()
 
+    def apply_link_commands(self) -> None:
+        """主程序推来的命令（语音控制插件「左手显示屏幕」之类），和在菜单页里点一样。"""
+        for command in self.link.pop_commands():
+            if command.get('kind') != 'wrist':
+                continue
+            content = command.get('content')
+            side = command.get('side')
+            sides = ('left', 'right') if side == 'both' else (side,)
+            for one in sides:
+                if one in ('left', 'right') and content in ('others', 'self', 'screen', 'off'):
+                    self.settings.set(f'{one}_wrist', content)
+                    self.wrist_rendered[one] = None
+                    log.info('主程序命令：%s手腕显示 %s', '左' if one == 'left' else '右', content)
+
     # ---------- 主循环 ----------
 
     def run(self) -> None:
@@ -638,6 +652,7 @@ class OverlayApp:
             if not self.poll_events():
                 break
             try:
+                self.apply_link_commands()
                 self.update_wrist_devices()
                 self.update_history()
                 self.render_wrists()

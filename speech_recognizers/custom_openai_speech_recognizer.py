@@ -16,6 +16,7 @@ from __future__ import annotations
 import base64
 import io
 import json
+import re
 import threading
 import wave
 from typing import Any, Dict, Optional
@@ -235,6 +236,68 @@ class CustomAudioRecognizer(SpeechRecognizer):
         return None
 
 
+def whisper_language(code: Optional[str]) -> str:
+    """Whisper 风格接口的 language 只认 ISO-639-1（zh、ja、en），带地区的 zh-CN 会被拒（HTTP 400）。
+
+    返回 "" 表示不传 language（自动识别）。
+    """
+    s = str(code or '').strip().lower().replace('_', '-')
+    if not s or s in ('auto', 'auto-detect', 'und', 'multi'):
+        return ''
+    primary = s.split('-')[0]
+    return primary if 2 <= len(primary) <= 3 and primary.isalpha() else ''
+
+
+def is_dashscope_url(url: str) -> bool:
+    return 'dashscope' in str(url or '').lower() and 'aliyuncs.com' in str(url or '').lower()
+
+
+def normalize_dashscope_url(url: str) -> str:
+    """百炼地址漏了 /compatible-mode（比如填成 https://dashscope.aliyuncs.com/v1）：换成兼容模式的地址。"""
+    from urllib.parse import urlsplit
+    text = str(url or '').strip()
+    if not is_dashscope_url(text) or '/compatible-mode' in text:
+        return text
+    parts = urlsplit(text)
+    return f'{parts.scheme or "https"}://{parts.netloc}/compatible-mode/v1'
+
+
+def transcribe_via_chat(base_url: str, api_key: str, model: str, wav_bytes: bytes,
+                        language: str = '', timeout: float = 30.0):
+    """没有 /audio/transcriptions 的接口（百炼兼容模式的 qwen3-asr-flash 等）：把音频放进
+    /chat/completions 的 input_audio 里，回复内容就是识别出的文字。返回 requests 的 Response 和文字。"""
+    b64 = base64.b64encode(wav_bytes).decode('ascii')
+    payload: Dict[str, object] = {'model': model}
+    if is_dashscope_url(base_url):
+        # 百炼：data 用 data URI，不要额外的文字指令（文字会被当成上下文）；语言放 asr_options
+        payload['messages'] = [{'role': 'user', 'content': [
+            {'type': 'input_audio', 'input_audio': {'data': f'data:audio/wav;base64,{b64}'}},
+        ]}]
+        payload['asr_options'] = {'enable_itn': False, **({'language': language} if language else {})}
+    else:
+        hint = f' The language is {language}.' if language else ''
+        payload['messages'] = [{'role': 'user', 'content': [
+            {'type': 'input_audio', 'input_audio': {'data': b64, 'format': 'wav'}},
+            {'type': 'text', 'text': 'Transcribe this audio verbatim. Output only the transcript.' + hint},
+        ]}]
+    resp = requests.post(
+        base_url.rstrip('/') + '/chat/completions',
+        headers={'Authorization': f'Bearer {api_key}', 'Content-Type': 'application/json'},
+        json=payload,
+        timeout=timeout,
+    )
+    text = ''
+    if resp.status_code < 400:
+        try:
+            content = (resp.json().get('choices') or [{}])[0].get('message', {}).get('content') or ''
+            if isinstance(content, list):
+                content = ''.join(str(p.get('text') or '') for p in content if isinstance(p, dict))
+            text = re.sub(r'<think>.*?</think>', '', str(content), flags=re.S).strip()
+        except ValueError:
+            text = ''
+    return resp, text
+
+
 class CustomSttRecognizer(SpeechRecognizer):
     """语音转文字（STT）后端：把整段音频以 multipart 上传到 /audio/transcriptions。
 
@@ -257,7 +320,7 @@ class CustomSttRecognizer(SpeechRecognizer):
         source_language: str = "auto",
     ) -> None:
         self._callback = callback
-        self._base_url = (base_url or "").rstrip("/")
+        self._base_url = normalize_dashscope_url(base_url or "").rstrip("/")
         self._api_key = api_key or ""
         self._model = model or ""
         self._sample_rate = int(sample_rate or 16000)
@@ -272,6 +335,9 @@ class CustomSttRecognizer(SpeechRecognizer):
         self._session_lock = threading.Lock()
         self._session_active = False
         self._request_seq = 0
+        # 百炼兼容模式没有 /audio/transcriptions（404），直接走 /chat/completions 的音频输入；
+        # 别家遇到 404 也换过去，之后一直用它
+        self._use_chat = is_dashscope_url(self._base_url)
 
     def set_callback(self, callback: SpeechRecognitionCallback) -> None:
         self._callback = callback
@@ -333,9 +399,10 @@ class CustomSttRecognizer(SpeechRecognizer):
             url = f"{self._base_url}/audio/transcriptions"
             headers = {"Authorization": f"Bearer {self._api_key}"}
 
+            # 传上去的始终是 WAV（以前文件名跟着 audio_format 写成 .mp3 / .flac，有的服务按扩展名解码会失败）
             form_files = {
                 "file": (
-                    f"audio.{self._audio_format}",
+                    "audio.wav",
                     wav_bytes,
                     "audio/wav",
                 )
@@ -343,33 +410,47 @@ class CustomSttRecognizer(SpeechRecognizer):
             form_data: Dict[str, str] = {"model": self._model}
             if self._prompt:
                 form_data["prompt"] = self._prompt
-            if self._source_language and self._source_language.lower() not in (
-                "auto",
-                "auto-detect",
-                "",
-            ):
-                form_data["language"] = self._source_language
+            language = whisper_language(self._source_language)
+            if language:
+                form_data["language"] = language
 
             self._request_seq += 1
-            resp = requests.post(
-                url,
-                headers=headers,
-                files=form_files,
-                data=form_data,
-                timeout=self._timeout,
-            )
-            if resp.status_code >= 400:
-                snippet = (resp.text or "")[:300]
-                raise RuntimeError(
-                    f"custom_stt HTTP {resp.status_code}: {snippet}"
+            text = ""
+            if not self._use_chat:
+                resp = requests.post(
+                    url,
+                    headers=headers,
+                    files=form_files,
+                    data=form_data,
+                    timeout=self._timeout,
                 )
-
-            ctype = resp.headers.get("Content-Type", "")
-            if "application/json" in ctype:
-                payload = resp.json()
-                text = (payload.get("text") or "").strip()
-            else:
-                text = (resp.text or "").strip()
+                if resp.status_code == 404:
+                    print(f"[ASR] {self._base_url} 没有 /audio/transcriptions（404），改用 /chat/completions 的音频输入")
+                    self._use_chat = True
+                elif resp.status_code >= 400:
+                    snippet = (resp.text or "")[:300]
+                    raise RuntimeError(
+                        f"custom_stt HTTP {resp.status_code}: {snippet}"
+                    )
+                else:
+                    ctype = resp.headers.get("Content-Type", "")
+                    if "application/json" in ctype:
+                        payload = resp.json()
+                        text = (payload.get("text") or "").strip()
+                    else:
+                        text = (resp.text or "").strip()
+            if self._use_chat:
+                resp, text = transcribe_via_chat(
+                    self._base_url, self._api_key, self._model, wav_bytes, language, self._timeout,
+                )
+                if resp.status_code >= 400:
+                    snippet = (resp.text or "")[:300]
+                    hint = ""
+                    if "stream" in self._model.lower() or "realtime" in self._model.lower():
+                        hint = "（这是实时流式模型，只能在百炼模式里用；兼容模式请换成 qwen-audio-3.1-asr-flash 或 qwen3-asr-flash）"
+                    raise RuntimeError(
+                        f"custom_stt HTTP {resp.status_code}{hint}: {snippet}"
+                    )
 
             if not text:
                 return

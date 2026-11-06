@@ -14,7 +14,6 @@ from typing import Optional
 
 from ._config import TranslationConfig
 from .api.base import BaseTranslationAPI
-from .api.deepl import DeepLAPI
 from .api.google_dictionary import GoogleDictionaryAPI
 from .api.google_web import GoogleWebAPI
 from .api.openrouter import OpenRouterAPI, OpenRouterStreamingAPI
@@ -31,8 +30,6 @@ TRANSLATION_API_CLASS_REGISTRY: dict[str, type[BaseTranslationAPI]] = {
     "google_dictionary": GoogleDictionaryAPI,
     "openrouter": OpenRouterAPI,
     "openrouter_streaming": OpenRouterStreamingAPI,
-    "openrouter_streaming_deepl_hybrid": OpenRouterStreamingAPI,
-    "deepl": DeepLAPI,
     "qwen_mt": QwenMTAPI,
 }
 
@@ -42,8 +39,6 @@ TRANSLATOR_CONTEXT_ATTRS = (
     "translator",
     "secondary_translator",
     "backwards_translator",
-    "deepl_fallback_translator",
-    "secondary_deepl_fallback_translator",
 )
 
 
@@ -57,11 +52,7 @@ def _normalize_optional_language_code(language: Optional[str]) -> Optional[str]:
 
 
 def is_streaming_translation_mode(api_type: str) -> bool:
-    return api_type in ("openrouter_streaming", "openrouter_streaming_deepl_hybrid")
-
-
-def is_streaming_deepl_hybrid_mode(api_type: str) -> bool:
-    return api_type == "openrouter_streaming_deepl_hybrid"
+    return api_type == "openrouter_streaming"
 
 
 def _get_api_class(api_type: str) -> type[BaseTranslationAPI]:
@@ -90,11 +81,7 @@ def _primary_config_signature(cfg: TranslationConfig) -> tuple:
         ("proxy_url", cfg.proxy_url),
     ]
 
-    if api_type in (
-        "openrouter",
-        "openrouter_streaming",
-        "openrouter_streaming_deepl_hybrid",
-    ):
+    if api_type in ("openrouter", "openrouter_streaming"):
         signature.extend(
             [
                 ("llm_base_url", cfg.llm_base_url),
@@ -108,14 +95,6 @@ def _primary_config_signature(cfg: TranslationConfig) -> tuple:
                 ("llm_style", cfg.llm_style),
                 ("llm_extra_body_json", cfg.llm_extra_body_json),
                 ("llm_parallel_fastest_mode", cfg.llm_parallel_fastest_mode),
-            ]
-        )
-
-    if api_type in ("deepl", "openrouter_streaming_deepl_hybrid"):
-        signature.extend(
-            [
-                ("deepl_api_key", _secret_fingerprint(cfg.deepl_api_key)),
-                ("deepl_formality", cfg.deepl_formality),
             ]
         )
 
@@ -162,11 +141,7 @@ def _build_api(api_class: type[BaseTranslationAPI], cfg: TranslationConfig) -> B
     if cfg.proxy_url:
         kwargs["proxy_url"] = cfg.proxy_url
 
-    if issubclass(api_class, DeepLAPI):
-        kwargs["api_key"] = cfg.deepl_api_key
-        kwargs["formality"] = cfg.deepl_formality
-
-    elif issubclass(api_class, (OpenRouterAPI, OpenRouterStreamingAPI)):
+    if issubclass(api_class, (OpenRouterAPI, OpenRouterStreamingAPI)):
         kwargs["base_url"] = cfg.llm_base_url
         kwargs["model"] = cfg.llm_model
         kwargs["api_key"] = cfg.llm_api_key or cfg.openai_api_key
@@ -233,8 +208,6 @@ def _is_primary_config_changed(state, cfg: TranslationConfig) -> bool:
         or cfg.llm_formality != getattr(state, "_last_llm_formality", None)
         or cfg.llm_style != getattr(state, "_last_llm_style", None)
         or cfg.llm_extra_body_json != getattr(state, "_last_llm_extra_body_json", None)
-        or cfg.deepl_formality != getattr(state, "_last_deepl_formality", None)
-        or _secret_fingerprint(cfg.deepl_api_key) != getattr(state, "_last_deepl_api_key_fingerprint", None)
         or _secret_fingerprint(cfg.dashscope_api_key) != getattr(state, "_last_dashscope_api_key_fingerprint", None)
         or cfg.use_international_endpoint != getattr(state, "_last_use_international_endpoint", None)
         or cfg.llm_parallel_fastest_mode != getattr(
@@ -257,8 +230,6 @@ def ensure_secondary_translator(
     if not target_language:
         state.secondary_translation_api = None
         state.secondary_translator = None
-        state.secondary_deepl_fallback_translation_api = None
-        state.secondary_deepl_fallback_translator = None
         state.secondary_target_language = None
         return False
 
@@ -270,8 +241,6 @@ def ensure_secondary_translator(
 
     state.secondary_translation_api = None
     state.secondary_translator = None
-    state.secondary_deepl_fallback_translation_api = None
-    state.secondary_deepl_fallback_translator = None
 
     if cfg is None:
         cfg = getattr(state, "_translation_config", None)
@@ -283,15 +252,6 @@ def ensure_secondary_translator(
     state.secondary_translation_api, state.secondary_translator = _build_context_translator(
         api_class, target_language, cfg, tm,
     )
-    if is_streaming_deepl_hybrid_mode(cfg.translation_api_type):
-        try:
-            (
-                state.secondary_deepl_fallback_translation_api,
-                state.secondary_deepl_fallback_translator,
-            ) = _build_context_translator(DeepLAPI, target_language, cfg)
-        except Exception as e:
-            logger.warning("DeepL secondary init failed: %s", e)
-
     state.secondary_target_language = target_language
     logger.info("Secondary translator created: %s", target_language)
     return True
@@ -329,24 +289,6 @@ def reinitialize_translator(state, cfg: TranslationConfig) -> None:
         context_aware=False,
     )
 
-    # DeepL fallback (hybrid mode only)
-    state.deepl_fallback_translation_api = None
-    state.deepl_fallback_translator = None
-    state.secondary_deepl_fallback_translation_api = None
-    state.secondary_deepl_fallback_translator = None
-    if is_streaming_deepl_hybrid_mode(cfg.translation_api_type):
-        try:
-            state.deepl_fallback_translation_api, state.deepl_fallback_translator = (
-                _build_context_translator(DeepLAPI, cfg.target_language, cfg, tm)
-            )
-            if secondary_target:
-                (
-                    state.secondary_deepl_fallback_translation_api,
-                    state.secondary_deepl_fallback_translator,
-                ) = _build_context_translator(DeepLAPI, secondary_target, cfg, tm)
-        except Exception as e:
-            logger.warning("DeepL fallback init failed: %s", e)
-
     state.translation_api_type = cfg.translation_api_type
     state.target_language = cfg.target_language
     state.secondary_target_language = secondary_target
@@ -364,8 +306,6 @@ def reinitialize_translator(state, cfg: TranslationConfig) -> None:
     state._last_llm_formality = cfg.llm_formality
     state._last_llm_style = cfg.llm_style
     state._last_llm_extra_body_json = cfg.llm_extra_body_json
-    state._last_deepl_formality = cfg.deepl_formality
-    state._last_deepl_api_key_fingerprint = _secret_fingerprint(cfg.deepl_api_key)
     state._last_dashscope_api_key_fingerprint = _secret_fingerprint(cfg.dashscope_api_key)
     state._last_use_international_endpoint = cfg.use_international_endpoint
     state._last_parallel_fastest_mode = cfg.llm_parallel_fastest_mode
@@ -379,31 +319,15 @@ def update_secondary_translator(state, cfg: TranslationConfig) -> None:
         state._translation_config = cfg
         return
 
-    clear_translation_contexts(
-        state,
-        (
-            "secondary_translator",
-            "secondary_deepl_fallback_translator",
-        ),
-    )
+    clear_translation_contexts(state, ("secondary_translator",))
     state.secondary_translation_api = None
     state.secondary_translator = None
-    state.secondary_deepl_fallback_translation_api = None
-    state.secondary_deepl_fallback_translator = None
 
     if new_secondary:
         api_class = _get_api_class(cfg.translation_api_type)
         state.secondary_translation_api, state.secondary_translator = _build_context_translator(
             api_class, new_secondary, cfg,
         )
-        if is_streaming_deepl_hybrid_mode(cfg.translation_api_type):
-            try:
-                (
-                    state.secondary_deepl_fallback_translation_api,
-                    state.secondary_deepl_fallback_translator,
-                ) = _build_context_translator(DeepLAPI, new_secondary, cfg)
-            except Exception as e:
-                logger.warning("DeepL secondary update failed: %s", e)
 
     state.secondary_target_language = new_secondary
     state._translation_config = cfg
@@ -414,11 +338,9 @@ def update_secondary_translator(state, cfg: TranslationConfig) -> None:
 
 def translate_with_backend(
     translator_instance: ContextAwareTranslator,
-    deepl_translator_instance: Optional[ContextAwareTranslator],
     text: str,
     target_language: str,
     previous_translation: Optional[str] = None,
-    prefer_deepl: bool = False,
     previous_source_text: Optional[str] = None,
     detected_source_language: Optional[str] = None,
     source_language: str = "auto",
@@ -426,7 +348,7 @@ def translate_with_backend(
     record_history: bool = True,
     include_history: bool = True,
 ) -> str:
-    """Translate *text* with optional DeepL-first fallback."""
+    """Translate *text* with *translator_instance*."""
     translate_kwargs = {
         "source_language": source_language,
         "target_language": target_language,
@@ -441,14 +363,6 @@ def translate_with_backend(
         translate_kwargs["previous_source_text"] = previous_source_text
     if detected_source_language is not None:
         translate_kwargs["detected_source_language"] = detected_source_language
-
-    if prefer_deepl and deepl_translator_instance is not None:
-        t0 = time.perf_counter()
-        result = deepl_translator_instance.translate(text, **translate_kwargs)
-        api_ms = int((time.perf_counter() - t0) * 1000)
-        if result and not result.startswith("[ERROR]"):
-            print(f'[耗时] 翻译API DeepL {api_ms}ms 目标={target_language} 字数={len(text or "")}')
-            return result
 
     t0 = time.perf_counter()
     result = translator_instance.translate(text, **translate_kwargs)

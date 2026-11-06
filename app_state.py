@@ -62,10 +62,6 @@ class AppState:
         self.secondary_translator = None
         self.backwards_translation_api = None
         self.backwards_translator = None
-        self.deepl_fallback_translation_api = None
-        self.deepl_fallback_translator = None
-        self.secondary_deepl_fallback_translation_api = None
-        self.secondary_deepl_fallback_translator = None
         self.secondary_target_language: Optional[str] = None
         self.translation_api_type: Optional[str] = None
         self.target_language: Optional[str] = None

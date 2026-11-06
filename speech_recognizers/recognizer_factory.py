@@ -9,7 +9,6 @@ import config
 
 from .base_speech_recognizer import MonoAudioSpeechRecognizer, SpeechRecognitionCallback, SpeechRecognizer
 from .dashscope_speech_recognizer import DashscopeSpeechRecognizer
-from .doubao_file_speech_recognizer import DoubaoFileSpeechRecognizer
 try:
     from local_asr import is_local_asr_build_enabled
     from local_asr.model_manager import is_asr_cached as is_local_asr_cached
@@ -28,12 +27,6 @@ try:
     from .qwen_audio3_speech_recognizer import QwenAudio3SpeechRecognizer
 except ImportError:  # pragma: no cover
     QwenAudio3SpeechRecognizer = None  # type: ignore[assignment]
-
-try:
-    from .soniox_speech_recognizer import SonioxSpeechRecognizer, WEBSOCKETS_AVAILABLE
-except ImportError:  # pragma: no cover
-    SonioxSpeechRecognizer = None  # type: ignore[assignment]
-    WEBSOCKETS_AVAILABLE = False
 
 try:
     from .custom_openai_speech_recognizer import (
@@ -97,47 +90,6 @@ def _to_dashscope_language(source_language: Optional[str]) -> Optional[str]:
     return None
 
 
-def _to_doubao_language(source_language: Optional[str]) -> Optional[str]:
-    """将 source_language 转换为豆包火山引擎 request.language 格式。
-    auto/空返回 None。"""
-    if not source_language:
-        return None
-    s = source_language.strip().lower()
-    if not s or s in ('auto', 'auto-detect'):
-        return None
-    lang_map = {
-        'zh': 'zh-CN', 'zh-cn': 'zh-CN', 'zh-tw': 'zh-CN', 'zh-hans': 'zh-CN', 'zh-hant': 'zh-CN',
-        'en': 'en-US', 'en-us': 'en-US', 'en-gb': 'en-US',
-        'ja': 'ja-JP', 'ja-jp': 'ja-JP',
-        'ko': 'ko-KR', 'ko-kr': 'ko-KR',
-        'yue': 'yue-CN', 'yue-cn': 'yue-CN',
-    }
-    return lang_map.get(s, None)
-
-
-def _resolve_doubao_credentials() -> tuple[Optional[str], Optional[str], Optional[str]]:
-    """Resolve Doubao credentials from the process-local runtime config.
-
-    优先读取 DOUBAO_API_KEY。
-    同时兼容 DOUBAO_APP_ID + DOUBAO_ACCESS_KEY 组合方式。
-    """
-    app_id = str(getattr(config, 'DOUBAO_APP_ID', '') or '').strip()
-    access_key = str(getattr(config, 'DOUBAO_ACCESS_KEY', '') or '').strip()
-    combined = str(getattr(config, 'DOUBAO_API_KEY', '') or '').strip()
-    api_key = ''
-
-    if combined:
-        if ':' in combined:
-            maybe_app_id, maybe_access_key = combined.split(':', 1)
-            if not app_id:
-                app_id = maybe_app_id.strip()
-            if not access_key:
-                access_key = maybe_access_key.strip()
-        else:
-            api_key = combined
-
-    return (api_key or None, app_id or None, access_key or None)
-
 
 def _apply_recognition_endpoint() -> None:
     """按国际版开关设置 Recognition（run-task）协议的 WebSocket 地址。
@@ -187,7 +139,7 @@ def create_recognizer(
     创建语音识别器实例
     
     Args:
-        backend: 识别后端，'dashscope'、'qwen'、'qwen_audio3'、'soniox'、'doubao_file' 或 'local'
+        backend: 识别后端，'dashscope'、'qwen'、'qwen_audio3'、'local'、'custom_audio' 或 'custom_stt'
         callback: 识别回调实例
         sample_rate: 音频采样率
         audio_format: 音频格式
@@ -303,69 +255,6 @@ def create_recognizer(
         recognizer = DashscopeSpeechRecognizer(callback=callback, **recognition_kwargs)
         return MonoAudioSpeechRecognizer(recognizer, input_channels=input_channels)
     
-    elif backend == 'soniox':
-        if SonioxSpeechRecognizer is None or not WEBSOCKETS_AVAILABLE:
-            raise RuntimeError('SonioxSpeechRecognizer 不可用，请安装 websockets 库: pip install websockets')
-        
-        api_key = str(getattr(config, 'SONIOX_API_KEY', '') or '').strip()
-        if not api_key:
-            raise RuntimeError('Soniox API Key 未设置')
-        
-        recognition_kwargs = {
-            'api_key': api_key,
-            'model': getattr(config, 'SONIOX_MODEL', 'stt-rt-v3'),
-            'sample_rate': sample_rate,
-            'num_channels': 1,
-            'audio_format': 'pcm_s16le',
-            'enable_endpoint_detection': getattr(config, 'SONIOX_ENABLE_ENDPOINT_DETECTION', True),
-        }
-
-        # 语言提示：合并 source_language（若非 auto）到固定 hints 列表首位
-        hints = list(getattr(config, 'SONIOX_LANGUAGE_HINTS', ['en', 'zh', 'ja', 'ko']))
-        s_lang = source_language.strip().lower() if source_language else ''
-        if s_lang and s_lang not in ('auto', 'auto-detect'):
-            if s_lang not in hints:
-                hints.insert(0, s_lang)
-        recognition_kwargs['language_hints'] = hints
-
-        # 合并额外参数
-        recognition_kwargs.update(extra_kwargs)
-
-        recognition_kwargs['num_channels'] = 1
-
-        recognizer = SonioxSpeechRecognizer(callback=callback, **recognition_kwargs)
-        return MonoAudioSpeechRecognizer(recognizer, input_channels=input_channels)
-
-    elif backend == 'doubao_file':
-        doubao_api_key, doubao_app_id, doubao_access_key = _resolve_doubao_credentials()
-        if not doubao_api_key and not (doubao_app_id and doubao_access_key):
-            raise RuntimeError('豆包录音文件识别缺少凭证，请设置 DOUBAO_API_KEY')
-
-        recognition_kwargs = {
-            'api_key': doubao_api_key,
-            'api_app_key': doubao_app_id,
-            'api_access_key': doubao_access_key,
-            'resource_id': getattr(config, 'DOUBAO_ASR_RESOURCE_ID', 'volc.seedasr.auc'),
-            'url': getattr(config, 'DOUBAO_ASR_FLASH_URL', 'https://openspeech.bytedance.com/api/v3/auc/bigmodel/recognize/flash'),
-            'model_name': getattr(config, 'DOUBAO_ASR_MODEL_NAME', 'bigmodel'),
-            'sample_rate': sample_rate,
-            'channels': getattr(config, 'CHANNELS', 1),
-            'bits': getattr(config, 'BITS', 16),
-            'timeout_seconds': getattr(config, 'DOUBAO_ASR_TIMEOUT_SECONDS', 60),
-            'max_buffer_seconds': getattr(config, 'DOUBAO_ASR_MAX_BUFFER_SECONDS', 60),
-        }
-
-        doubao_lang = _to_doubao_language(source_language)
-        if doubao_lang:
-            recognition_kwargs['request_options'] = {'language': doubao_lang}
-
-        recognition_kwargs.update(extra_kwargs)
-
-        recognition_kwargs['channels'] = 1
-
-        recognizer = DoubaoFileSpeechRecognizer(callback=callback, **recognition_kwargs)
-        return MonoAudioSpeechRecognizer(recognizer, input_channels=input_channels)
-    
     elif backend == 'local':
         if LocalSpeechRecognizer is None:
             raise RuntimeError('LocalSpeechRecognizer 不可用，请安装本地 ASR 相关依赖')
@@ -441,7 +330,7 @@ def is_backend_available(backend: str) -> bool:
     检查指定后端是否可用
     
     Args:
-        backend: 后端名称，'dashscope'、'qwen'、'qwen_audio3'、'soniox'、'doubao_file' 或 'local'
+        backend: 后端名称，'dashscope'、'qwen'、'qwen_audio3'、'local'、'custom_audio' 或 'custom_stt'
 
     Returns:
         bool: True 表示可用，False 表示不可用
@@ -455,14 +344,6 @@ def is_backend_available(backend: str) -> bool:
         # dashscope (Fun-ASR) 仅在中国大陆版可用
         use_international = getattr(config, 'USE_INTERNATIONAL_ENDPOINT', False)
         return not use_international
-    elif backend == 'soniox':
-        # Soniox 需要 websockets 库和 API Key
-        has_lib = SonioxSpeechRecognizer is not None and WEBSOCKETS_AVAILABLE
-        has_key = bool(str(getattr(config, 'SONIOX_API_KEY', '') or '').strip())
-        return has_lib and has_key
-    elif backend == 'doubao_file':
-        api_key, app_id, access_key = _resolve_doubao_credentials()
-        return bool(api_key or (app_id and access_key))
     elif backend == 'local':
         if LocalSpeechRecognizer is None or not is_local_asr_build_enabled():
             return False
@@ -535,7 +416,7 @@ def select_backend(preferred_backend: str, valid_backends: set) -> str:
     else:
         print(f'[ASR] 首选后端 {preferred_backend} 不可用，正在尝试自动回退...')
 
-    for candidate in ('qwen', 'qwen_audio3', 'dashscope', 'doubao_file', 'soniox', 'local', 'custom_audio', 'custom_stt'):
+    for candidate in ('qwen', 'qwen_audio3', 'dashscope', 'local', 'custom_audio', 'custom_stt'):
         if candidate == preferred_backend:
             continue
         if candidate not in valid_backends:

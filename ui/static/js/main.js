@@ -64,15 +64,11 @@ function touchMainPanelUserEditedAt() {
 
 const PANEL_FLOATING_MODE_STORAGE_KEY = 'panel_floating_mode';
 const PANEL_FLOATING_MODE_DEFAULT = true;
-const LLM_SELECTED_TEMPLATE_STORAGE_KEY = 'llm_selected_template';
-const LLM_TEMPLATE_KEY_STORAGE_PREFIX = 'llm_template_key_';
-const LLM_TEMPLATE_BASEURL_STORAGE_PREFIX = 'llm_template_baseurl_';
-const LLM_TEMPLATE_MODEL_STORAGE_PREFIX = 'llm_template_model_';
-const LLM_TEMPLATE_EXTRABODY_STORAGE_PREFIX = 'llm_template_extrabody_';
-const LLM_TEMPLATE_PARALLEL_STORAGE_PREFIX = 'llm_template_parallel_';
-
-// 待显示的警告消息（用于自动切换翻译API）
-let pendingWarningMessage = null;
+// 1.1.2 去掉了大模型「模板」：以前翻译的 Key、额外参数在 llm_template_* 里另存了一份（读的时候以它为准）；
+// DeepL / 豆包 / Soniox 的 Key 框也去掉了。打开页面时把模板里的值放回输入框一次，再把这些键删掉。
+const LEGACY_LLM_TEMPLATE_STORAGE_PREFIX = 'llm_template_';
+const LEGACY_LLM_SELECTED_TEMPLATE_STORAGE_KEY = 'llm_selected_template';
+const LEGACY_REMOVED_KEY_STORAGE_KEYS = ['deepl_api_key', 'doubao_api_key', 'soniox_api_key'];
 
 // 后端进程内凭据状态
 let runtimeCredentialStatus = {
@@ -240,22 +236,8 @@ function sanitizeAsrBackendValue(value) {
     return normalized;
 }
 
-function sanitizeOthersAsrBackendValue(value) {
-    const raw = (value == null ? '' : String(value)).trim();
-    if (!raw) return '';
-    return sanitizeAsrBackendValue(raw);
-}
-
 function applyOthersTranslationForm(ot) {
     if (!ot) return;
-    const el = document.getElementById('others-translation-enabled');
-    if (el && Object.prototype.hasOwnProperty.call(ot, 'enabled')) {
-        el.checked = !!ot.enabled;
-    }
-    const asrEl = document.getElementById('others-asr-backend');
-    if (asrEl && Object.prototype.hasOwnProperty.call(ot, 'asr_backend')) {
-        asrEl.value = sanitizeOthersAsrBackendValue(ot.asr_backend);
-    }
     const langEl = document.getElementById('others-target-language');
     if (langEl) {
         langEl.value = (ot.target_language || '').trim() || 'zh-CN';
@@ -265,7 +247,7 @@ function applyOthersTranslationForm(ot) {
 const SCREEN_OCR_PRESETS = {
     qwen: {
         baseUrl: 'https://dashscope.aliyuncs.com/compatible-mode/v1',
-        model: 'qwen-vl-ocr',
+        model: 'qwen3.5-ocr',
     },
     openai: {
         baseUrl: 'https://api.openai.com/v1',
@@ -275,10 +257,6 @@ const SCREEN_OCR_PRESETS = {
 
 function applyScreenTranslationForm(sc) {
     if (!sc) return;
-    const enabledEl = document.getElementById('screen-translation-enabled');
-    if (enabledEl && Object.prototype.hasOwnProperty.call(sc, 'enabled')) {
-        enabledEl.checked = !!sc.enabled;
-    }
     const langEl = document.getElementById('screen-target-language');
     if (langEl) {
         langEl.value = (sc.target_language || '').trim() || 'zh-CN';
@@ -298,14 +276,15 @@ function applyScreenTranslationForm(sc) {
     }
 }
 
-function getScreenTranslationConfigFromForm() {
+// effective=true：发给后端，按「API 配置」的模式取实际用的地址和模型；false：存浏览器，原样存兼容模式的框
+function getScreenTranslationConfigFromForm(effective = false) {
+    const plan = effective && window.GanlanApiMode ? window.GanlanApiMode.effective() : null;
     return {
-        enabled: document.getElementById('screen-translation-enabled')?.checked === true,
         target_language: (document.getElementById('screen-target-language')?.value || '').trim() || 'zh-CN',
         hotkey: (document.getElementById('screen-hotkey')?.value || '').trim(),
-        ocr_base_url: (document.getElementById('screen-ocr-base-url')?.value || '').trim()
+        ocr_base_url: (plan ? plan.ocr.baseUrl : (document.getElementById('screen-ocr-base-url')?.value || '').trim())
             || SCREEN_OCR_PRESETS.qwen.baseUrl,
-        ocr_model: (document.getElementById('screen-ocr-model')?.value || '').trim()
+        ocr_model: (plan ? plan.ocr.model : (document.getElementById('screen-ocr-model')?.value || '').trim())
             || SCREEN_OCR_PRESETS.qwen.model,
     };
 }
@@ -319,6 +298,8 @@ function applyScreenOcrPreset(name) {
 }
 
 function getScreenOcrApiKey() {
+    // 1.1.2：按「API 配置」的模式取（百炼模式留空 = 后端用百炼 Key）
+    if (window.GanlanApiMode) return window.GanlanApiMode.effective().ocr.key;
     return (document.getElementById('screen-ocr-api-key')?.value || '').trim();
 }
 
@@ -729,73 +710,7 @@ function applyAutoLanguageDetectorIfNeeded() {
 }
 
 const LLM_PARALLEL_FASTEST_MODES = ['off', 'final_only', 'all'];
-const DEFAULT_LLM_TEMPLATE_NAME = 'custom1';
-const SIMPLE_MODE_LLM_TEMPLATE_NAME = 'custom1';
-const SIMPLE_MODE_LLM_BASE_URL = '';
-const SIMPLE_MODE_LLM_EXTRA_BODY_JSON = '';
-const DEFAULT_QWEN_AUDIO3_MODEL = 'qwen-audio-3.0-asr-flash-streaming';
-
-const LLM_TEMPLATE_CONFIGS = {
-    'dashscope-qwen35-flash': {
-        baseUrl: 'https://dashscope.aliyuncs.com/compatible-mode/v1',
-        model: 'qwen3.5-flash',
-        extraBody: '{"enable_thinking": false}',
-        parallelFastestMode: 'off',
-        providerLabelKey: 'btn.llmTemplateDashscopeQwenFlash',
-        copyDashscopeKey: true,
-    },
-    'dashscope-qwen35-plus': {
-        baseUrl: 'https://dashscope.aliyuncs.com/compatible-mode/v1',
-        model: 'qwen3.5-plus',
-        extraBody: '{"enable_thinking": false}',
-        parallelFastestMode: 'off',
-        providerLabelKey: 'btn.llmTemplateDashscopeQwenPlus',
-        copyDashscopeKey: true,
-    },
-    'deepseek-v4-flash': {
-        baseUrl: 'https://api.deepseek.com',
-        model: 'deepseek-v4-flash',
-        extraBody: '{"thinking": {"type": "disabled"}}',
-        parallelFastestMode: 'off',
-        providerLabelKey: 'btn.llmTemplateDeepSeekV4Flash',
-    },
-    openrouter: {
-        baseUrl: 'https://openrouter.ai/api/v1',
-        parallelFastestMode: 'off',
-        providerLabelKey: 'btn.llmTemplateOpenRouter',
-    },
-    mercury2: {
-        baseUrl: 'https://api.inceptionlabs.ai/v1',
-        model: 'mercury-2',
-        extraBody: '',
-        parallelFastestMode: 'off',
-        providerLabelKey: 'btn.llmTemplateMercury2',
-    },
-    custom1: {
-        baseUrl: '',
-        model: '',
-        extraBody: '',
-        parallelFastestMode: 'off',
-        providerLabelKey: 'btn.llmTemplateCustom1',
-        isCustom: true,
-    },
-    custom2: {
-        baseUrl: '',
-        model: '',
-        extraBody: '',
-        parallelFastestMode: 'off',
-        providerLabelKey: 'btn.llmTemplateCustom2',
-        isCustom: true,
-    },
-    custom3: {
-        baseUrl: '',
-        model: '',
-        extraBody: '',
-        parallelFastestMode: 'off',
-        providerLabelKey: 'btn.llmTemplateCustom3',
-        isCustom: true,
-    },
-};
+const DEFAULT_QWEN_AUDIO3_MODEL = 'qwen-audio-3.1-asr-flash-streaming';
 
 function resolveLLMParallelFastestModeFromStoredTranslation(trans) {
     if (!trans) return 'off';
@@ -821,467 +736,24 @@ function getLLMParallelFastestModeSelect() {
     return LLM_PARALLEL_FASTEST_MODES.includes(el.value) ? el.value : 'off';
 }
 
-let activeLLMTemplate = null;
-
-function isValidLLMTemplateName(templateName) {
-    return !!(templateName && Object.prototype.hasOwnProperty.call(LLM_TEMPLATE_CONFIGS, templateName));
-}
-
-function normalizeLLMTemplateName(templateName) {
-    return isValidLLMTemplateName(templateName) ? templateName : '';
-}
-
-function isCustomLLMTemplate(templateName) {
-    return !!(templateName && LLM_TEMPLATE_CONFIGS[templateName]?.isCustom);
-}
-
-function inferLLMTemplateFromCurrentFields() {
-    const baseUrl = (document.getElementById('llm-base-url')?.value || '').trim();
-    const model = (document.getElementById('llm-model')?.value || '').trim();
-
-    for (const [templateName, templateConfig] of Object.entries(LLM_TEMPLATE_CONFIGS)) {
-        if (templateConfig.isCustom) {
-            const storedBaseUrl = getStoredLLMTemplateBaseUrl(templateName);
-            const storedModel = getStoredLLMTemplateModel(templateName);
-            if (!(storedBaseUrl || storedModel)) {
-                continue;
-            }
-            if (baseUrl === storedBaseUrl && model === storedModel) {
-                return templateName;
-            }
-            continue;
-        }
-        if (baseUrl !== templateConfig.baseUrl) {
-            continue;
-        }
-        if (Object.prototype.hasOwnProperty.call(templateConfig, 'model')) {
-            if (model === templateConfig.model) {
-                return templateName;
-            }
-            continue;
-        }
-        if (baseUrl === templateConfig.baseUrl) {
-            return templateName;
-        }
-    }
-
-    return null;
-}
-
-function updateLLMTemplateButtonStates() {
-    const selectedTemplate = getSelectedLLMTemplateName();
-    document.querySelectorAll('[data-llm-template]').forEach((button) => {
-        const isSelected = button.getAttribute('data-llm-template') === selectedTemplate;
-        button.classList.toggle('active', isSelected);
-        button.setAttribute('aria-pressed', isSelected ? 'true' : 'false');
-    });
-}
-
-function updateLLMTemplateFieldLocks() {
-    const baseUrlInput = document.getElementById('llm-base-url');
-    if (!baseUrlInput) return;
-    // 与简易模式一致：API 地址始终可自定义填写
-    baseUrlInput.readOnly = false;
-    baseUrlInput.classList.remove('readonly-field');
-}
-
-function setSelectedLLMTemplateName(templateName, persist = true) {
-    const normalized = normalizeLLMTemplateName(SIMPLE_MODE_LLM_TEMPLATE_NAME) || DEFAULT_LLM_TEMPLATE_NAME;
-    activeLLMTemplate = normalized;
-    if (persist) {
-        localStorage.setItem(LLM_SELECTED_TEMPLATE_STORAGE_KEY, normalized);
-    }
-    updateLLMTemplateButtonStates();
-    updateLLMTemplateFieldLocks();
-    return normalized;
-}
-
-function getSelectedLLMTemplateName() {
-    return SIMPLE_MODE_LLM_TEMPLATE_NAME;
-}
-
-function hasAnyLLMConnectionFieldValue() {
-    return !!(
-        (document.getElementById('llm-base-url')?.value || '').trim()
-        || (document.getElementById('llm-model')?.value || '').trim()
-        || (document.getElementById('llm-api-key')?.value || '').trim()
-        || (document.getElementById('openai-compat-extra-body-json')?.value || '').trim()
-        || getLLMParallelFastestModeSelect() !== 'off'
-    );
-}
-
-function ensureSelectedLLMTemplate(configTranslation = null) {
-    if (false) {
-        setSelectedLLMTemplateName(SIMPLE_MODE_LLM_TEMPLATE_NAME);
-        return SIMPLE_MODE_LLM_TEMPLATE_NAME;
-    }
-    // Check if the template saved in backend config or localStorage is non-existent/invalid.
-    // If it was non-empty and is now invalid, we default to deepseek-v4-flash.
-    let invalidTemplateDetected = false;
-    let originalTemplateName = '';
-
-    if (configTranslation && configTranslation.llm_template) {
-        originalTemplateName = configTranslation.llm_template;
-        if (!isValidLLMTemplateName(originalTemplateName)) {
-            invalidTemplateDetected = true;
-        }
-    } else {
-        const storedTemplate = localStorage.getItem(LLM_SELECTED_TEMPLATE_STORAGE_KEY);
-        if (storedTemplate) {
-            originalTemplateName = storedTemplate;
-            if (!isValidLLMTemplateName(originalTemplateName)) {
-                invalidTemplateDetected = true;
-            }
-        }
-    }
-
-    if (invalidTemplateDetected) {
-        console.warn(`Detected non-existent/removed LLM template '${originalTemplateName}'. Defaulting to deepseek-v4-flash.`);
-        // Default to deepseek-v4-flash and apply its configurations
-        applyLLMTemplate(SIMPLE_MODE_LLM_TEMPLATE_NAME);
-        return SIMPLE_MODE_LLM_TEMPLATE_NAME;
-    }
-
-    const configTemplate = normalizeLLMTemplateName(configTranslation?.llm_template);
-    if (configTemplate) {
-        return setSelectedLLMTemplateName(configTemplate);
-    }
-
-    const storedTemplate = normalizeLLMTemplateName(localStorage.getItem(LLM_SELECTED_TEMPLATE_STORAGE_KEY));
-    if (storedTemplate) {
-        activeLLMTemplate = storedTemplate;
-        updateLLMTemplateButtonStates();
-        updateLLMTemplateFieldLocks();
-        return storedTemplate;
-    }
-
-    const inferredTemplate = inferLLMTemplateFromCurrentFields();
-    if (inferredTemplate) {
-        setSelectedLLMTemplateName(inferredTemplate);
-        persistCurrentLLMTemplateState();
-        return inferredTemplate;
-    }
-
-    setSelectedLLMTemplateName(DEFAULT_LLM_TEMPLATE_NAME);
-    if (hasAnyLLMConnectionFieldValue()) {
-        persistCurrentLLMTemplateState();
-    }
-    return DEFAULT_LLM_TEMPLATE_NAME;
-}
-
-function getLLMTemplateKeyStorageKey(templateName) {
-    return templateName ? `${LLM_TEMPLATE_KEY_STORAGE_PREFIX}${templateName}` : null;
-}
-
-function getLLMTemplateBaseUrlStorageKey(templateName) {
-    return templateName ? `${LLM_TEMPLATE_BASEURL_STORAGE_PREFIX}${templateName}` : null;
-}
-
-function getLLMTemplateModelStorageKey(templateName) {
-    return templateName ? `${LLM_TEMPLATE_MODEL_STORAGE_PREFIX}${templateName}` : null;
-}
-
-function getLLMTemplateExtraBodyStorageKey(templateName) {
-    return templateName ? `${LLM_TEMPLATE_EXTRABODY_STORAGE_PREFIX}${templateName}` : null;
-}
-
-function getLLMTemplateParallelStorageKey(templateName) {
-    return templateName ? `${LLM_TEMPLATE_PARALLEL_STORAGE_PREFIX}${templateName}` : null;
-}
-
-function getCurrentLLMTemplateName() {
-    return getSelectedLLMTemplateName();
-}
-
-function getStoredLLMTemplateKey(templateName) {
-    const storageKey = getLLMTemplateKeyStorageKey(templateName);
-    if (!storageKey) return '';
-    return localStorage.getItem(storageKey) || '';
-}
-
-function setStoredLLMTemplateKey(templateName, value) {
-    const storageKey = getLLMTemplateKeyStorageKey(templateName);
-    if (!storageKey) return;
-
-    const normalized = (value || '').trim();
-    if (normalized) {
-        localStorage.setItem(storageKey, normalized);
-    } else {
-        localStorage.removeItem(storageKey);
-    }
-}
-
-function getStoredLLMTemplateBaseUrl(templateName) {
-    const storageKey = getLLMTemplateBaseUrlStorageKey(templateName);
-    if (!storageKey) return '';
-    return localStorage.getItem(storageKey) || '';
-}
-
-function setStoredLLMTemplateBaseUrl(templateName, value) {
-    const storageKey = getLLMTemplateBaseUrlStorageKey(templateName);
-    if (!storageKey) return;
-
-    const normalized = (value || '').trim();
-    if (normalized) {
-        localStorage.setItem(storageKey, normalized);
-    } else {
-        localStorage.removeItem(storageKey);
-    }
-}
-
-function getStoredLLMTemplateModel(templateName) {
-    const storageKey = getLLMTemplateModelStorageKey(templateName);
-    if (!storageKey) return '';
-    return localStorage.getItem(storageKey) || '';
-}
-
-function setStoredLLMTemplateModel(templateName, value) {
-    const storageKey = getLLMTemplateModelStorageKey(templateName);
-    if (!storageKey) return;
-
-    const normalized = (value || '').trim();
-    if (normalized) {
-        localStorage.setItem(storageKey, normalized);
-    } else {
-        localStorage.removeItem(storageKey);
-    }
-}
-
-/** @returns {string | null} 有记录则为字符串（可为 "" 表示用户明确留空）；从未保存过则为 null */
-function getStoredLLMTemplateExtraBody(templateName) {
-    const storageKey = getLLMTemplateExtraBodyStorageKey(templateName);
-    if (!storageKey) return null;
-    return localStorage.getItem(storageKey);
-}
-
-function setStoredLLMTemplateExtraBody(templateName, value) {
-    const storageKey = getLLMTemplateExtraBodyStorageKey(templateName);
-    if (!storageKey) return;
-    const normalized = value == null ? '' : String(value).trim();
-    localStorage.setItem(storageKey, normalized);
-}
-
-function getStoredLLMTemplateParallelMode(templateName) {
-    const storageKey = getLLMTemplateParallelStorageKey(templateName);
-    if (!storageKey) return '';
-    const value = localStorage.getItem(storageKey) || '';
-    return LLM_PARALLEL_FASTEST_MODES.includes(value) ? value : '';
-}
-
-function setStoredLLMTemplateParallelMode(templateName, value) {
-    const storageKey = getLLMTemplateParallelStorageKey(templateName);
-    if (!storageKey) return;
-
-    const normalized = LLM_PARALLEL_FASTEST_MODES.includes(value) ? value : 'off';
-    localStorage.setItem(storageKey, normalized);
-}
-
-function persistCurrentLLMTemplateBaseUrl() {
-    persistLLMTemplateBaseUrl(getCurrentLLMTemplateName());
-}
-
-function persistLLMTemplateBaseUrl(templateName) {
-    const baseUrlInput = document.getElementById('llm-base-url');
-    if (!templateName || !baseUrlInput || !isCustomLLMTemplate(templateName)) return;
-
-    setStoredLLMTemplateBaseUrl(templateName, baseUrlInput.value);
-}
-
-function persistCurrentLLMTemplateKey() {
-    persistLLMTemplateKey(getCurrentLLMTemplateName());
-}
-
-function persistLLMTemplateKey(templateName) {
-    const keyInput = document.getElementById('llm-api-key');
-    if (!templateName || !keyInput) return;
-
-    setStoredLLMTemplateKey(templateName, keyInput.value);
-}
-
-function persistCurrentLLMTemplateModel() {
-    persistLLMTemplateModel(getCurrentLLMTemplateName());
-}
-
-function persistLLMTemplateModel(templateName) {
-    const modelInput = document.getElementById('llm-model');
-    if (!templateName || !modelInput) return;
-
-    if (templateName === 'openrouter' || isCustomLLMTemplate(templateName)) {
-        setStoredLLMTemplateModel(templateName, modelInput.value);
-    }
-}
-
-function persistCurrentLLMTemplateExtraBody() {
-    persistLLMTemplateExtraBody(getCurrentLLMTemplateName());
-}
-
-function persistLLMTemplateExtraBody(templateName) {
-    const extraInput = document.getElementById('openai-compat-extra-body-json');
-    if (!templateName || !extraInput) return;
-
-    setStoredLLMTemplateExtraBody(templateName, extraInput.value);
-}
-
-function persistCurrentLLMTemplateParallelMode() {
-    persistLLMTemplateParallelMode(getCurrentLLMTemplateName());
-}
-
-function persistLLMTemplateParallelMode(templateName) {
-    if (!templateName || !isCustomLLMTemplate(templateName)) return;
-
-    setStoredLLMTemplateParallelMode(templateName, getLLMParallelFastestModeSelect());
-}
-
-function persistCurrentLLMTemplateState() {
-    persistLLMTemplateState(getCurrentLLMTemplateName());
-}
-
-function persistLLMTemplateState(templateName) {
-    persistLLMTemplateBaseUrl(templateName);
-    persistLLMTemplateKey(templateName);
-    persistLLMTemplateModel(templateName);
-    persistLLMTemplateExtraBody(templateName);
-    persistLLMTemplateParallelMode(templateName);
-}
-
-function syncSimpleModeLLMTemplateFields() {
-    const baseUrlInput = document.getElementById('llm-base-url');
-    const modelInput = document.getElementById('llm-model');
-    const keyInput = document.getElementById('llm-api-key');
-    const extraInput = document.getElementById('openai-compat-extra-body-json');
-
-    // 简易模式固定用可编辑的 custom1，保留用户已填的地址/模型/Key
-    const baseUrl = (baseUrlInput?.value || '').trim();
-    const model = (modelInput?.value || '').trim();
-    const apiKey = (keyInput?.value || '').trim();
-    const extraBodyJson = (extraInput?.value || '').trim();
-
-    setSelectedLLMTemplateName(SIMPLE_MODE_LLM_TEMPLATE_NAME);
-    if (baseUrlInput) baseUrlInput.value = baseUrl;
-    if (modelInput) modelInput.value = model;
-    if (keyInput) keyInput.value = apiKey;
-    if (extraInput) extraInput.value = extraBodyJson;
-    updateLLMTemplateFieldLocks();
-
-    return {
-        template: SIMPLE_MODE_LLM_TEMPLATE_NAME,
-        baseUrl,
-        model,
-        extraBodyJson,
-        apiKey,
-    };
+/** 发给后端的百炼 Key：兼容模式走百炼实时识别时是语音识别那块填的 Key */
+function getEffectiveDashscopeKey() {
+    if (window.GanlanApiMode) return window.GanlanApiMode.effective().asrDashscopeKey || '';
+    return (document.getElementById('dashscope-api-key')?.value || '').trim();
 }
 
 function getEffectiveLLMApiKeyForCurrentMode() {
+    if (window.GanlanApiMode) return window.GanlanApiMode.effective().llm.key;
     return (document.getElementById('llm-api-key')?.value || '').trim();
 }
 
-// 重置时按模板类型保留用户数据，其余参数回退到 LLM_TEMPLATE_CONFIGS 中的默认值：
-//   - custom1~3：完整保留（不清除任何参数）
-//   - openrouter：保留 API Key 和模型名，清除其余参数
-//   - 其他预设：仅保留 API Key，清除其余参数
-// 注：各模板的 API Key 存储在独立的键名下，此处不会被清除，因此始终保留。
-function resetStoredLLMTemplateParametersToDefaults() {
-    Object.entries(LLM_TEMPLATE_CONFIGS).forEach(([templateName, templateConfig]) => {
-        if (templateConfig.isCustom) {
-            return;
-        }
-
-        const storageKeys = [
-            getLLMTemplateBaseUrlStorageKey(templateName),
-            getLLMTemplateExtraBodyStorageKey(templateName),
-            getLLMTemplateParallelStorageKey(templateName),
-        ];
-        // openrouter 额外保留模型名；其余预设连模型一起清除
-        if (templateName !== 'openrouter') {
-            storageKeys.push(getLLMTemplateModelStorageKey(templateName));
-        }
-
-        storageKeys.forEach((storageKey) => {
-            if (storageKey) {
-                localStorage.removeItem(storageKey);
-            }
-        });
-    });
-}
-
-/** 若当前 Base URL 命中某一 LLM 预设且该预设下曾保存过 extra_body，则覆盖输入框（优先于配置里的全局值） */
-function applyStoredExtraBodyForActiveLLMTemplate() {
-    const templateName = getCurrentLLMTemplateName();
-    const extraBodyInput = document.getElementById('openai-compat-extra-body-json');
-    if (!templateName || !extraBodyInput) return;
-
-    const storedExtra = getStoredLLMTemplateExtraBody(templateName);
-    if (storedExtra !== null) {
-        extraBodyInput.value = storedExtra;
-    }
-}
-
-function resolveLLMTemplateKeySource(templateName) {
-    const t = window.i18n ? window.i18n.t : (key) => key;
-    const useInternationalEndpoint = document.getElementById('use-international-endpoint')?.checked ?? false;
-    const templateConfig = LLM_TEMPLATE_CONFIGS[templateName];
-    if (!templateConfig) return null;
-    if (templateConfig.isCustom) return null;
-
-    let url = '';
-    if (templateName === 'dashscope-qwen35-flash' || templateName === 'dashscope-qwen35-plus') {
-        url = useInternationalEndpoint
-            ? 'https://modelstudio.console.aliyun.com/ap-southeast-1?tab=doc#/api-key'
-            : 'https://bailian.console.aliyun.com/cn-beijing/?tab=model#/api-key';
-    } else if (templateName === 'openrouter') {
-        url = 'https://openrouter.ai/settings/keys';
-    } else if (templateName === SIMPLE_MODE_LLM_TEMPLATE_NAME) {
-        url = 'https://platform.deepseek.com/api_keys';
-    } else if (templateName === 'mercury2') {
-        url = 'https://platform.inceptionlabs.ai/dashboard/api-keys';
-    }
-
-    if (!url) return null;
-
-    return {
-        providerName: t(templateConfig.providerLabelKey),
-        url,
-    };
-}
-
-function updateLLMTemplateKeySourceHint(templateName = activeLLMTemplate) {
-    const container = document.getElementById('llm-template-key-source-hint');
-    const label = document.getElementById('llm-template-key-source-label');
-    const link = document.getElementById('llm-template-key-source-link');
-    const t = window.i18n ? window.i18n.t : (key) => key;
-
-    if (!container || !label || !link) return;
-
-    const source = resolveLLMTemplateKeySource(templateName);
-    if (!source) {
-        container.style.display = 'none';
-        label.textContent = '';
-        link.textContent = '';
-        link.removeAttribute('href');
-        activeLLMTemplate = templateName || null;
-        return;
-    }
-
-    activeLLMTemplate = templateName;
-    label.textContent = t('hint.llmTemplateKeySource', { provider: source.providerName });
-    link.href = source.url;
-    link.textContent = source.url;
-    link.title = source.url;
-    container.style.display = 'block';
-}
-
-function syncLLMTemplateKeySourceHintFromInputs() {
-    updateLLMTemplateKeySourceHint(getCurrentLLMTemplateName());
-    updateLLMTemplateButtonStates();
-    updateLLMTemplateFieldLocks();
-}
-
-/** 翻译仅保留大模型模式：非 openrouter* 的旧配置统一迁移。 */
-function normalizeTranslationApiTypeToLlm(apiType) {
-    if (apiType === 'openrouter_streaming') return 'openrouter';
-    if (apiType === 'openrouter' || apiType === 'openrouter_streaming_deepl_hybrid') return apiType;
-    return 'openrouter';
+/**
+ * 翻译只剩大模型（隐藏的 translation-api-type 只有 openrouter）。存的 api_type 只决定「流式翻译模式」勾不勾：
+ * 明确存成 openrouter（非流式）才不勾，其余（openrouter_streaming、没存、以前的 DeepL 混合等）都是流式。
+ * 以前这里两种都勾上，取消勾选后一刷新又勾回去了。
+ */
+function isStreamingStoredApiType(apiType) {
+    return apiType !== 'openrouter';
 }
 
 function updateLLMStreamingPromoState() {
@@ -1341,12 +813,10 @@ function sanitizeLLMTranslationStyle(value) {
 
 /** LLM 地址、模型、Key 是否已就绪（与启动校验一致：Key 可为环境/后端已设置而输入框为空）。 */
 function isLLMConnectionFieldsComplete() {
-    const simpleLLMFields = false
-        ? syncSimpleModeLLMTemplateFields()
-        : null;
-    const base = simpleLLMFields?.baseUrl || (document.getElementById('llm-base-url')?.value || '').trim();
-    const model = simpleLLMFields?.model || (document.getElementById('llm-model')?.value || '').trim();
-    const llmKey = simpleLLMFields?.apiKey || (document.getElementById('llm-api-key')?.value || '').trim();
+    const plan = window.GanlanApiMode ? window.GanlanApiMode.effective().llm : null;
+    const base = plan ? plan.baseUrl : (document.getElementById('llm-base-url')?.value || '').trim();
+    const model = plan ? plan.model : (document.getElementById('llm-model')?.value || '').trim();
+    const llmKey = plan ? plan.key : (document.getElementById('llm-api-key')?.value || '').trim();
     const hasKey = runtimeCredentialStatus.llm.api_key_set || !!llmKey;
     return !!(base && model && hasKey);
 }
@@ -1366,18 +836,7 @@ function updateOpenRouterStreamingUi() {
 function isUsingLLMStreamingTranslation() {
     const apiType = document.getElementById('translation-api-type')?.value ?? '';
     const streamingMode = document.getElementById('openrouter-streaming-mode');
-    return apiType === 'openrouter_streaming_deepl_hybrid'
-        || (apiType === 'openrouter' && !!streamingMode?.checked);
-}
-
-function updateSensitiveWordsHint(apiType = null) {
-    const actualApiType = apiType || (document.getElementById('translation-api-type')
-        ? document.getElementById('translation-api-type').value
-        : 'openrouter');
-    const hint = document.getElementById('qwen-mt-sensitive-words-hint');
-    if (!hint) return;
-
-    hint.style.display = actualApiType === 'qwen_mt' ? 'block' : 'none';
+    return apiType === 'openrouter' && !!streamingMode?.checked;
 }
 
 /** Qwen ASR / Qwen-Audio-3.0 / Fun-ASR / Qwen-MT 依赖 DashScope Key，其余场景不校验 */
@@ -1396,16 +855,9 @@ function updateDashscopeKeyFieldState() {
     if (!input) return;
     const need = currentConfigRequiresDashscopeKey();
     if (badge) {
-        const isAdvancedMode = !false;
-        if (need && !isAdvancedMode) {
-            badge.hidden = false;
-            badge.setAttribute('data-i18n', 'label.required');
-            badge.textContent = window.i18n ? window.i18n.t('label.required') : '*必需';
-        } else {
-            badge.hidden = true;
-            badge.textContent = '';
-            badge.removeAttribute('data-i18n');
-        }
+        badge.hidden = true;
+        badge.textContent = '';
+        badge.removeAttribute('data-i18n');
     }
     input.required = !!need;
 }
@@ -1428,6 +880,10 @@ function highlightInput(inputId) {
 }
 
 function expandLLMSettingsPanel(inputIds = []) {
+    if (window.GanlanApiMode) {
+        window.GanlanApiMode.reveal(inputIds);
+        return;
+    }
     const wrapper = document.getElementById('llm-settings-wrapper');
     ensureCollapsibleExpanded('translation-api');
     if (wrapper) {
@@ -1599,99 +1055,6 @@ function updateOscCompatModeUi() {
 function shouldSkipOscUdpPortCheck() {
     return isOscCompatModeEnabled()
         || document.getElementById('bypass-osc-udp-port-check')?.checked === true;
-}
-
-// 把指定模板的已存/默认参数填入表单（不会持久化当前表单，供重置后刷新界面使用）
-function populateLLMTemplateForm(templateName) {
-    const isSimpleMode = false;
-    const targetTemplate = isSimpleMode ? SIMPLE_MODE_LLM_TEMPLATE_NAME : templateName;
-
-    const baseUrlInput = document.getElementById('llm-base-url');
-    const modelInput = document.getElementById('llm-model');
-    const keyInput = document.getElementById('llm-api-key');
-    const extraBodyInput = document.getElementById('openai-compat-extra-body-json');
-    const parallelFastestSelect = document.getElementById('llm-parallel-fastest-mode');
-    const dashscopeKeyInput = document.getElementById('dashscope-api-key');
-    const t = window.i18n ? window.i18n.t : (key) => key;
-    const templateConfig = LLM_TEMPLATE_CONFIGS[targetTemplate];
-
-    if (!baseUrlInput || !modelInput || !keyInput || !extraBodyInput || !parallelFastestSelect || !templateConfig) {
-        return false;
-    }
-
-    setSelectedLLMTemplateName(targetTemplate);
-
-    if (templateConfig.isCustom) {
-        baseUrlInput.value = getStoredLLMTemplateBaseUrl(targetTemplate);
-        modelInput.value = getStoredLLMTemplateModel(targetTemplate);
-    } else {
-        baseUrlInput.value = templateConfig.baseUrl;
-    }
-    if (!templateConfig.isCustom && Object.prototype.hasOwnProperty.call(templateConfig, 'model')) {
-        modelInput.value = templateConfig.model;
-    } else if (targetTemplate === 'openrouter') {
-        modelInput.value = getStoredLLMTemplateModel(targetTemplate);
-    }
-    const storedExtra = getStoredLLMTemplateExtraBody(targetTemplate);
-    if (storedExtra !== null) {
-        extraBodyInput.value = storedExtra;
-    } else if (Object.prototype.hasOwnProperty.call(templateConfig, 'extraBody')) {
-        extraBodyInput.value = templateConfig.extraBody;
-    } else {
-        extraBodyInput.value = '';
-    }
-    if (templateConfig.isCustom) {
-        parallelFastestSelect.value = getStoredLLMTemplateParallelMode(targetTemplate) || 'off';
-    } else {
-        parallelFastestSelect.value = templateConfig.parallelFastestMode || 'off';
-    }
-
-    const storedKey = getStoredLLMTemplateKey(targetTemplate);
-    if (storedKey) {
-        keyInput.value = storedKey;
-        persistSecretInputValue('llm-api-key');
-        runtimeCredentialStatus.llm.api_key_set = true;
-    } else if (templateConfig.isCustom) {
-        keyInput.value = '';
-        persistSecretInputValue('llm-api-key');
-        runtimeCredentialStatus.llm.api_key_set = false;
-    } else if (templateConfig.copyDashscopeKey) {
-        const dashscopeKey = dashscopeKeyInput ? dashscopeKeyInput.value.trim() : '';
-        if (dashscopeKey) {
-            keyInput.value = dashscopeKey;
-            setStoredLLMTemplateKey(targetTemplate, dashscopeKey);
-            persistSecretInputValue('llm-api-key');
-            runtimeCredentialStatus.llm.api_key_set = true;
-            showMessage('✅ ' + t('msg.llmTemplateDashscopeCopied'), 'success');
-        } else {
-            keyInput.value = '';
-            persistSecretInputValue('llm-api-key');
-            runtimeCredentialStatus.llm.api_key_set = false;
-            showMessage('⚠️ ' + t('msg.llmTemplateDashscopeKeyMissing'), 'warning');
-        }
-    } else {
-        keyInput.value = '';
-        persistSecretInputValue('llm-api-key');
-        runtimeCredentialStatus.llm.api_key_set = false;
-    }
-
-    updateLLMTemplateKeySourceHint(targetTemplate);
-    return true;
-}
-
-function applyLLMTemplate(templateName) {
-    const previousTemplateName = normalizeLLMTemplateName(activeLLMTemplate) || getCurrentLLMTemplateName();
-    const baseUrlInput = document.getElementById('llm-base-url');
-
-    if (previousTemplateName) {
-        persistLLMTemplateState(previousTemplateName);
-    }
-
-    if (!populateLLMTemplateForm(templateName)) {
-        return;
-    }
-
-    onSettingChange(baseUrlInput);
 }
 
 function closeLanguageMenus(exceptCombo = null) {
@@ -2075,8 +1438,8 @@ document.addEventListener('DOMContentLoaded', async function () {
     loadQuickLanguageSettings();
     loadVrcxBridgeUiPreference();
     loadAPIKeys();
+    if (window.GanlanApiMode) window.GanlanApiMode.onConfigReady();
     initializeCollapsibleStates();
-    applyStoredExtraBodyForActiveLLMTemplate();
     setupSecretVisibilityToggles();
     applyAsrBackendLocks();
     updateOscCompatModeUi();
@@ -2124,7 +1487,6 @@ document.addEventListener('i18n:languageChanged', function () {
     updateDashscopeKeyFieldState();
     updateStatus();
     refreshVrcxBridgeStatus();
-    updateLLMTemplateKeySourceHint();
 });
 
 // 从服务器加载进程内凭据状态
@@ -2295,110 +1657,67 @@ function showConfigStorageInfo() {
     }
 }
 
+/**
+ * 1.1.2 以前的大模型「模板」：当前模板（一直是 custom1）的 Key 和额外参数在 llm_template_*_custom1 里另存了一份，
+ * 打开页面时以它为准。读一次放回输入框（和以前打开时看到的一样），再删掉所有模板键；
+ * 去掉的 DeepL / 豆包 / Soniox Key 也从浏览器里删掉。返回 true 表示迁移过，要把表单存回浏览器。
+ */
+function migrateLegacyBrowserKeys() {
+    const legacyKeys = [];
+    for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        if (!key) continue;
+        if (key.startsWith(LEGACY_LLM_TEMPLATE_STORAGE_PREFIX)
+            || key === LEGACY_LLM_SELECTED_TEMPLATE_STORAGE_KEY
+            || LEGACY_REMOVED_KEY_STORAGE_KEYS.includes(key)) {
+            legacyKeys.push(key);
+        }
+    }
+    if (!legacyKeys.length) return false;
+
+    const templateKey = (localStorage.getItem(`${LEGACY_LLM_TEMPLATE_STORAGE_PREFIX}key_custom1`) || '').trim();
+    if (templateKey) {
+        document.getElementById('llm-api-key').value = templateKey;
+        persistSecretInputValue('llm-api-key');
+    }
+    const templateExtraBody = localStorage.getItem(`${LEGACY_LLM_TEMPLATE_STORAGE_PREFIX}extrabody_custom1`);
+    if (templateExtraBody !== null) {
+        document.getElementById('openai-compat-extra-body-json').value = templateExtraBody;
+    }
+    legacyKeys.forEach((key) => localStorage.removeItem(key));
+    console.log(`已迁移并删除旧的模板 / Key 存储（${legacyKeys.length} 项）`);
+    return true;
+}
+
 // 从localStorage加载API Keys
 function loadAPIKeys() {
     const dashscopeKey = localStorage.getItem('dashscope_api_key');
-    const deeplKey = localStorage.getItem('deepl_api_key');
     const llmKey = localStorage.getItem('llm_api_key');
-    const doubaoKey = localStorage.getItem('doubao_api_key');
     const useInternational = localStorage.getItem('use_international_endpoint') === 'true';
 
     if (dashscopeKey) document.getElementById('dashscope-api-key').value = dashscopeKey;
-    if (deeplKey) document.getElementById('deepl-api-key').value = deeplKey;
-    if (doubaoKey) document.getElementById('doubao-api-key').value = doubaoKey;
-
-    const sonioxKey = localStorage.getItem('soniox_api_key');
-    if (sonioxKey) document.getElementById('soniox-api-key').value = sonioxKey;
+    if (llmKey) document.getElementById('llm-api-key').value = llmKey;
 
     const screenOcrKey = localStorage.getItem('screen_ocr_api_key');
     if (screenOcrKey) document.getElementById('screen-ocr-api-key').value = screenOcrKey;
 
-    const activeTemplate = ensureSelectedLLMTemplate();
-    const storedTemplateKey = getStoredLLMTemplateKey(activeTemplate);
-    if (storedTemplateKey) {
-        document.getElementById('llm-api-key').value = storedTemplateKey;
-    } else if (llmKey && !false) {
-        document.getElementById('llm-api-key').value = llmKey;
-        persistCurrentLLMTemplateKey();
-    } else if (false) {
-        document.getElementById('llm-api-key').value = '';
-    }
-
-    if (activeTemplate === 'openrouter') {
-        const storedOpenRouterModel = getStoredLLMTemplateModel(activeTemplate);
-        if (storedOpenRouterModel) {
-            document.getElementById('llm-model').value = storedOpenRouterModel;
-        }
-    }
+    if (migrateLegacyBrowserKeys()) saveConfigToLocalStorage();
 
     document.getElementById('use-international-endpoint').checked = useInternational;
 
     // 应用国际版设置对 ASR 选项的影响
     updateAsrOptionsForInternational(useInternational);
 
-    // 如果已有DashScope API Key，自动折叠API Keys区域
-    if (dashscopeKey) {
-        const apiKeysSection = document.getElementById('api-keys');
-        const apiKeysIcon = document.getElementById('api-keys-icon');
-        if (apiKeysSection && !apiKeysSection.classList.contains('collapsed')) {
-            apiKeysSection.classList.add('collapsed');
-            updateCollapsibleIcon(apiKeysIcon, true);
-            syncCollapsibleContainerState(apiKeysSection);
-            syncCollapsibleAccessibility(apiKeysSection);
-        }
-    }
+    // 「API 配置」卡和里面各项折不折叠由 api-mode.js 的 onConfigReady 决定（填好的折叠，没填的展开）
 
     // 添加API Key change事件监听
     document.getElementById('dashscope-api-key').addEventListener('input', saveAPIKey);
-    document.getElementById('deepl-api-key').addEventListener('input', saveAPIKey);
     document.getElementById('llm-api-key').addEventListener('input', saveAPIKey);
-    document.getElementById('doubao-api-key').addEventListener('input', saveAPIKey);
-    document.getElementById('soniox-api-key').addEventListener('input', saveAPIKey);
     document.getElementById('screen-ocr-api-key').addEventListener('input', saveAPIKey);
 
     ['llm-base-url', 'llm-model', 'openai-compat-extra-body-json'].forEach((inputId) => {
-        const input = document.getElementById(inputId);
-        if (!input) return;
-        input.addEventListener('input', (event) => {
-            if (event.target.id === 'llm-base-url') {
-                persistCurrentLLMTemplateBaseUrl();
-            }
-            if (event.target.id === 'llm-model') {
-                persistCurrentLLMTemplateModel();
-            }
-            if (event.target.id === 'openai-compat-extra-body-json') {
-                persistCurrentLLMTemplateExtraBody();
-            }
-            syncLLMTemplateKeySourceHintFromInputs();
-            onSettingChange(event.target);
-        });
+        document.getElementById(inputId)?.addEventListener('input', (event) => onSettingChange(event.target));
     });
-
-    const llmBaseUrlInput = document.getElementById('llm-base-url');
-    if (llmBaseUrlInput && llmBaseUrlInput.dataset.llmExtrabodySyncBound !== 'true') {
-        llmBaseUrlInput.dataset.llmExtrabodySyncBound = 'true';
-        llmBaseUrlInput.addEventListener('blur', () => {
-            applyStoredExtraBodyForActiveLLMTemplate();
-        });
-    }
-
-    const extraBodyEl = document.getElementById('openai-compat-extra-body-json');
-    if (extraBodyEl && extraBodyEl.dataset.llmExtrabodyBlurPersistBound !== 'true') {
-        extraBodyEl.dataset.llmExtrabodyBlurPersistBound = 'true';
-        extraBodyEl.addEventListener('blur', () => {
-            persistCurrentLLMTemplateExtraBody();
-        });
-    }
-
-    const parallelModeEl = document.getElementById('llm-parallel-fastest-mode');
-    if (parallelModeEl && parallelModeEl.dataset.llmParallelPersistBound !== 'true') {
-        parallelModeEl.dataset.llmParallelPersistBound = 'true';
-        parallelModeEl.addEventListener('change', () => {
-            persistCurrentLLMTemplateParallelMode();
-            syncLLMTemplateKeySourceHintFromInputs();
-            onSettingChange(parallelModeEl);
-        });
-    }
 }
 
 // 处理国际版端点开关变化
@@ -2410,7 +1729,6 @@ function handleInternationalEndpointChange(event) {
 
     // 更新 ASR 选项
     updateAsrOptionsForInternational(useInternational);
-    updateLLMTemplateKeySourceHint();
 
     // 触发配置保存
     onSettingChange(event.target);
@@ -2454,24 +1772,22 @@ function applyAsrBackendLocks() {
         return;
     }
 
-    const isDoubaoFile = asrBackendSelect.value === 'doubao_file';
-    const apiTypeVal = translationApiSelect.value;
     const isStreamingTranslation = enableTranslationToggle.checked
-        && (
-            (apiTypeVal === 'openrouter' && streamingModeToggle.checked)
-            || apiTypeVal === 'openrouter_streaming_deepl_hybrid'
-        );
+        && translationApiSelect.value === 'openrouter'
+        && streamingModeToggle.checked;
 
     // 固定开启：VRChat 麦克风没开时不跑自我识别（后端也固定开启）
     micControlToggle.checked = true;
     micControlToggle.disabled = true;
 
-    if (isDoubaoFile || isStreamingTranslation) {
+    if (isStreamingTranslation) {
         partialResultsToggle.checked = false;
         partialResultsToggle.disabled = true;
     } else {
         partialResultsToggle.disabled = false;
     }
+    // 1.1.2 整理：流式翻译开着时「显示部分结果」反正用不了，整行藏起来，不再显示一个灰掉的勾
+    document.getElementById('fg-show-partial-results')?.classList.toggle('hidden', partialResultsToggle.disabled);
 }
 
 // 保存API Key到localStorage
@@ -2479,7 +1795,6 @@ function saveAPIKey(event) {
     persistSecretInputValue(event.target.id);
 
     if (event.target.id === 'llm-api-key') {
-        persistCurrentLLMTemplateKey();
         runtimeCredentialStatus.llm.api_key_set = !!event.target.value.trim();
     }
 
@@ -2501,30 +1816,13 @@ function loadConfigFromLocalStorage() {
                 document.getElementById('target-language').value = config.translation.target_language || 'ja';
                 document.getElementById('secondary-target-language').value = config.translation.secondary_target_language || '';
                 document.getElementById('fallback-language').value = config.translation.fallback_language || '';
-                // 处理 LLM 流式模式的特殊情况
-                const apiType = normalizeTranslationApiTypeToLlm(config.translation.api_type || 'openrouter_streaming');
-                if (apiType === 'openrouter') {
-                    document.getElementById('translation-api-type').value = 'openrouter';
-                    document.getElementById('openrouter-streaming-mode').checked =
-                        (config.translation.api_type || 'openrouter_streaming') === 'openrouter_streaming'
-                        || config.translation.api_type === 'openrouter';
-                    document.getElementById('openrouter-streaming-mode').disabled = false;
-                } else {
-                    document.getElementById('translation-api-type').value = 'openrouter';
-                    document.getElementById('openrouter-streaming-mode').checked = true;
-                    document.getElementById('openrouter-streaming-mode').disabled = false;
-                }
-                if (false) {
-                    // 简易模式允许用户自定义 LLM 地址/模型，按已保存值回填
-                    document.getElementById('llm-base-url').value = config.translation.llm_base_url || '';
-                    document.getElementById('llm-model').value = config.translation.llm_model || '';
-                    document.getElementById('openai-compat-extra-body-json').value = config.translation.openai_compat_extra_body_json || '';
-                    setSelectedLLMTemplateName(SIMPLE_MODE_LLM_TEMPLATE_NAME);
-                } else {
-                    document.getElementById('llm-base-url').value = config.translation.llm_base_url || '';
-                    document.getElementById('llm-model').value = config.translation.llm_model || '';
-                    document.getElementById('openai-compat-extra-body-json').value = config.translation.openai_compat_extra_body_json || '';
-                }
+                document.getElementById('translation-api-type').value = 'openrouter';
+                document.getElementById('openrouter-streaming-mode').checked =
+                    isStreamingStoredApiType(config.translation.api_type);
+                document.getElementById('openrouter-streaming-mode').disabled = false;
+                document.getElementById('llm-base-url').value = config.translation.llm_base_url || '';
+                document.getElementById('llm-model').value = config.translation.llm_model || '';
+                document.getElementById('openai-compat-extra-body-json').value = config.translation.openai_compat_extra_body_json || '';
                 document.getElementById('llm-translation-formality').value =
                     sanitizeLLMTranslationFormality(config.translation.llm_translation_formality);
                 document.getElementById('llm-translation-style').value =
@@ -2532,7 +1830,6 @@ function loadConfigFromLocalStorage() {
                 setLLMParallelFastestModeSelect(
                     resolveLLMParallelFastestModeFromStoredTranslation(config.translation)
                 );
-                ensureSelectedLLMTemplate(config.translation);
                 applySourceLanguageInputFromStored(config.translation.source_language ?? 'auto');
                 document.getElementById('show-partial-results').checked = config.translation.show_partial_results ?? false;
                 document.getElementById('enable-furigana').checked = config.translation.enable_furigana ?? false;
@@ -2695,15 +1992,16 @@ function loadConfigFromLocalStorage() {
         toggleTranslationOptions();
         updateFuriganaVisibility();
         updateLLMSettingsVisibility();
-        updateSensitiveWordsHint();
         applyAsrBackendLocks();
         updateOscCompatModeUi();
-        ensureSelectedLLMTemplate();
-        syncLLMTemplateKeySourceHintFromInputs();
         syncAllLanguageComboClearButtons();
         updateDashscopeKeyFieldState();
-        applyStoredExtraBodyForActiveLLMTemplate();
         updateLocalAsrUiVisibility();
+        if (window.GanlanApiMode) {
+            let savedApi = null;
+            try { savedApi = JSON.parse(localStorage.getItem(CONFIG_STORAGE_KEY) || '{}').api || null; } catch (e) { savedApi = null; }
+            window.GanlanApiMode.restore(savedApi);
+        }
 
     } catch (error) {
         console.error('加载本地配置失败:', error);
@@ -2712,14 +2010,10 @@ function loadConfigFromLocalStorage() {
         toggleTranslationOptions();
         updateFuriganaVisibility();
         updateLLMSettingsVisibility();
-        updateSensitiveWordsHint();
         applyAsrBackendLocks();
         updateOscCompatModeUi();
-        ensureSelectedLLMTemplate();
-        syncLLMTemplateKeySourceHintFromInputs();
         syncAllLanguageComboClearButtons();
         updateDashscopeKeyFieldState();
-        applyStoredExtraBodyForActiveLLMTemplate();
         updateLocalAsrUiVisibility();
     }
 }
@@ -2751,7 +2045,6 @@ function loadDefaultConfig() {
     document.getElementById('llm-translation-formality').value = DEFAULT_LLM_TRANSLATION_FORMALITY;
     document.getElementById('llm-translation-style').value = DEFAULT_LLM_TRANSLATION_STYLE;
     document.getElementById('openai-compat-extra-body-json').value = '';
-    setSelectedLLMTemplateName(SIMPLE_MODE_LLM_TEMPLATE_NAME);
 
     const showTag = document.getElementById('show-original-and-lang-tag');
     if (showTag) showTag.checked = true;
@@ -2825,14 +2118,11 @@ function loadDefaultConfig() {
     }
 
     console.log('✓ 已加载前端默认配置');
-    ensureSelectedLLMTemplate({ llm_template: DEFAULT_LLM_TEMPLATE_NAME });
     updateOpenRouterStreamingUi();
     updateFuriganaVisibility();
     updateLLMSettingsVisibility();
-    updateSensitiveWordsHint();
     applyAsrBackendLocks();
     updateOscCompatModeUi();
-    syncLLMTemplateKeySourceHintFromInputs();
     syncAllLanguageComboClearButtons();
     updateDashscopeKeyFieldState();
     updateLocalAsrUiVisibility();
@@ -2843,13 +2133,10 @@ function refreshUiAfterServerConfigApply() {
     toggleTranslationOptions();
     updateFuriganaVisibility();
     updateLLMSettingsVisibility();
-    updateSensitiveWordsHint();
     applyAsrBackendLocks();
     updateOscCompatModeUi();
-    syncLLMTemplateKeySourceHintFromInputs();
     syncAllLanguageComboClearButtons();
     updateDashscopeKeyFieldState();
-    applyStoredExtraBodyForActiveLLMTemplate();
     updateLocalAsrUiVisibility();
     renderLanguageComboMenus();
 }
@@ -2859,33 +2146,20 @@ function applyServerConfigPayload(config) {
     if (config.features) {
         featureFlags = config.features;
     }
+    // 百炼模式下服务器发回来的是百炼的地址，不能写进兼容模式的框（最后由 absorbServerConfig 放回去）
+    const customFieldSnapshot = window.GanlanApiMode ? window.GanlanApiMode.snapshotCustomFields() : null;
     updateLocalAsrUiVisibility();
 
     document.getElementById('enable-translation').checked = config.translation.enable_translation;
     document.getElementById('target-language').value = config.translation.target_language;
     document.getElementById('secondary-target-language').value = config.translation.secondary_target_language || '';
     document.getElementById('fallback-language').value = config.translation.fallback_language || '';
-    const serverApiType = config.translation.api_type;
-    if (serverApiType === 'openrouter_streaming' || !serverApiType || normalizeTranslationApiTypeToLlm(serverApiType) === 'openrouter') {
-        document.getElementById('translation-api-type').value = 'openrouter';
-        document.getElementById('openrouter-streaming-mode').checked =
-            serverApiType === 'openrouter_streaming' || serverApiType === 'openrouter' || !serverApiType;
-        document.getElementById('openrouter-streaming-mode').disabled = false;
-    } else {
-        document.getElementById('translation-api-type').value = 'openrouter';
-        document.getElementById('openrouter-streaming-mode').checked = true;
-        document.getElementById('openrouter-streaming-mode').disabled = false;
-    }
-    if (false) {
-        document.getElementById('llm-base-url').value = config.translation.llm_base_url || '';
-        document.getElementById('llm-model').value = config.translation.llm_model || '';
-        document.getElementById('openai-compat-extra-body-json').value = config.translation.openai_compat_extra_body_json || '';
-        setSelectedLLMTemplateName(SIMPLE_MODE_LLM_TEMPLATE_NAME);
-    } else {
-        document.getElementById('llm-base-url').value = config.translation.llm_base_url || '';
-        document.getElementById('llm-model').value = config.translation.llm_model || '';
-        document.getElementById('openai-compat-extra-body-json').value = config.translation.openai_compat_extra_body_json || '';
-    }
+    document.getElementById('translation-api-type').value = 'openrouter';
+    document.getElementById('openrouter-streaming-mode').checked = isStreamingStoredApiType(config.translation.api_type);
+    document.getElementById('openrouter-streaming-mode').disabled = false;
+    document.getElementById('llm-base-url').value = config.translation.llm_base_url || '';
+    document.getElementById('llm-model').value = config.translation.llm_model || '';
+    document.getElementById('openai-compat-extra-body-json').value = config.translation.openai_compat_extra_body_json || '';
     document.getElementById('llm-translation-formality').value =
         sanitizeLLMTranslationFormality(config.translation.llm_translation_formality);
     document.getElementById('llm-translation-style').value =
@@ -2893,7 +2167,6 @@ function applyServerConfigPayload(config) {
     setLLMParallelFastestModeSelect(
         resolveLLMParallelFastestModeFromStoredTranslation(config.translation),
     );
-    ensureSelectedLLMTemplate(config.translation);
     document.getElementById('show-partial-results').checked = config.translation.show_partial_results ?? false;
     document.getElementById('enable-furigana').checked = config.translation.enable_furigana ?? false;
     document.getElementById('enable-pinyin').checked = config.translation.enable_pinyin ?? false;
@@ -3008,6 +2281,7 @@ function applyServerConfigPayload(config) {
     if (config.screen_translation) {
         applyScreenTranslationForm(config.screen_translation);
     }
+    if (window.GanlanApiMode) window.GanlanApiMode.absorbServerConfig(config, customFieldSnapshot);
     applyDisplayMode(config.display?.mode);
     refreshPanelSettingMirrors();
 }
@@ -3083,22 +2357,15 @@ function saveConfigToLocalStorage() {
     try {
         applyAsrBackendLocks();
 
-        // 确定实际的 API 类型（LLM + 流式开关 -> openrouter_streaming；混合模式保持独立值）
+        // 实际的 API 类型：大模型 + 流式开关 -> openrouter_streaming
         let actualApiType = document.getElementById('translation-api-type').value;
-        if (actualApiType === 'openrouter_streaming_deepl_hybrid') {
-            // 保持 hybrid
-        } else if (actualApiType === 'openrouter' && document.getElementById('openrouter-streaming-mode').checked) {
+        if (actualApiType === 'openrouter' && document.getElementById('openrouter-streaming-mode').checked) {
             actualApiType = 'openrouter_streaming';
         }
 
-        const isSimpleMode = false;
-        const simpleLLMFields = isSimpleMode ? syncSimpleModeLLMTemplateFields() : null;
-        const llmTemplate = isSimpleMode ? simpleLLMFields.template : getSelectedLLMTemplateName();
-        const llmBaseUrl = isSimpleMode ? simpleLLMFields.baseUrl : document.getElementById('llm-base-url').value.trim();
-        const llmModel = isSimpleMode ? simpleLLMFields.model : document.getElementById('llm-model').value.trim();
-        const openaiExtraBodyJson = isSimpleMode
-            ? simpleLLMFields.extraBodyJson
-            : document.getElementById('openai-compat-extra-body-json').value.trim();
+        const llmBaseUrl = document.getElementById('llm-base-url').value.trim();
+        const llmModel = document.getElementById('llm-model').value.trim();
+        const openaiExtraBodyJson = document.getElementById('openai-compat-extra-body-json').value.trim();
 
         const config = {
             translation: {
@@ -3107,7 +2374,6 @@ function saveConfigToLocalStorage() {
                 secondary_target_language: document.getElementById('secondary-target-language').value || null,
                 fallback_language: document.getElementById('fallback-language').value || null,
                 api_type: actualApiType,
-                llm_template: llmTemplate,
                 llm_base_url: llmBaseUrl,
                 llm_model: llmModel,
                 llm_translation_formality: sanitizeLLMTranslationFormality(
@@ -3177,15 +2443,13 @@ function saveConfigToLocalStorage() {
                 min_samples: parseInt(document.getElementById('smart-target-min-samples')?.value || '3'),
             },
             others_translation: {
-                enabled: document.getElementById('others-translation-enabled')?.checked === true,
-                asr_backend: sanitizeOthersAsrBackendValue(
-                    document.getElementById('others-asr-backend')?.value || ''
-                ),
+                asr_backend: '',   // 1.1.2：跟随「API 配置」，不再单独选
                 target_language: (document.getElementById('others-target-language')?.value || '').trim() || 'zh-CN',
             },
             screen_translation: getScreenTranslationConfigFromForm(),
             display: { mode: currentDisplayMode },
             local_asr: isLocalAsrUiEnabled() ? getLocalAsrConfigFromForm() : null,
+            api: window.GanlanApiMode ? window.GanlanApiMode.serialize() : undefined,
         };
 
         localStorage.setItem(CONFIG_STORAGE_KEY, JSON.stringify(config));
@@ -3243,10 +2507,8 @@ function handleTranslationApiChange(event) {
     const warningElement = document.getElementById('translation-api-warning');
 
     updateOpenRouterStreamingUi();
-    const expandLlmPanel = (newApi === 'openrouter' || newApi === 'openrouter_streaming_deepl_hybrid')
-        && !isLLMConnectionFieldsComplete();
+    const expandLlmPanel = newApi === 'openrouter' && !isLLMConnectionFieldsComplete();
     updateLLMSettingsVisibility(newApi, expandLlmPanel);
-    updateSensitiveWordsHint(newApi);
     updateLLMStreamingPromoState();
     applyAsrBackendLocks();
 
@@ -3268,9 +2530,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
         updateOpenRouterStreamingUi();
         updateLLMSettingsVisibility(apiSelect.value);
-        updateSensitiveWordsHint(apiSelect.value);
         updateLLMStreamingPromoState();
-        syncLLMTemplateKeySourceHintFromInputs();
     }, 100);
 });
 
@@ -3330,21 +2590,18 @@ async function saveConfig(autoSave = false) {
     try {
         applyAsrBackendLocks();
 
-        // 确定实际的 API 类型（LLM + 流式开关 -> openrouter_streaming；混合模式保持独立值）
+        // 实际的 API 类型：大模型 + 流式开关 -> openrouter_streaming
         let actualApiType = document.getElementById('translation-api-type').value;
-        if (actualApiType === 'openrouter_streaming_deepl_hybrid') {
-            // 保持 hybrid
-        } else if (actualApiType === 'openrouter' && document.getElementById('openrouter-streaming-mode').checked) {
+        if (actualApiType === 'openrouter' && document.getElementById('openrouter-streaming-mode').checked) {
             actualApiType = 'openrouter_streaming';
         }
 
-        const isSimpleMode = false;
-        const simpleLLMFields = isSimpleMode ? syncSimpleModeLLMTemplateFields() : null;
-        const llmTemplate = isSimpleMode ? simpleLLMFields.template : getSelectedLLMTemplateName();
-        const llmBaseUrl = isSimpleMode ? simpleLLMFields.baseUrl : document.getElementById('llm-base-url').value.trim();
-        const llmModel = isSimpleMode ? simpleLLMFields.model : document.getElementById('llm-model').value.trim();
-        const openaiExtraBodyJson = isSimpleMode
-            ? simpleLLMFields.extraBodyJson
+        // 1.1.2：发给后端的是「API 配置」当前模式实际用的地址、模型（百炼模式 = 百炼的地址）
+        const apiPlan = window.GanlanApiMode ? window.GanlanApiMode.effective() : null;
+        const llmBaseUrl = apiPlan ? apiPlan.llm.baseUrl : document.getElementById('llm-base-url').value.trim();
+        const llmModel = apiPlan ? apiPlan.llm.model : document.getElementById('llm-model').value.trim();
+        const openaiExtraBodyJson = apiPlan
+            ? apiPlan.llm.extraBody
             : document.getElementById('openai-compat-extra-body-json').value.trim();
 
         const config = {
@@ -3354,7 +2611,6 @@ async function saveConfig(autoSave = false) {
                 secondary_target_language: document.getElementById('secondary-target-language').value || null,
                 fallback_language: document.getElementById('fallback-language').value || null,
                 api_type: actualApiType,
-                llm_template: llmTemplate,
                 llm_base_url: llmBaseUrl,
                 llm_model: llmModel,
                 llm_translation_formality: sanitizeLLMTranslationFormality(
@@ -3385,10 +2641,17 @@ async function saveConfig(autoSave = false) {
             },
             vrchat_mic: getVrchatMicSettingsFromForm(),
             asr: {
-                preferred_backend: sanitizeAsrBackendValue(document.getElementById('asr-backend').value),
-                qwen_audio3_model: (document.getElementById('qwen-audio3-model')?.value || '').trim() || DEFAULT_QWEN_AUDIO3_MODEL,
+                // 兼容模式里填百炼地址 + 实时流式模型时，实际走百炼实时识别（api-mode.js 的 compatRealtimeAsr）
+                preferred_backend: apiPlan && apiPlan.asrRealtime
+                    ? 'qwen_audio3'
+                    : sanitizeAsrBackendValue(document.getElementById('asr-backend').value),
+                qwen_audio3_model: apiPlan
+                    ? apiPlan.asrModel
+                    : ((document.getElementById('qwen-audio3-model')?.value || '').trim() || DEFAULT_QWEN_AUDIO3_MODEL),
                 enable_hot_words: document.getElementById('enable-hot-words').checked,
-                use_international_endpoint: document.getElementById('use-international-endpoint').checked,
+                use_international_endpoint: apiPlan
+                    ? apiPlan.international
+                    : document.getElementById('use-international-endpoint').checked,
             },
             custom_api: {
                 base_url: document.getElementById('custom-api-base-url')?.value.trim() || '',
@@ -3412,13 +2675,10 @@ async function saveConfig(autoSave = false) {
                 min_samples: parseInt(document.getElementById('smart-target-min-samples')?.value || '3'),
             },
             others_translation: {
-                enabled: document.getElementById('others-translation-enabled')?.checked === true,
-                asr_backend: sanitizeOthersAsrBackendValue(
-                    document.getElementById('others-asr-backend')?.value || ''
-                ),
+                asr_backend: '',   // 1.1.2：跟随「API 配置」，不再单独选
                 target_language: (document.getElementById('others-target-language')?.value || '').trim() || 'zh-CN',
             },
-            screen_translation: getScreenTranslationConfigFromForm(),
+            screen_translation: getScreenTranslationConfigFromForm(true),
             display: { mode: currentDisplayMode },
             panel: {
                 width: getNormalizedPanelWidth(),
@@ -3434,11 +2694,8 @@ async function saveConfig(autoSave = false) {
             },
             local_asr: isLocalAsrUiEnabled() ? getLocalAsrConfigFromForm() : null,
             api_keys: {
-                dashscope: document.getElementById('dashscope-api-key')?.value.trim() || '',
-                deepl: document.getElementById('deepl-api-key')?.value.trim() || '',
+                dashscope: getEffectiveDashscopeKey(),
                 llm: getEffectiveLLMApiKeyForCurrentMode(),
-                doubao: document.getElementById('doubao-api-key')?.value.trim() || '',
-                soniox: document.getElementById('soniox-api-key')?.value.trim() || '',
                 screen_ocr: getScreenOcrApiKey(),
             }
         };
@@ -3539,10 +2796,26 @@ async function updateStatus() {
         const serverTs = Number(status.config_applied_at_ms) || 0;
         const mainTs = getMainConfigTouchMs();
         if (serverTs > mainTs && status.target_language) {
-            const targetLangInput = document.getElementById('target-language');
-            if (targetLangInput && targetLangInput.value !== status.target_language) {
-                targetLangInput.value = status.target_language;
+            // 主语言、第二语言、他人 / 屏幕的译文语言（悬浮窗快捷按钮、语音控制插件会改）
+            const synced = [
+                ['target-language', status.target_language],
+                ['secondary-target-language', status.secondary_target_language],
+                ['others-target-language', status.others_target_language],
+                ['screen-target-language', status.screen_target_language],
+            ];
+            let changed = false;
+            synced.forEach(([id, value]) => {
+                const input = document.getElementById(id);
+                if (!input || typeof value !== 'string') return;
+                if (id !== 'secondary-target-language' && !value) return;
+                if (input.value !== value) {
+                    input.value = value;
+                    changed = true;
+                }
+            });
+            if (changed) {
                 renderLanguageComboMenus();
+                syncAllLanguageComboClearButtons();
                 saveConfigToLocalStorage();
             }
             setMainConfigTouchMs(serverTs);
@@ -3601,7 +2874,6 @@ async function startService(modes = ['self']) {
 
     startBtn.disabled = true;
     startBtn.textContent = t('btn.starting');
-    pendingWarningMessage = null;
 
     const bypassOscUdp = shouldSkipOscUdpPortCheck();
     if (needsSelf && !bypassOscUdp) {
@@ -3622,22 +2894,31 @@ async function startService(modes = ['self']) {
 
     try {
         const asrBackend = document.getElementById('asr-backend').value;
-        const dashscopeKey = document.getElementById('dashscope-api-key').value.trim();
-        const doubaoKey = document.getElementById('doubao-api-key').value.trim();
-        const sonioxKey = document.getElementById('soniox-api-key').value.trim();
-        const deeplKey = document.getElementById('deepl-api-key').value.trim();
+        const dashscopeKey = getEffectiveDashscopeKey();
         const llmKey = getEffectiveLLMApiKeyForCurrentMode();
-        const llmBaseUrl = document.getElementById('llm-base-url').value.trim();
-        const llmModel = document.getElementById('llm-model').value.trim();
-        const hasLLMKey = false
-            ? !!llmKey
-            : (runtimeCredentialStatus.llm.api_key_set || !!llmKey);
+        const apiPlan = window.GanlanApiMode ? window.GanlanApiMode.effective() : null;
+        const llmBaseUrl = apiPlan ? apiPlan.llm.baseUrl : document.getElementById('llm-base-url').value.trim();
+        const llmModel = apiPlan ? apiPlan.llm.model : document.getElementById('llm-model').value.trim();
+        const hasLLMKey = runtimeCredentialStatus.llm.api_key_set || !!llmKey;
 
         const enableTranslation = document.getElementById('enable-translation').checked;
         const translationApiSelect = document.getElementById('translation-api-type');
         let translationApiType = translationApiSelect.value;
 
         const requiresDashscopeKey = needsAsr && currentConfigRequiresDashscopeKey();
+
+        // 1.1.2「API 配置」：按当前模式（百炼 / OpenAI 兼容）检查要用到的那几项填了没有
+        if (window.GanlanApiMode && asrBackend !== 'local') {
+            const translationNeeded = (needsSelf && enableTranslation) || modes.includes('others') || modes.includes('screen');
+            const missing = window.GanlanApiMode.missingFor(modes, translationNeeded);
+            if (missing) {
+                showMessage('❌ ' + missing.message, 'error');
+                startBtn.disabled = false;
+                startBtn.textContent = t('btn.startAllModes');
+                window.GanlanApiMode.reveal([missing.id]);
+                return;
+            }
+        }
 
         if (needsAsr && asrBackend === 'local') {
             if (!isLocalAsrUiEnabled()) {
@@ -3671,44 +2952,20 @@ async function startService(modes = ['self']) {
         }
 
         if (requiresDashscopeKey && !dashscopeKey) {
-            const messageKey = false
-                ? 'msg.simpleDashscopeKeyMissing'
-                : 'msg.dashscopeRequired';
-            showMessage('❌ ' + t(messageKey), 'error');
+            showMessage('❌ ' + t('msg.dashscopeRequired'), 'error');
             startBtn.disabled = false;
             startBtn.textContent = t('btn.startAllModes');
 
-            // 展开API Keys配置区域，提示用户输入
-            const apiKeysSection = document.getElementById('api-keys');
-            if (apiKeysSection.classList.contains('collapsed')) {
-                toggleCollapsible('api-keys');
+            // 展开 API 配置，高亮百炼 Key 输入框
+            if (window.GanlanApiMode) {
+                window.GanlanApiMode.reveal(['dashscope-api-key']);
+            } else {
+                const apiKeysSection = document.getElementById('api-keys');
+                if (apiKeysSection.classList.contains('collapsed')) {
+                    toggleCollapsible('api-keys');
+                }
+                highlightInput('dashscope-api-key');
             }
-
-            // 高亮并震动 API Key 输入框
-            highlightInput('dashscope-api-key');
-
-            return;
-        }
-
-        if (needsAsr && asrBackend === 'doubao_file' && !doubaoKey) {
-            showMessage('❌ ' + t('msg.doubaoKeyRequired'), 'error');
-            startBtn.disabled = false;
-            startBtn.textContent = t('btn.startAllModes');
-
-            const apiKeysSection = document.getElementById('api-keys');
-            if (apiKeysSection.classList.contains('collapsed')) {
-                toggleCollapsible('api-keys');
-            }
-            highlightInput('doubao-api-key');
-
-            return;
-        }
-
-        if (needsAsr && asrBackend === 'soniox' && !sonioxKey) {
-            showMessage('❌ ' + t('msg.sonioxKeyRequired'), 'error');
-            startBtn.disabled = false;
-            startBtn.textContent = t('btn.startAllModes');
-            highlightInput('soniox-api-key');
 
             return;
         }
@@ -3725,7 +2982,7 @@ async function startService(modes = ['self']) {
                 showMessage('❌ ' + t('msg.customAsrRequired'), 'error');
                 startBtn.disabled = false;
                 startBtn.textContent = t('btn.startAllModes');
-                highlightInput(customMissing[0]);
+                expandLLMSettingsPanel([customMissing[0]]);
                 return;
             }
         }
@@ -3746,13 +3003,13 @@ async function startService(modes = ['self']) {
                 showMessage('❌ ' + t('msg.dashscopeValidationFailed') + localizedMsg, 'error');
                 startBtn.disabled = false;
                 startBtn.textContent = t('btn.startAllModes');
-                highlightInput('dashscope-api-key');
+                expandLLMSettingsPanel(['dashscope-api-key']);
                 return;
             }
         }
 
         if ((needsSelf && enableTranslation) || modes.includes('others') || modes.includes('screen')) {
-            if (translationApiType === 'openrouter' || translationApiType === 'openrouter_streaming_deepl_hybrid') {
+            if (translationApiType === 'openrouter') {
                 const missingFields = [];
                 const missingLabels = [];
 
@@ -3770,12 +3027,7 @@ async function startService(modes = ['self']) {
                 }
 
                 if (missingFields.length > 0) {
-                    const message = (
-                        false
-                        && missingFields[0] === 'llm-api-key'
-                    )
-                        ? t('msg.simpleLlmKeyMissing')
-                        : t('msg.llmFieldRequired', { field: missingLabels[0] });
+                    const message = t('msg.llmFieldRequired', { field: missingLabels[0] });
                     showMessage('❌ ' + message, 'error');
                     startBtn.disabled = false;
                     startBtn.textContent = t('btn.startAllModes');
@@ -3784,18 +3036,6 @@ async function startService(modes = ['self']) {
                 }
             }
 
-            const requiresDeeplKey = translationApiType === 'deepl' && !deeplKey;
-            const requiresHybridLLMKey = translationApiType === 'openrouter_streaming_deepl_hybrid' && !hasLLMKey;
-            const requiresHybridDeeplKey = translationApiType === 'openrouter_streaming_deepl_hybrid' && !deeplKey;
-
-            if (requiresDeeplKey || requiresHybridLLMKey || requiresHybridDeeplKey) {
-                translationApiType = 'google_dictionary';
-                translationApiSelect.value = translationApiType;
-                translationApiSelect.dispatchEvent(new Event('change'));
-                saveConfigToLocalStorage();
-                pendingWarningMessage = t('msg.autoSwitchToGoogle');
-                showMessage('⚠️ ' + pendingWarningMessage, 'warning');
-            }
         }
 
         const configSaved = await saveConfig(true);
@@ -3810,10 +3050,7 @@ async function startService(modes = ['self']) {
 
         const apiKeys = {
             dashscope: dashscopeKey,
-            deepl: deeplKey,
             llm: llmKey,
-            doubao: doubaoKey,
-            soniox: sonioxKey,
             screen_ocr: getScreenOcrApiKey(),
         };
 
@@ -3839,10 +3076,6 @@ async function startService(modes = ['self']) {
             );
             const udpConflictWarning = buildUdpPortConflictWarning(result, t);
             const vrchatOscWarning = buildVrchatOscNotListeningWarning(result, t);
-            const hasPendingWarning = !!pendingWarningMessage;
-            if (hasPendingWarning) {
-                showMessage('⚠️ ' + pendingWarningMessage, 'warning');
-            }
             showMessage('✅ ' + t('msg.serviceStarting'), 'success');
             if (udpConflictWarning) {
                 showMessage('⚠️ ' + udpConflictWarning, 'warning');
@@ -3853,7 +3086,6 @@ async function startService(modes = ['self']) {
             if (acceleratorWarning) {
                 showMessage('⚠️ ' + acceleratorWarning, 'warning');
             }
-            pendingWarningMessage = null;
             await updateStatus();
             setTimeout(updateStatus, 500);
         } else {
@@ -3866,7 +3098,6 @@ async function startService(modes = ['self']) {
         showMessage('❌ ' + t('msg.startServiceFailed'), 'error');
         startBtn.disabled = false;
     } finally {
-        pendingWarningMessage = null;
         modes.forEach((m) => setModeBusy(m, false));
         void updateStatus();
     }
@@ -4035,18 +3266,35 @@ const RESET_MANAGED_STORAGE_KEYS = new Set([
     LAST_SEEN_BOOT_MS_KEY,
     VRCX_BRIDGE_BUTTON_VISIBLE_STORAGE_KEY,
     PANEL_FLOATING_MODE_STORAGE_KEY,
-    LLM_SELECTED_TEMPLATE_STORAGE_KEY,
     QUICK_LANG_STORAGE_KEY,
     QUICK_LANG_BAR_ENABLED_KEY,
 ]);
 
 function isResetManagedStorageKey(key) {
-    return RESET_MANAGED_STORAGE_KEYS.has(key)
-        || key.startsWith(LLM_TEMPLATE_KEY_STORAGE_PREFIX)
-        || key.startsWith(LLM_TEMPLATE_BASEURL_STORAGE_PREFIX)
-        || key.startsWith(LLM_TEMPLATE_MODEL_STORAGE_PREFIX)
-        || key.startsWith(LLM_TEMPLATE_EXTRABODY_STORAGE_PREFIX)
-        || key.startsWith(LLM_TEMPLATE_PARALLEL_STORAGE_PREFIX);
+    return RESET_MANAGED_STORAGE_KEYS.has(key);
+}
+
+/**
+ * 「恢复默认设置」不动「API 配置」这张卡（地址、模型、国际版、模式；Key 本来就保留）。
+ * 以前靠模板把翻译的地址、模型放回去，图像识别的却被默认值冲掉了；现在整张卡原样留着。
+ */
+function snapshotApiCardFields() {
+    const snap = [];
+    document.querySelectorAll('#api-keys input[id], #api-keys select[id], #api-keys textarea[id]').forEach((el) => {
+        snap.push([el.id, el.type === 'checkbox' || el.type === 'radio' ? el.checked : el.value]);
+    });
+    return snap;
+}
+
+function restoreApiCardFields(snap) {
+    snap.forEach(([id, value]) => {
+        const el = document.getElementById(id);
+        if (!el) return;
+        if (typeof value === 'boolean') el.checked = value;
+        else el.value = value;
+    });
+    updateAsrOptionsForInternational(document.getElementById('use-international-endpoint')?.checked ?? false);
+    if (window.GanlanApiMode) window.GanlanApiMode.syncFromForm();
 }
 
 function snapshotResetManagedStorage() {
@@ -4091,9 +3339,9 @@ async function resetToDefaults() {
     }
 
     // 把当前表单完整保存为回滚点；重置只有在后端确认保存后才提交本地状态。
-    persistCurrentLLMTemplateState();
     saveConfigToLocalStorage();
     const storageSnapshot = snapshotResetManagedStorage();
+    const apiCardSnapshot = snapshotApiCardFields();
 
     try {
         const defaultsResponse = await fetch(`${API_BASE}/config/defaults`);
@@ -4110,10 +3358,7 @@ async function resetToDefaults() {
         // 根据翻译开关显示/隐藏翻译选项
         toggleTranslationOptions();
 
-        // 按模板类型重置参数（custom 全保留 / openrouter 保留 key+模型 / 其余仅保留 key），
-        // 再用当前选中的（默认）模板刷新表单，使界面与存储一致
-        resetStoredLLMTemplateParametersToDefaults();
-        populateLLMTemplateForm(getSelectedLLMTemplateName());
+        restoreApiCardFields(apiCardSnapshot);
 
         const saveSucceeded = await saveConfig(true);
         if (!saveSucceeded) {
@@ -4586,11 +3831,8 @@ async function openMiniPanel(role) {
 
         // 收集 API Keys 一并发送给后端，写入进程内运行配置
         const apiKeys = {
-            dashscope: document.getElementById('dashscope-api-key').value.trim(),
-            deepl: document.getElementById('deepl-api-key').value.trim(),
+            dashscope: getEffectiveDashscopeKey(),
             llm: getEffectiveLLMApiKeyForCurrentMode(),
-            doubao: document.getElementById('doubao-api-key').value.trim(),
-            soniox: document.getElementById('soniox-api-key').value.trim(),
             screen_ocr: getScreenOcrApiKey(),
         };
         const floatingMode = document.getElementById('panel-floating-mode')?.checked ?? false;
@@ -4732,37 +3974,9 @@ function getCustomApiConfigFromForm() {
     };
 }
 
-async function testCustomApi() {
-    const result = document.getElementById('custom-api-test-result');
-    if (result) result.textContent = '测试中…';
-    const cfg = getCustomApiConfigFromForm();
-    try {
-        const resp = await fetch('/api/custom-api/test', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                base_url: cfg.CUSTOM_API_BASE_URL,
-                api_key: cfg.CUSTOM_API_KEY,
-                model: cfg.CUSTOM_API_MODEL,
-            }),
-        });
-        const data = await resp.json();
-        if (result) {
-            if (data.success) {
-                result.style.color = 'var(--success)';
-                result.textContent = `✓ ${data.status_code || 200} OK`;
-            } else {
-                result.style.color = 'var(--danger)';
-                const code = data.status_code ? `HTTP ${data.status_code}` : '';
-                result.textContent = `✗ ${code} ${(data.message || data.snippet || '').slice(0, 120)}`;
-            }
-        }
-    } catch (err) {
-        if (result) {
-            result.style.color = 'var(--danger)';
-            result.textContent = `✗ ${err.message || err}`;
-        }
-    }
+// 语音识别（OpenAI 兼容）的「测试连通性」：发半秒静音到 /audio/transcriptions（api-mode.js 的 testApi）
+function testCustomApi() {
+    if (window.GanlanApiMode) return window.GanlanApiMode.testApi('asr');
 }
 
 // ==========================================================================
@@ -4892,52 +4106,178 @@ async function deleteSelectedPreset() {
 }
 
 // --------------------------------------------------------------------------
-// 预设文件导出 / 导入
+// 下载文件（导出预设、个性化配置、日志共用）
 // --------------------------------------------------------------------------
-async function exportPresetsFile() {
+// Windows 文件名里不能有的字符换成 _（预设名可以是中文，Blob + download 属性按 UTF-8 存名字，不会乱码）
+function safeFileName(name, fallback = 'GanlanTranslate') {
+    const cleaned = String(name || '')
+        .replace(/[\\/:*?"<>|\u0000-\u001f]/g, '_')
+        .replace(/^[\s.]+|[\s.]+$/g, '')
+        .slice(0, 120);
+    if (!cleaned || /^(con|prn|aux|nul|com\d|lpt\d)$/i.test(cleaned)) return fallback;
+    return cleaned;
+}
+
+function downloadTextFile(filename, text, type = 'text/plain') {
+    const blob = new Blob([text], { type: `${type};charset=utf-8` });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    a.rel = 'noopener';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(() => URL.revokeObjectURL(url), 4000);
+}
+
+// --------------------------------------------------------------------------
+// 预设文件导出 / 导入（1.1.2：文件名是「预设名.json」；可以选择带上 API Key，要确认三次，默认不带）
+// --------------------------------------------------------------------------
+const PRESET_EXPORT_KIND = 'ganlan-preset';
+
+function _setPresetStatus(text, kind = 'muted') {
     const status = document.getElementById('preset-status');
-    if (status) { status.style.color = 'var(--fg-muted)'; status.textContent = '导出中…'; }
-    try {
-        const resp = await fetch('/api/presets/export');
-        const data = await resp.json();
-        if (!data.success) {
-            if (status) { status.style.color = 'var(--danger)'; status.textContent = `✗ ${data.message || '导出失败'}`; }
-            return;
-        }
-        const count = data.count || 0;
-        if (count === 0) {
-            if (status) { status.style.color = 'var(--danger)'; status.textContent = '✗ 还没有可导出的预设'; }
-            return;
-        }
-        const blob = new Blob([JSON.stringify(data.data, null, 2)], { type: 'application/json' });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        const ts = new Date().toISOString().slice(0, 19).replace(/[:T]/g, '-');
-        a.href = url;
-        a.download = `ganlan-presets-${ts}.json`;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        URL.revokeObjectURL(url);
-        if (status) { status.style.color = 'var(--success)'; status.textContent = `✓ 已导出 ${count} 个预设`; }
-    } catch (err) {
-        if (status) { status.style.color = 'var(--danger)'; status.textContent = `✗ ${err.message || err}`; }
+    if (!status) return;
+    status.dataset.kind = kind;
+    status.textContent = text;
+}
+
+function collectBrowserApiKeys() {
+    const keys = {
+        dashscope: document.getElementById('dashscope-api-key')?.value.trim() || '',
+        llm: document.getElementById('llm-api-key')?.value.trim() || '',
+        custom_asr: document.getElementById('custom-api-key')?.value.trim() || '',
+        screen_ocr: document.getElementById('screen-ocr-api-key')?.value.trim() || '',
+    };
+    Object.keys(keys).forEach((k) => { if (!keys[k]) delete keys[k]; });
+    return keys;
+}
+
+async function confirmExportApiKeys(t) {
+    const steps = [
+        { title: t('preset.keyWarn1Title'), message: t('preset.keyWarn1'), confirm: t('preset.keyWarnNext') },
+        { title: t('preset.keyWarn2Title'), message: t('preset.keyWarn2'), confirm: t('preset.keyWarnNext') },
+        { title: t('preset.keyWarn3Title'), message: t('preset.keyWarn3'), confirm: t('preset.keyWarnFinal') },
+    ];
+    for (const step of steps) {
+        const ok = await glConfirm({ title: step.title, message: step.message, confirmText: step.confirm, danger: true });
+        if (!ok) return false;
     }
+    return true;
+}
+
+async function exportPresetsFile() {
+    const t = window.i18n ? window.i18n.t : (key) => key;
+    const select = document.getElementById('preset-select');
+    const nameInput = document.getElementById('preset-name');
+    const selected = select?.value || '';
+    const typed = (nameInput?.value || '').trim();
+    const name = selected || typed;
+    if (!name) {
+        _setPresetStatus('✗ ' + t('preset.exportNeedName'), 'error');
+        highlightInput(selected ? 'preset-select' : 'preset-name');
+        return;
+    }
+
+    // 选了预设导出存好的那份；没选、只写了名字就导出当前设置
+    let values;
+    try {
+        if (selected) {
+            const resp = await fetch(`/api/presets/${encodeURIComponent(selected)}`);
+            const data = await resp.json();
+            if (!data.success) throw new Error(data.message || t('preset.notFound'));
+            values = data.values || {};
+        } else {
+            values = collectAllSerializableConfig();
+        }
+    } catch (err) {
+        _setPresetStatus(`✗ ${err.message || err}`, 'error');
+        return;
+    }
+    delete values.CUSTOM_API_KEY;   // Key 只按下面的选项决定带不带
+
+    const filename = `${safeFileName(name, 'preset')}.json`;
+    const keys = collectBrowserApiKeys();
+    const body = document.createElement('div');
+    body.className = 'preset-export-body';
+    const fileRow = document.createElement('div');
+    fileRow.className = 'preset-export-file';
+    fileRow.textContent = filename;
+    const option = document.createElement('label');
+    option.className = 'preset-export-option';
+    const checkbox = document.createElement('input');
+    checkbox.type = 'checkbox';
+    checkbox.className = 'preset-export-check';
+    checkbox.checked = false;
+    checkbox.disabled = Object.keys(keys).length === 0;
+    const optionText = document.createElement('span');
+    optionText.className = 'preset-export-option-text';
+    const optionTitle = document.createElement('span');
+    optionTitle.className = 'preset-export-option-title';
+    optionTitle.textContent = t('preset.includeKeys');
+    const optionHint = document.createElement('span');
+    optionHint.className = 'preset-export-option-hint';
+    optionHint.textContent = checkbox.disabled ? t('preset.noKeysToExport') : t('preset.includeKeysHint');
+    optionText.append(optionTitle, optionHint);
+    option.append(checkbox, optionText);
+    body.append(fileRow, option);
+
+    const go = await glDialog({
+        title: t('preset.exportTitle'),
+        message: t('preset.exportMessage', { name }),
+        body,
+        cancelValue: false,
+        buttons: [
+            { text: t('dialog.cancel'), value: false, kind: 'secondary' },
+            { text: t('preset.exportButton'), value: true, kind: 'primary', focus: true },
+        ],
+    });
+    if (!go) return;
+
+    const includeKeys = checkbox.checked;
+    if (includeKeys && !(await confirmExportApiKeys(t))) {
+        _setPresetStatus(t('preset.exportCancelled'), 'muted');
+        return;
+    }
+
+    const file = {
+        kind: PRESET_EXPORT_KIND,
+        schema_version: 1,
+        app: 'GanlanTranslate',
+        name,
+        exported_at: new Date().toISOString(),
+        values,
+    };
+    if (includeKeys) file.api_keys = keys;
+    downloadTextFile(filename, JSON.stringify(file, null, 2), 'application/json');
+    _setPresetStatus('✓ ' + t(includeKeys ? 'preset.exportedWithKeys' : 'preset.exported', { file: filename }), includeKeys ? 'warn' : 'success');
+}
+
+function applyImportedApiKeys(keys) {
+    const map = { dashscope: 'dashscope-api-key', llm: 'llm-api-key', custom_asr: 'custom-api-key', screen_ocr: 'screen-ocr-api-key' };
+    Object.entries(map).forEach(([field, id]) => {
+        const value = typeof keys[field] === 'string' ? keys[field].trim() : '';
+        const input = document.getElementById(id);
+        if (!value || !input) return;
+        input.value = value;
+        input.dispatchEvent(new Event('input', { bubbles: true }));
+    });
+    onSettingChange();
 }
 
 async function importPresetsFile(inputEl) {
-    const status = document.getElementById('preset-status');
+    const t = window.i18n ? window.i18n.t : (key) => key;
     const file = inputEl?.files?.[0];
     if (!file) return;
-    if (status) { status.style.color = 'var(--fg-muted)'; status.textContent = '导入中…'; }
+    _setPresetStatus(t('preset.importing'), 'muted');
     try {
         const text = await file.text();
         let parsed;
         try {
-            parsed = JSON.parse(text);
+            parsed = JSON.parse(text.replace(/^\uFEFF/, ''));
         } catch (e) {
-            if (status) { status.style.color = 'var(--danger)'; status.textContent = '✗ 文件不是有效的 JSON'; }
-            inputEl.value = '';
+            _setPresetStatus('✗ ' + t('preset.importBadJson'), 'error');
             return;
         }
         const resp = await fetch('/api/presets/import', {
@@ -4946,21 +4286,37 @@ async function importPresetsFile(inputEl) {
             body: JSON.stringify({ data: parsed, overwrite: true }),
         });
         const data = await resp.json();
-        if (data.success) {
-            if (status) {
-                status.style.color = 'var(--success)';
-                const parts = [];
-                if (data.imported) parts.push(`新增 ${data.imported} 个`);
-                if (data.overwritten) parts.push(`覆盖 ${data.overwritten} 个`);
-                if (data.skipped) parts.push(`跳过 ${data.skipped} 个`);
-                status.textContent = `✓ 导入完成：${parts.join('，') || '无变化'}`;
+        if (!data.success) {
+            _setPresetStatus(`✗ ${data.message || t('preset.importFailed')}`, 'error');
+            return;
+        }
+        const parts = [];
+        if (data.imported) parts.push(t('preset.importedNew', { n: data.imported }));
+        if (data.overwritten) parts.push(t('preset.importedReplaced', { n: data.overwritten }));
+        if (data.skipped) parts.push(t('preset.importedSkipped', { n: data.skipped }));
+        _setPresetStatus('✓ ' + t('preset.importDone', { detail: parts.join(t('preset.listSep')) || t('preset.importNoChange') }), 'success');
+        await refreshPresetList();
+        if (parsed && typeof parsed.name === 'string') {
+            const sel = document.getElementById('preset-select');
+            if (sel) sel.value = parsed.name;
+            onPresetSelectChange();
+        }
+        // 文件里带了 Key：问一下要不要填进来（Key 只放浏览器表单，不进 presets.json）
+        const keys = parsed && parsed.api_keys && typeof parsed.api_keys === 'object' ? parsed.api_keys : null;
+        if (keys && Object.values(keys).some((v) => typeof v === 'string' && v.trim())) {
+            const ok = await glConfirm({
+                title: t('preset.importKeysTitle'),
+                message: t('preset.importKeysMessage'),
+                confirmText: t('preset.importKeysConfirm'),
+                cancelText: t('preset.importKeysSkip'),
+            });
+            if (ok) {
+                applyImportedApiKeys(keys);
+                showMessage(t('preset.importKeysDone'), 'success');
             }
-            await refreshPresetList();
-        } else {
-            if (status) { status.style.color = 'var(--danger)'; status.textContent = `✗ ${data.message || '导入失败'}`; }
         }
     } catch (err) {
-        if (status) { status.style.color = 'var(--danger)'; status.textContent = `✗ ${err.message || err}`; }
+        _setPresetStatus(`✗ ${err.message || err}`, 'error');
     } finally {
         inputEl.value = '';
     }
@@ -4976,7 +4332,7 @@ function collectAllSerializableConfig() {
         'openrouter-streaming-mode', 'openai-compat-extra-body-json', 'llm-parallel-fastest-mode',
         'enable-translation', 'show-partial-results', 'enable-furigana', 'enable-pinyin',
         'enable-arabic-reshaper', 'remove-trailing-period', 'show-original-and-lang-tag', 'text-fancy-style',
-        'enable-mic-control', 'enable-hot-words', 'enable-double-mute-clear', 'vad-enabled',
+        'enable-hot-words', 'enable-double-mute-clear', 'vad-enabled',
         'vad-mode', 'vad-threshold', 'vad-min-speech-duration', 'vad-max-speech-duration',
         'vad-silence-duration', 'vad-pre-speech-duration',
         'osc-compat-mode', 'osc-compat-listen-port', 'osc-send-target-port', 'osc-send-error-messages',
@@ -4991,8 +4347,9 @@ function collectAllSerializableConfig() {
         'custom-api-target-language', 'custom-api-timeout',
         'custom-api-prompt', 'custom-api-audio-format',
         'qwen-audio3-model',
-        'others-translation-enabled', 'others-asr-backend', 'others-target-language',
-        'screen-translation-enabled', 'screen-target-language', 'screen-hotkey',
+        'api-mode', 'bailian-llm-model', 'bailian-ocr-model',
+        'others-target-language',
+        'screen-target-language', 'screen-hotkey',
         'screen-ocr-base-url', 'screen-ocr-model',
         'vrchat-mic-detection-enabled', 'vrchat-mic-user-open',
     ];
@@ -5020,18 +4377,17 @@ const PRESET_ID_TO_CONFIG = {
     'llm-model': 'LLM_MODEL',
     'llm-translation-formality': 'LLM_TRANSLATION_FORMALITY',
     'llm-translation-style': 'LLM_TRANSLATION_STYLE',
-    'openrouter-streaming-mode': 'TRANSLATE_PARTIAL_RESULTS',
+    'openrouter-streaming-mode': 'LLM_STREAMING_TRANSLATION',
     'openai-compat-extra-body-json': 'OPENAI_COMPAT_EXTRA_BODY_JSON',
     'llm-parallel-fastest-mode': 'LLM_PARALLEL_FASTEST_MODE',
     'enable-translation': 'ENABLE_TRANSLATION',
-    'show-partial-results': 'TRANSLATE_PARTIAL_RESULTS',
+    'show-partial-results': 'SHOW_PARTIAL_RESULTS',
     'enable-furigana': 'ENABLE_JA_FURIGANA',
     'enable-pinyin': 'ENABLE_ZH_PINYIN',
     'enable-arabic-reshaper': 'ENABLE_ARABIC_RESHAPER',
     'remove-trailing-period': 'REMOVE_TRAILING_PERIOD',
     'show-original-and-lang-tag': 'SHOW_ORIGINAL_AND_LANG_TAG',
     'text-fancy-style': 'TEXT_FANCY_STYLE',
-    'enable-mic-control': 'PAUSE_ON_MUTE',
     'enable-hot-words': 'ENABLE_HOT_WORDS',
     'enable-double-mute-clear': 'ENABLE_DOUBLE_MUTE_CLEAR',
     'vad-enabled': 'VAD_ENABLED',
@@ -5071,10 +4427,10 @@ const PRESET_ID_TO_CONFIG = {
     'custom-api-prompt': 'CUSTOM_API_PROMPT',
     'custom-api-audio-format': 'CUSTOM_API_AUDIO_FORMAT',
     'qwen-audio3-model': 'QWEN_AUDIO3_ASR_MODEL',
-    'others-translation-enabled': 'OTHERS_TRANSLATION_ENABLED',
-    'others-asr-backend': 'OTHERS_ASR_BACKEND',
+    'api-mode': 'API_MODE',
+    'bailian-llm-model': 'BAILIAN_LLM_MODEL',
+    'bailian-ocr-model': 'BAILIAN_OCR_MODEL',
     'others-target-language': 'OTHERS_TARGET_LANGUAGE',
-    'screen-translation-enabled': 'SCREEN_TRANSLATION_ENABLED',
     'screen-target-language': 'SCREEN_TARGET_LANGUAGE',
     'screen-hotkey': 'SCREEN_HOTKEY',
     'screen-ocr-base-url': 'SCREEN_OCR_BASE_URL',
@@ -5096,6 +4452,16 @@ function applyPresetValuesToForm(values) {
         const v = values[configKey];
         if (el.type === 'checkbox') el.checked = !!v;
         else if (typeof v === 'string' || typeof v === 'number') el.value = String(v);
+    }
+    // 旧预设没有 API_MODE：按里面的地址猜（百炼的地址 = 百炼模式）
+    if (window.GanlanApiMode) {
+        if (!('API_MODE' in values) && 'LLM_BASE_URL' in values) {
+            const dash = window.GanlanApiMode.isDashscopeUrl(values.LLM_BASE_URL) || !values.LLM_BASE_URL;
+            const modeEl = document.getElementById('api-mode');
+            if (modeEl) modeEl.value = dash ? 'bailian' : 'custom';
+            if (dash && values.LLM_MODEL) document.getElementById('bailian-llm-model').value = values.LLM_MODEL;
+        }
+        window.GanlanApiMode.syncFromForm();
     }
 }
 
@@ -5396,6 +4762,156 @@ async function clearLogs() {
         if (status) { status.style.color = 'var(--success)'; status.textContent = '已清空'; }
     } catch (err) {
         if (status) { status.style.color = 'var(--danger)'; status.textContent = '清空失败'; }
+    }
+}
+
+// --------------------------------------------------------------------------
+// 分析错误（1.1.2，岚：没填 API Key 直接给结果；填了就调用大模型分析，用弹窗给出结果）
+// --------------------------------------------------------------------------
+function _analysisEl(tag, className, text) {
+    const node = document.createElement(tag);
+    if (className) node.className = className;
+    if (text !== undefined && text !== null) node.textContent = text;
+    return node;
+}
+
+// 模型回的是带「- 」「1.」「**粗体**」的纯文字：按行拆成段落和列表，全部用 textContent，不拼 HTML
+function renderAnalysisText(text) {
+    const box = _analysisEl('div', 'analysis-text');
+    let list = null;
+    const appendInline = (parent, line) => {
+        line.split(/(\*\*[^*]+\*\*)/g).forEach((part) => {
+            if (!part) return;
+            if (/^\*\*[^*]+\*\*$/.test(part)) parent.append(_analysisEl('strong', '', part.slice(2, -2)));
+            else parent.append(document.createTextNode(part));
+        });
+    };
+    String(text || '').replace(/\r/g, '').split('\n').forEach((raw) => {
+        const line = raw.trim();
+        if (!line) { list = null; return; }
+        const bullet = /^[-*•]\s+(.*)$/.exec(line);
+        const numbered = /^(\d+)[.、)]\s*(.*)$/.exec(line);
+        const heading = /^#{1,4}\s+(.*)$/.exec(line);
+        if (bullet || numbered) {
+            const kind = bullet ? 'ul' : 'ol';
+            if (!list || list.tagName.toLowerCase() !== kind) {
+                list = _analysisEl(kind, 'analysis-list');
+                box.append(list);
+            }
+            const li = _analysisEl('li');
+            appendInline(li, bullet ? bullet[1] : numbered[2]);
+            list.append(li);
+            return;
+        }
+        list = null;
+        const p = _analysisEl(heading ? 'h4' : 'p', heading ? 'analysis-heading' : 'analysis-para');
+        appendInline(p, heading ? heading[1] : line);
+        box.append(p);
+    });
+    return box;
+}
+
+function renderAnalysisFindings(findings, t) {
+    const list = _analysisEl('ul', 'analysis-findings');
+    findings.forEach((item, index) => {
+        const li = _analysisEl('li', `analysis-finding is-${item.id === 'no_key' ? 'key' : 'rule'}`);
+        li.style.setProperty('--i', String(index));
+        li.append(_analysisEl('span', 'analysis-finding-dot'));
+        const body = _analysisEl('div', 'analysis-finding-body');
+        body.append(_analysisEl('div', 'analysis-finding-title', t(`analyze.rule.${item.id}.title`)));
+        let fix = t(`analyze.rule.${item.id}.fix`);
+        if (item.id === 'no_key' && Array.isArray(item.missing)) {
+            fix = t('analyze.rule.no_key.fix', { parts: item.missing.map((m) => t(`analyze.part.${m}`)).join(t('preset.listSep')) });
+        }
+        body.append(_analysisEl('div', 'analysis-finding-fix', fix));
+        if (item.line) body.append(_analysisEl('code', 'analysis-finding-line', item.line));
+        li.append(body);
+        list.append(li);
+    });
+    return list;
+}
+
+async function analyzeLogs() {
+    const t = window.i18n ? window.i18n.t : (key) => key;
+    const button = document.getElementById('log-analyze-btn');
+    const label = button?.querySelector('span');
+    if (button?.disabled) return;
+    const plan = window.GanlanApiMode ? window.GanlanApiMode.effective() : null;
+    const keysFilled = window.GanlanApiMode ? window.GanlanApiMode.keysFilled() : {};
+    const needs = ['asr', 'llm'];
+    if (['running', 'starting'].includes(modeStateKind(lastModeStatus.screen)) || modeStateKind(lastModeStatus.screen) === 'error') {
+        needs.push('ocr');
+    }
+    const llm = plan && plan.llm.key ? {
+        base_url: plan.llm.baseUrl, api_key: plan.llm.key, model: plan.llm.model, extra_body: plan.llm.extraBody,
+    } : {};
+    if (button) {
+        button.disabled = true;
+        button.classList.add('is-busy');
+        if (label) label.textContent = llm.api_key ? t('btn.analyzingLogs') : t('btn.checkingLogs');
+    }
+    let data;
+    try {
+        const resp = await fetch('/api/logs/analyze', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                keys_filled: keysFilled,
+                needs,
+                llm,
+                language: window.i18n ? window.i18n.getCurrentLanguage() : 'zh-CN',
+            }),
+        });
+        data = await resp.json();
+        if (!data.success) throw new Error(data.message || resp.status);
+    } catch (err) {
+        showMessage(t('msg.analyzeFailed') + (err.message || err), 'error');
+        return;
+    } finally {
+        if (button) {
+            button.disabled = false;
+            button.classList.remove('is-busy');
+            if (label) label.textContent = t('btn.analyzeLogs');
+        }
+    }
+
+    const findings = Array.isArray(data.findings) ? data.findings : [];
+    const body = _analysisEl('div', 'analysis-body');
+    const noKey = findings.some((f) => f.id === 'no_key');
+    if (data.mode === 'llm') {
+        body.append(renderAnalysisText(data.analysis));
+        if (findings.length) {
+            const details = _analysisEl('details', 'analysis-details');
+            details.append(_analysisEl('summary', '', t('analyze.ruleDetails', { n: findings.length })));
+            details.append(renderAnalysisFindings(findings, t));
+            body.append(details);
+        }
+        body.append(_analysisEl('p', 'analysis-footnote', t('analyze.byModel', { model: data.model || '' })));
+    } else {
+        const banner = _analysisEl('div', `analysis-banner ${data.llm_error ? 'is-warn' : ''}`);
+        if (data.llm_error) banner.textContent = t('analyze.llmFailed', { error: data.llm_error });
+        else banner.textContent = data.reason === 'no_key' ? t('analyze.localNoKey') : t('analyze.localOnly');
+        body.append(banner);
+        if (findings.length) body.append(renderAnalysisFindings(findings, t));
+        else body.append(_analysisEl('p', 'analysis-empty', t('analyze.noFindings')));
+    }
+    if (!data.line_count) body.append(_analysisEl('p', 'analysis-footnote', t('analyze.emptyLog')));
+
+    const buttons = [{ text: t('dialog.ok'), value: 'ok', kind: 'primary', focus: true }];
+    if (noKey) buttons.unshift({ text: t('analyze.goFillKey'), value: 'fill', kind: 'secondary' });
+    const choice = await glDialog({
+        title: data.mode === 'llm' ? t('analyze.titleLlm') : t('analyze.titleLocal'),
+        body,
+        size: 'wide',
+        className: 'log-analysis-dialog',
+        cancelValue: 'ok',
+        buttons,
+    });
+    if (choice === 'fill') {
+        if (window.GanlanUiPages) window.GanlanUiPages.setAppPage('core', { save: true });
+        const plan2 = window.GanlanApiMode ? window.GanlanApiMode.effective() : null;
+        const target = !plan2 || plan2.mode === 'bailian' ? 'dashscope-api-key' : (keysFilled.llm ? 'custom-api-key' : 'llm-api-key');
+        setTimeout(() => expandLLMSettingsPanel([target]), 60);
     }
 }
 

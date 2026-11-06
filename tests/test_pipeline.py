@@ -10,7 +10,6 @@ from streaming_translation import (
     TranslationConfig,
     clear_translation_contexts,
     ensure_secondary_translator,
-    is_streaming_deepl_hybrid_mode,
     is_streaming_translation_mode,
     reinitialize_translator,
     reverse_translation,
@@ -34,10 +33,6 @@ class MockState:
         self.secondary_translator = None
         self.backwards_translation_api = None
         self.backwards_translator = None
-        self.deepl_fallback_translation_api = None
-        self.deepl_fallback_translator = None
-        self.secondary_deepl_fallback_translation_api = None
-        self.secondary_deepl_fallback_translator = None
         self.translation_api_type = None
         self.target_language = None
         self.secondary_target_language = None
@@ -67,14 +62,19 @@ class TestAPIRegistry:
     def test_has_all_backends(self):
         expected = {
             "google_web", "google_dictionary", "openrouter",
-            "openrouter_streaming", "openrouter_streaming_deepl_hybrid",
-            "deepl", "qwen_mt",
+            "openrouter_streaming", "qwen_mt",
         }
         assert set(TRANSLATION_API_CLASS_REGISTRY.keys()) == expected
 
     def test_get_api_class_exists(self):
-        from streaming_translation.api.deepl import DeepLAPI
-        assert _get_api_class("deepl") is DeepLAPI
+        from streaming_translation.api.qwen_mt import QwenMTAPI
+        assert _get_api_class("qwen_mt") is QwenMTAPI
+
+    def test_removed_backends_fall_back_to_default(self):
+        # 1.1.2 删掉了 DeepL：旧配置里的 deepl / 混合模式都用默认的 LLM 流式
+        from streaming_translation.api.openrouter import OpenRouterStreamingAPI
+        assert _get_api_class("deepl") is OpenRouterStreamingAPI
+        assert _get_api_class("openrouter_streaming_deepl_hybrid") is OpenRouterStreamingAPI
 
     def test_get_api_class_fallback_to_default(self):
         from streaming_translation.api.openrouter import OpenRouterStreamingAPI
@@ -89,18 +89,11 @@ class TestAPIRegistry:
 class TestStreamingModeHelpers:
     def test_is_streaming_true(self):
         assert is_streaming_translation_mode("openrouter_streaming") is True
-        assert is_streaming_translation_mode("openrouter_streaming_deepl_hybrid") is True
 
     def test_is_streaming_false(self):
-        assert is_streaming_translation_mode("deepl") is False
+        assert is_streaming_translation_mode("openrouter") is False
         assert is_streaming_translation_mode("qwen_mt") is False
         assert is_streaming_translation_mode("google_web") is False
-
-    def test_is_hybrid_true(self):
-        assert is_streaming_deepl_hybrid_mode("openrouter_streaming_deepl_hybrid") is True
-
-    def test_is_hybrid_false(self):
-        assert is_streaming_deepl_hybrid_mode("deepl") is False
 
 
 # ── reinitialize_translator ───────────────────────────────────────────
@@ -373,37 +366,9 @@ class TestTranslateWithBackend:
         mock_translator = MagicMock()
         mock_translator.translate.return_value = "Hallo"
         result = translate_with_backend(
-            mock_translator, None,
+            mock_translator,
             "Hello", "de",
             source_language="en", context_prefix="Chat:",
-        )
-        assert result == "Hallo"
-        mock_translator.translate.assert_called_once()
-
-    def test_prefer_deepl_uses_deepl_when_available(self):
-        mock_translator = MagicMock()
-        mock_deepl = MagicMock()
-        mock_deepl.translate.return_value = "Hallo"
-        result = translate_with_backend(
-            mock_translator, mock_deepl,
-            "Hello", "de",
-            prefer_deepl=True,
-            source_language="en",
-        )
-        assert result == "Hallo"
-        mock_deepl.translate.assert_called_once()
-        mock_translator.translate.assert_not_called()
-
-    def test_prefer_deepl_fallback_when_deepl_fails(self):
-        mock_translator = MagicMock()
-        mock_translator.translate.return_value = "Hallo"
-        mock_deepl = MagicMock()
-        mock_deepl.translate.return_value = "[ERROR] DeepL failed"
-        result = translate_with_backend(
-            mock_translator, mock_deepl,
-            "Hello", "de",
-            prefer_deepl=True,
-            source_language="en",
         )
         assert result == "Hallo"
         mock_translator.translate.assert_called_once()
@@ -412,7 +377,7 @@ class TestTranslateWithBackend:
         mock_translator = MagicMock()
         mock_translator.translate.return_value = "Hello World"
         translate_with_backend(
-            mock_translator, None,
+            mock_translator,
             "Hola Mundo", "en",
             previous_translation="Hola",
             source_language="es",
@@ -423,14 +388,14 @@ class TestTranslateWithBackend:
     def test_record_history_default_true(self):
         mock_translator = MagicMock()
         mock_translator.translate.return_value = "test"
-        translate_with_backend(mock_translator, None, "test", "en", source_language="en")
+        translate_with_backend(mock_translator, "test", "en", source_language="en")
         _, kwargs = mock_translator.translate.call_args
         assert kwargs.get("record_history") is True
 
     def test_record_history_false(self):
         mock_translator = MagicMock()
         mock_translator.translate.return_value = "test"
-        translate_with_backend(mock_translator, None, "test", "en",
+        translate_with_backend(mock_translator, "test", "en",
                               source_language="en", record_history=False)
         _, kwargs = mock_translator.translate.call_args
         assert kwargs.get("record_history") is False
@@ -438,7 +403,7 @@ class TestTranslateWithBackend:
     def test_detected_source_language_passed(self):
         mock_translator = MagicMock()
         mock_translator.translate.return_value = "test"
-        translate_with_backend(mock_translator, None, "test", "en",
+        translate_with_backend(mock_translator, "test", "en",
                               source_language="auto",
                               detected_source_language="ja")
         _, kwargs = mock_translator.translate.call_args

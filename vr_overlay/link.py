@@ -16,7 +16,7 @@ import urllib.error
 import urllib.request
 from typing import Optional
 
-APP_VERSION = '1.1.1'
+APP_VERSION = '1.1.2'
 
 
 class AlreadyRunning(RuntimeError):
@@ -37,6 +37,8 @@ class MainLink:
         self.busy: set = set()        # 正在执行的操作（按钮显示「…」）
         self._lock = threading.Lock()
         self._actions: "queue.Queue[tuple]" = queue.Queue()
+        self._commands: list = []     # 主程序推来的命令（比如语音控制「左手显示屏幕」），主循环取走执行
+        self._command_seq = 0
         self._stop = threading.Event()
         self._sock = self._bind_udp()
 
@@ -111,6 +113,8 @@ class MainLink:
                 continue
             if not isinstance(payload, dict):
                 continue
+            self._take_commands(payload.get('commands'))
+            payload = {k: v for k, v in payload.items() if k != 'commands'}
             with self._lock:
                 changed = payload != self.payload
                 self.payload = payload
@@ -119,6 +123,26 @@ class MainLink:
                     self.display_mode = payload['display_mode']
                 if changed:
                     self.version += 1
+
+    def _take_commands(self, commands) -> None:
+        if not isinstance(commands, list):
+            return
+        with self._lock:
+            for command in commands:
+                if not isinstance(command, dict):
+                    continue
+                try:
+                    seq = int(command.get('seq') or 0)
+                except (TypeError, ValueError):
+                    continue
+                if seq > self._command_seq:
+                    self._command_seq = seq
+                    self._commands.append(command)
+
+    def pop_commands(self) -> list:
+        with self._lock:
+            commands, self._commands = self._commands, []
+        return commands
 
     def _hello_loop(self) -> None:
         while not self._stop.is_set():

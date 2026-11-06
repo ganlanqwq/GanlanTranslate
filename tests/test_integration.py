@@ -13,7 +13,6 @@ import pytest
 
 from streaming_translation import (
     ContextAwareTranslator,
-    DeepLAPI,
     QwenMTAPI,
     TranslationConfig,
 )
@@ -42,15 +41,13 @@ def load_dotenv_if_needed():
 
 load_dotenv_if_needed()
 
-has_deepl = bool(os.environ.get("DEEPL_API_KEY"))
 has_dashscope = bool(os.environ.get("DASHSCOPE_API_KEY"))
 has_llm = bool(os.environ.get("LLM_API_KEY")) and bool(os.environ.get("LLM_BASE_URL"))
 
 integration = pytest.mark.skipif(
-    not (has_deepl or has_dashscope or has_llm),
+    not (has_dashscope or has_llm),
     reason="No API keys found in .env — skipping integration tests",
 )
-needs_deepl = pytest.mark.skipif(not has_deepl, reason="DEEPL_API_KEY not set")
 needs_dashscope = pytest.mark.skipif(not has_dashscope, reason="DASHSCOPE_API_KEY not set")
 needs_llm = pytest.mark.skipif(
     not has_llm,
@@ -62,62 +59,6 @@ TEST_SENTENCES = [
     ("Good morning, nice to meet you.", "en"),
     ("The weather is beautiful today.", "en"),
 ]
-
-
-# ── DeepL API ─────────────────────────────────────────────────────────
-
-@pytest.mark.integration
-@needs_deepl
-class TestDeepLIntegration:
-    def test_translate_to_japanese(self):
-        api = DeepLAPI(proxy_url=None)
-        result = api.translate("Hello, how are you?", target_language="JA")
-        assert result and not result.startswith("[ERROR]")
-        assert "元気" in result or "こんにちは" in result
-
-    def test_translate_to_chinese(self):
-        api = DeepLAPI(proxy_url=None)
-        result = api.translate("Good morning", target_language="zh-CN")
-        assert result and not result.startswith("[ERROR]")
-        assert "早上" in result or "早安" in result or "上午" in result
-
-    def test_translate_to_german(self):
-        api = DeepLAPI(proxy_url=None)
-        result = api.translate("How are you?", target_language="DE")
-        assert result and not result.startswith("[ERROR]")
-        assert "geht" in result.lower() or "wie" in result.lower()
-
-    def test_translate_multiple_sentences(self):
-        api = DeepLAPI(proxy_url=None)
-        for text, src_lang in TEST_SENTENCES:
-            result = api.translate(text, source_language=src_lang, target_language="JA")
-            assert result and not result.startswith("[ERROR]"), f"Failed on: {text}"
-
-    def test_with_context(self):
-        api = DeepLAPI(proxy_url=None)
-        result = api.translate(
-            "See you later!",
-            context="We just finished a meeting.",
-            target_language="JA",
-        )
-        assert result and not result.startswith("[ERROR]")
-
-    def test_context_aware_translator_wrapper(self):
-        api = DeepLAPI(proxy_url=None)
-        translator = ContextAwareTranslator(
-            api, target_language="DE", max_context_size=3,
-        )
-        r1 = translator.translate("Hello, how are you?")
-        assert r1 and not r1.startswith("[ERROR]")
-        r2 = translator.translate("I am fine, thank you.")
-        assert r2 and not r2.startswith("[ERROR]")
-        assert len(translator.get_contexts()) == 2
-
-    def test_language_code_variants(self):
-        api = DeepLAPI(proxy_url=None)
-        for code in ("JA", "ja", "DE", "de", "ZH", "zh"):
-            result = api.translate("Hello", target_language=code)
-            assert result and not result.startswith("[ERROR]")
 
 
 # ── Qwen-MT (DashScope) API ───────────────────────────────────────────
@@ -217,12 +158,7 @@ class TestTranslationPipelineSmoke:
 
         state = MockState()
 
-        if has_deepl:
-            cfg = TranslationConfig(
-                target_language="JA",
-                translation_api_type="deepl",
-            )
-        elif has_dashscope:
+        if has_dashscope:
             cfg = TranslationConfig(
                 target_language="ja",
                 translation_api_type="qwen_mt",
@@ -236,17 +172,3 @@ class TestTranslationPipelineSmoke:
         # Try a real translation
         result = state.translator.translate("Hello world")
         assert result and not result.startswith("[ERROR]")
-
-    def test_reverse_translation(self):
-        from streaming_translation import reverse_translation
-
-        if not has_deepl:
-            pytest.skip("DeepL needed for reverse translation test")
-
-        api = DeepLAPI(proxy_url=None)
-        bt = ContextAwareTranslator(
-            api, target_language="en", context_aware=False,
-        )
-        result = reverse_translation(bt, "Hola mundo", "es", "en")
-        assert result is not None
-        assert not result.startswith("[ERROR]")

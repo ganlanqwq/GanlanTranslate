@@ -61,3 +61,7 @@ CLAUDE.md
 # 安装程序外壳的编译中间文件
 /installer/bin/
 /installer/obj/
+
+# 个性化（1.1.2）：开发版跑出来的配色、首页图片
+/personalization.json
+/personalization/

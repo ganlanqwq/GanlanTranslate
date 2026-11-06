@@ -75,7 +75,10 @@ except ImportError:  # pragma: no cover
 from resource_path import get_resource_path
 
 # 版本号：网页页脚和「详情」页显示，和 installer.nsi 的 APP_VERSION 保持一致
-APP_VERSION = '1.1.1'
+APP_VERSION = '1.1.2'
+# 「软件信息」页的链接（1.1.2）
+GITHUB_REPO_URL = 'https://github.com/ganlanqwq/GanlanTranslate'
+GITHUB_RELEASES_URL = GITHUB_REPO_URL + '/releases/latest'
 
 # 配置Flask使用正确的模板和静态文件路径
 template_folder = get_resource_path('ui/templates')
@@ -178,10 +181,7 @@ def _is_service_active() -> bool:
 
 RUNTIME_CREDENTIAL_FIELDS = {
     'dashscope': 'DASHSCOPE_API_KEY',
-    'deepl': 'DEEPL_API_KEY',
     'llm': 'LLM_API_KEY',
-    'soniox': 'SONIOX_API_KEY',
-    'doubao': 'DOUBAO_API_KEY',
     'screen_ocr': 'SCREEN_OCR_API_KEY',
 }
 
@@ -426,7 +426,7 @@ def get_config_dict():
         'asr': {
             'preferred_backend': _sanitize_preferred_backend(config.PREFERRED_ASR_BACKEND),
             'qwen_audio3_model': getattr(
-                config, 'QWEN_AUDIO3_ASR_MODEL', 'qwen-audio-3.0-asr-flash-streaming'
+                config, 'QWEN_AUDIO3_ASR_MODEL', 'qwen-audio-3.1-asr-flash-streaming'
             ),
             'keepalive_interval': config.KEEPALIVE_INTERVAL,
             'enable_hot_words': config.ENABLE_HOT_WORDS,
@@ -454,9 +454,6 @@ def get_config_dict():
             'secondary_target_language': getattr(config, 'SECONDARY_TARGET_LANGUAGE', None),
             'fallback_language': config.FALLBACK_LANGUAGE,
             'api_type': config.TRANSLATION_API_TYPE,
-            'llm_template': getattr(
-                config, 'LLM_TEMPLATE', config.DEFAULT_LLM_TEMPLATE
-            ),
             'llm_base_url': getattr(
                 config, 'LLM_BASE_URL', config.DEFAULT_LLM_BASE_URL
             ),
@@ -575,7 +572,7 @@ def update_config(config_data):
             if 'qwen_audio3_model' in asr:
                 model_name = (asr['qwen_audio3_model'] or '').strip()
                 config.QWEN_AUDIO3_ASR_MODEL = (
-                    model_name or 'qwen-audio-3.0-asr-flash-streaming'
+                    model_name or 'qwen-audio-3.1-asr-flash-streaming'
                 )
             if 'enable_vad' in asr:
                 config.ENABLE_VAD = asr['enable_vad']
@@ -653,17 +650,12 @@ def update_config(config_data):
             if 'fallback_language' in trans:
                 config.FALLBACK_LANGUAGE = trans['fallback_language'] if trans['fallback_language'] else None
             if 'api_type' in trans:
-                config.TRANSLATION_API_TYPE = trans['api_type']
+                api_type = trans['api_type']
+                api_type = getattr(config, 'DEPRECATED_TRANSLATION_API_TYPES', {}).get(api_type, api_type)
+                config.TRANSLATION_API_TYPE = api_type
                 # 前端的"流式翻译模式"开关会将 api_type 设为 'openrouter_streaming'
                 # 此时启用部分结果翻译（实时翻译未完成的句子）
-                config.TRANSLATE_PARTIAL_RESULTS = trans['api_type'] in (
-                    'openrouter_streaming',
-                    'openrouter_streaming_deepl_hybrid',
-                )
-            if 'llm_template' in trans:
-                config.LLM_TEMPLATE = (
-                    trans['llm_template'] or config.DEFAULT_LLM_TEMPLATE
-                ).strip() or config.DEFAULT_LLM_TEMPLATE
+                config.TRANSLATE_PARTIAL_RESULTS = api_type == 'openrouter_streaming'
             if 'llm_base_url' in trans:
                 config.LLM_BASE_URL = (trans['llm_base_url'] or '').strip()
             if 'llm_model' in trans:
@@ -803,7 +795,7 @@ def update_config(config_data):
                     or 'https://dashscope.aliyuncs.com/compatible-mode/v1'
                 )
             if 'ocr_model' in sc:
-                config.SCREEN_OCR_MODEL = str(sc.get('ocr_model') or '').strip() or 'qwen-vl-ocr'
+                config.SCREEN_OCR_MODEL = str(sc.get('ocr_model') or '').strip() or 'qwen3.5-ocr'
 
         if isinstance(config_data.get('display'), dict) and 'mode' in config_data['display']:
             config.DISPLAY_MODE = _normalize_display_mode(config_data['display'].get('mode'))
@@ -939,10 +931,18 @@ def _vrcx_context_endpoint_from_request() -> str:
 @app.route('/')
 def index():
     """主页面"""
+    import personalization
     import ui_locale
+    # 个性化（配色、首页图片和文字）在服务端就塞进页面，打开时不会先闪一下默认的绿色
+    try:
+        custom = personalization.load()
+    except Exception as exc:
+        print(f'[个性化] 读取失败，用默认样子：{exc}')
+        custom = personalization.sanitize({})
     # 安装版窗口里 navigator.languages 不一定是 Windows 的显示语言，直接告诉页面
     return render_template('index.html', system_ui_language=ui_locale.system_ui_language(),
-                           app_version=APP_VERSION)
+                           app_version=APP_VERSION, personalization=custom,
+                           repo_url=GITHUB_REPO_URL, releases_url=GITHUB_RELEASES_URL)
 
 
 _show_window_handler = None
@@ -1166,6 +1166,10 @@ def get_status():
     """获取服务状态"""
     status = _snapshot_service_status()
     status['target_language'] = config.TARGET_LANGUAGE
+    # 悬浮窗快捷按钮、语音控制插件也会改这几个，网页轮询时跟着改表单（不然下次保存又改回去）
+    status['secondary_target_language'] = getattr(config, 'SECONDARY_TARGET_LANGUAGE', None) or ''
+    status['others_target_language'] = getattr(config, 'OTHERS_TARGET_LANGUAGE', '') or ''
+    status['screen_target_language'] = getattr(config, 'SCREEN_TARGET_LANGUAGE', '') or ''
     status['config_applied_at_ms'] = int(getattr(config, 'CONFIG_APPLIED_AT_MS', 0) or 0)
     status['backend_boot_ms'] = int(getattr(config, 'BACKEND_BOOT_MS', 0) or 0)
     status['local_asr_ui_enabled'] = is_local_asr_ui_enabled()
@@ -1713,66 +1717,6 @@ def udp_port_check():
     return jsonify({'success': True, **_osc_udp_port_status_payload()})
 
 
-@app.route('/api/service/start', methods=['POST'])
-def start_service():
-    """启动服务"""
-    global service_thread
-    
-    current_lifecycle = _get_service_lifecycle()
-    if current_lifecycle != 'stopped':
-        message_id = 'msg.serviceAlreadyRunning' if current_lifecycle == 'running' else 'msg.serviceBusy'
-        return jsonify({
-            'success': False,
-            'message_id': message_id,
-            'message': f'服务当前状态为 {current_lifecycle}，无法重复启动',
-            'lifecycle': current_lifecycle,
-        })
-        return jsonify({'success': False, 'message_id': 'msg.serviceAlreadyRunning', 'message': '服务已在运行中'})
-
-    data = request.json or {}
-    bypass_udp = (
-        bool(data.get('bypass_osc_udp_port_check'))
-        if 'bypass_osc_udp_port_check' in data
-        else bool(getattr(config, 'BYPASS_OSC_UDP_PORT_CHECK', False))
-    )
-    if bool(getattr(config, 'OSC_COMPAT_MODE', False)):
-        bypass_udp = True
-    udp_status = None
-    if not bypass_udp:
-        udp_status = _osc_udp_port_status_payload()
-
-    try:
-        # 从请求中获取 API Keys
-        api_keys = data.get('api_keys', {})
-        
-        update_runtime_credentials(api_keys)
-
-        accelerator_warning = _accelerator_window_warning_payload()
-        vrchat_osc_warning = _vrchat_osc_warning_payload(udp_status)
-        backend = _sanitize_preferred_backend(config.PREFERRED_ASR_BACKEND)
-        _set_service_status(
-            lifecycle='starting',
-            recognition_active=False,
-            backend=backend,
-        )
-        
-        service_thread = threading.Thread(target=run_service_async, daemon=True)
-        service_thread.start()
-        return jsonify({
-            'success': True,
-            'message_id': 'msg.serviceStarting',
-            'lifecycle': 'starting',
-            'message': '服务已启动',
-            **(udp_status or {}),
-            **accelerator_warning,
-            **vrchat_osc_warning,
-        })
-    except Exception as e:
-        _set_service_status(lifecycle='stopped', recognition_active=False)
-        print(f'Error starting service: {e}')
-        return jsonify({'success': False, 'message_id': 'msg.startFailed', 'message': '启动失败'}), 500
-
-
 @app.route('/api/service/stop', methods=['POST'])
 def stop_service():
     """停止服务"""
@@ -2003,11 +1947,49 @@ def import_presets_route():
         return jsonify({'success': False, 'message': str(exc)}), 500
 
 
+# 测图像识别用的那张小图上写的字
+API_TEST_IMAGE_TEXT = 'GANLAN 2468'
+
+
+def _api_test_silent_wav(seconds: float = 0.5, rate: int = 16000) -> bytes:
+    import io
+    import wave
+    out = io.BytesIO()
+    with wave.open(out, 'wb') as w:
+        w.setnchannels(1)
+        w.setsampwidth(2)
+        w.setframerate(rate)
+        w.writeframes(b'\x00\x00' * int(seconds * rate))
+    return out.getvalue()
+
+
+def _api_test_image_data_url() -> str:
+    import base64
+    import io
+    from PIL import Image, ImageDraw, ImageFont
+    image = Image.new('RGB', (420, 110), 'white')
+    try:
+        font = ImageFont.truetype('arial.ttf', 52)
+    except OSError:
+        font = ImageFont.load_default(size=52)
+    ImageDraw.Draw(image).text((22, 24), API_TEST_IMAGE_TEXT, fill='black', font=font)
+    out = io.BytesIO()
+    image.save(out, format='PNG')
+    return 'data:image/png;base64,' + base64.b64encode(out.getvalue()).decode('ascii')
+
+
 @app.route('/api/custom-api/test', methods=['POST'])
 def test_custom_api_route():
-    """对自定义端点做一次连通性测试（不发真实音频）。"""
+    """测「API 配置」里一项接口能不能用。
+
+    kind=asr：发半秒静音到 /audio/transcriptions（以前也发 /chat/completions，Whisper 模型必然报错）；
+    kind=ocr：发一张写着 API_TEST_IMAGE_TEXT 的小图，返回模型认出的字；其余（llm）：发一句 ping。
+    """
+    if not _same_origin_request():
+        return jsonify({'success': False, 'message': 'forbidden'}), 403
     try:
         body = request.get_json(force=True, silent=True) or {}
+        kind = str(body.get('kind') or 'llm').strip().lower()
         base_url = (body.get('base_url') or '').strip()
         api_key = (body.get('api_key') or '').strip()
         model = (body.get('model') or '').strip()
@@ -2015,21 +1997,77 @@ def test_custom_api_route():
             return jsonify({'success': False, 'message': '缺少 API 地址、Key 或模型名'}), 400
 
         import requests
-        url = base_url.rstrip('/') + '/chat/completions'
-        resp = requests.post(
-            url,
-            headers={'Authorization': f'Bearer {api_key}', 'Content-Type': 'application/json'},
-            json={
-                'model': model,
-                'messages': [{'role': 'user', 'content': 'ping'}],
-                'max_tokens': 5,
-            },
-            timeout=10,
-        )
+        from proxy_detector import refresh_system_proxy_env
+        from openai_compat_client import OpenAICompatClientBase
+        refresh_system_proxy_env()
+        base = base_url.rstrip('/')
+        auth = {'Authorization': f'Bearer {api_key}'}
+        reply = ''
+        realtime = False
+        if kind == 'asr':
+            from speech_recognizers.custom_openai_speech_recognizer import (
+                is_dashscope_url, normalize_dashscope_url, transcribe_via_chat,
+            )
+            base = normalize_dashscope_url(base).rstrip('/')
+            realtime = is_dashscope_url(base) and any(w in model.lower() for w in ('streaming', 'realtime'))
+            resp = None
+            if realtime:
+                # 实时流式模型没有 HTTP 接口，启动时走百炼实时识别；这里只验一下 Key
+                resp = requests.get(base + '/models', headers=auth, timeout=15)
+            elif not is_dashscope_url(base):
+                resp = requests.post(
+                    base + '/audio/transcriptions',
+                    headers=auth,
+                    files={'file': ('probe.wav', _api_test_silent_wav(), 'audio/wav')},
+                    data={'model': model},
+                    timeout=20,
+                )
+            if not realtime and (resp is None or resp.status_code == 404):
+                # 百炼兼容模式等没有 /audio/transcriptions：和识别时一样改走 /chat/completions 的音频输入
+                resp, _ = transcribe_via_chat(base, api_key, model, _api_test_silent_wav(), timeout=20)
+        elif kind == 'ocr':
+            resp = requests.post(
+                base + '/chat/completions',
+                headers={**auth, 'Content-Type': 'application/json'},
+                json={
+                    'model': model,
+                    'messages': [{'role': 'user', 'content': [
+                        {'type': 'image_url', 'image_url': {'url': _api_test_image_data_url()}},
+                        {'type': 'text', 'text': 'Read the text in this image. Reply with the text only.'},
+                    ]}],
+                    'max_tokens': 40,
+                },
+                timeout=40,
+            )
+        else:
+            resp = requests.post(
+                base + '/chat/completions',
+                headers={**auth, 'Content-Type': 'application/json'},
+                json={
+                    'model': model,
+                    'messages': [{'role': 'user', 'content': 'ping'}],
+                    'max_tokens': 5,
+                },
+                timeout=10,
+            )
+        ok = resp.status_code < 400
+        if ok and kind == 'ocr':
+            try:
+                message = (resp.json().get('choices') or [{}])[0].get('message') or {}
+                content = message.get('content') or ''
+                if isinstance(content, list):
+                    content = ' '.join(str(part.get('text') or '') for part in content if isinstance(part, dict))
+                reply = ' '.join(OpenAICompatClientBase.clean_response(str(content)).split())[:120]
+            except Exception:
+                reply = ''
         return jsonify({
-            'success': resp.status_code < 400,
+            'success': ok,
+            'kind': kind,
+            'realtime': realtime,
             'status_code': resp.status_code,
-            'snippet': (resp.text or '')[:200],
+            'reply': reply,
+            'expected': API_TEST_IMAGE_TEXT if kind == 'ocr' else '',
+            'snippet': '' if ok else (resp.text or '')[:200],
         })
     except Exception as exc:
         return jsonify({'success': False, 'message': str(exc)}), 500
@@ -2133,6 +2171,54 @@ def _normalize_display_mode(value) -> str:
     return 'vr' if str(value or '').strip().lower() == 'vr' else 'desktop'
 
 
+# 给 VR 附属程序的命令（现在只有「手腕卡片显示什么」）。跟着状态一起推，附属程序按 seq 只做一次；
+# seq 用毫秒时间，主程序重启后也比附属程序记下的大。只推最近 VR_COMMAND_TTL 秒的。
+VR_COMMAND_TTL = 15.0
+VR_WRIST_SIDES = ('left', 'right', 'both')
+VR_WRIST_CONTENTS = ('others', 'self', 'screen', 'off')
+_vr_commands: list = []
+_vr_commands_lock = threading.Lock()
+
+
+def _queue_vr_command(command: dict) -> dict:
+    now = time.time()
+    with _vr_commands_lock:
+        seq = int(now * 1000)
+        if _vr_commands and seq <= _vr_commands[-1]['seq']:
+            seq = _vr_commands[-1]['seq'] + 1
+        item = dict(command, seq=seq, at=now)
+        _vr_commands.append(item)
+        del _vr_commands[:-8]
+    return item
+
+
+def _recent_vr_commands() -> list:
+    cutoff = time.time() - VR_COMMAND_TTL
+    with _vr_commands_lock:
+        return [{k: v for k, v in c.items() if k != 'at'} for c in _vr_commands if c['at'] >= cutoff]
+
+
+@app.route('/api/vr/wrist', methods=['POST'])
+def vr_wrist_route():
+    """设置 VR 手腕卡片显示什么（语音控制插件用）：{"side": left/right/both, "content": others/self/screen/off}。"""
+    if not _same_origin_request():
+        return jsonify({'success': False, 'message': 'forbidden'}), 403
+    data = request.get_json(silent=True) or {}
+    side = str(data.get('side') or '').strip().lower()
+    content = str(data.get('content') or '').strip().lower()
+    if side not in VR_WRIST_SIDES or content not in VR_WRIST_CONTENTS:
+        return jsonify({'success': False, 'message': 'side / content 不对'}), 400
+    item = _queue_vr_command({'kind': 'wrist', 'side': side, 'content': content})
+    import vr_bridge
+    status = vr_bridge.overlay_status()
+    return jsonify({
+        'success': True,
+        'seq': item['seq'],
+        'display_mode': _normalize_display_mode(getattr(config, 'DISPLAY_MODE', 'desktop')),
+        'overlay_connected': bool(status.get('connected')),
+    })
+
+
 def _vr_payload() -> dict:
     """推给 VR 附属程序的完整状态（vr_bridge 每 150ms 取一次）。"""
     import sys as _sys
@@ -2179,6 +2265,7 @@ def _vr_payload() -> dict:
             ),
         },
         'screen': _screen_payload(),
+        'commands': _recent_vr_commands(),
     }
 
 
@@ -2325,6 +2412,8 @@ def app_info_route():
         'python': platform.python_version(),
         'os': f'{platform.system()} {platform.release()} ({platform.version()})',
         'uninstaller': bool(_uninstaller_path()),
+        'repo_url': GITHUB_REPO_URL,
+        'releases_url': GITHUB_RELEASES_URL,
     })
 
 
@@ -2369,6 +2458,186 @@ def open_folder_route():
     except OSError as e:
         return jsonify({'success': False, 'message': f'打开失败: {e}'}), 500
     return jsonify({'success': True, 'path': path})
+
+
+# ---------- 日志导出 / 分析错误（1.1.2） ----------
+
+def _vr_overlay_log_path() -> str:
+    import word_settings
+    return os.path.join(word_settings.folder_paths()['vr'], 'overlay.log')
+
+
+def _status_for_log() -> dict:
+    status = _snapshot_service_status()
+    status['modes'] = _snapshot_mode_status()
+    return status
+
+
+@app.route('/api/logs/export', methods=['GET'])
+def export_logs_route():
+    """「软件信息」页的「导出日志」：版本、系统、模式状态 + 全部日志，Key 都换成 ***。"""
+    import log_tools
+    try:
+        text = log_tools.export_text(
+            APP_VERSION,
+            status=_status_for_log(),
+            vr_log_path=_vr_overlay_log_path(),
+            api_mode=str(request.args.get('api_mode', '') or '')[:20],
+        )
+    except Exception as exc:
+        return jsonify({'success': False, 'message': str(exc)}), 500
+    return jsonify({'success': True, 'filename': log_tools.export_filename(), 'text': text})
+
+
+@app.route('/api/logs/analyze', methods=['POST'])
+def analyze_logs_route():
+    """「运行日志」的「分析错误」。
+
+    没填 Key：只用规则找问题，直接给结果（mode=local）。填了：再把去掉 Key 的日志发给网页上填的翻译模型（mode=llm）。
+    Key 和模型由网页带过来（Key 只在浏览器里），这里不存。
+    """
+    import log_tools
+    if not _same_origin_request():
+        return jsonify({'success': False, 'message': 'forbidden'}), 403
+    body = request.get_json(silent=True) or {}
+    keys_filled = body.get('keys_filled') if isinstance(body.get('keys_filled'), dict) else {}
+    needs = [n for n in (body.get('needs') or []) if n in ('asr', 'llm', 'ocr')] or ['asr', 'llm']
+    lines = log_tools.log_lines()
+    findings = log_tools.analyze_rules(lines, keys_filled={k: bool(v) for k, v in keys_filled.items()}, needs=needs)
+    llm = body.get('llm') if isinstance(body.get('llm'), dict) else {}
+    base_url = str(llm.get('base_url') or '').strip()
+    api_key = str(llm.get('api_key') or '').strip()
+    model = str(llm.get('model') or '').strip()
+    result = {'success': True, 'findings': findings, 'line_count': len(lines), 'mode': 'local'}
+    if not api_key or not base_url or not model:
+        result['reason'] = 'no_key' if not api_key else 'no_model'
+        return jsonify(result)
+    extra_body = None
+    raw_extra = str(llm.get('extra_body') or '').strip()
+    if raw_extra:
+        try:
+            parsed = json.loads(raw_extra)
+            extra_body = parsed if isinstance(parsed, dict) else None
+        except ValueError:
+            extra_body = None
+    try:
+        text = log_tools.analyze_with_llm(
+            lines, findings, base_url=base_url, api_key=api_key, model=model,
+            language=str(body.get('language') or 'zh-CN'), extra_body=extra_body,
+        )
+    except Exception as exc:
+        result['llm_error'] = log_tools.redact(str(exc), [api_key])[:400]
+        return jsonify(result)
+    result.update({'mode': 'llm', 'analysis': text, 'model': model})
+    return jsonify(result)
+
+
+# ---------- 个性化（1.1.2） ----------
+
+def _personalization_payload(settings: dict) -> dict:
+    return {'success': True, 'settings': settings}
+
+
+@app.route('/api/personalization', methods=['GET'])
+def personalization_get_route():
+    import personalization
+    return jsonify(_personalization_payload(personalization.load()))
+
+
+@app.route('/api/personalization', methods=['POST'])
+def personalization_save_route():
+    import personalization
+    if not _same_origin_request():
+        return jsonify({'success': False, 'message': 'forbidden'}), 403
+    try:
+        settings = personalization.save(request.get_json(silent=True) or {})
+    except OSError as e:
+        return jsonify({'success': False, 'message': f'保存失败: {e}'}), 500
+    return jsonify(_personalization_payload(settings))
+
+
+@app.route('/api/personalization/hero-image', methods=['GET'])
+def personalization_image_route():
+    """首页图片；?original=1 是上传的原图（重新裁剪用）。网址带 rev，换图后浏览器会重新取。"""
+    import personalization
+    from flask import Response
+    settings = personalization.load()
+    if request.args.get('original'):
+        path = personalization.original_path(settings)
+    else:
+        path = personalization.hero_path() if settings['image']['custom'] else None
+    if not path or not os.path.isfile(path):
+        return jsonify({'success': False, 'message': 'not found'}), 404
+    # 整个读进内存再发：send_file 会一直开着文件，Windows 上紧接着换图会「拒绝访问」
+    try:
+        with open(path, 'rb') as fh:
+            data = fh.read()
+    except OSError:
+        return jsonify({'success': False, 'message': 'not found'}), 404
+    mimetype = personalization.image_mimetype(personalization.detect_image(data[:16]) or 'jpg')
+    return Response(data, mimetype=mimetype, headers={'Cache-Control': 'no-cache'})
+
+
+@app.route('/api/personalization/hero-image', methods=['POST'])
+def personalization_upload_route():
+    """multipart：image = 裁好的图（必须），original = 原图（重新裁剪时不传，沿用之前的原图）。"""
+    import personalization
+    if not _same_origin_request():
+        return jsonify({'success': False, 'message': 'forbidden'}), 403
+    limit = personalization.MAX_IMAGE_BYTES
+    if request.content_length and request.content_length > limit * 2 + 1024 * 1024:
+        return jsonify({'success': False, 'message': '图片太大了（最大 15 MB）'}), 413
+    image = request.files.get('image')
+    if image is None:
+        return jsonify({'success': False, 'message': '没有收到图片'}), 400
+    original = request.files.get('original')
+    try:
+        settings = personalization.save_hero_image(
+            image.read(limit + 1), original.read(limit + 1) if original is not None else None)
+    except personalization.PersonalizationError as e:
+        return jsonify({'success': False, 'message': str(e)}), 400
+    except OSError as e:
+        return jsonify({'success': False, 'message': f'保存失败: {e}'}), 500
+    return jsonify(_personalization_payload(settings))
+
+
+@app.route('/api/personalization/hero-image', methods=['DELETE'])
+def personalization_remove_image_route():
+    import personalization
+    if not _same_origin_request():
+        return jsonify({'success': False, 'message': 'forbidden'}), 403
+    return jsonify(_personalization_payload(personalization.remove_hero_image()))
+
+
+@app.route('/api/personalization/export', methods=['GET'])
+def personalization_export_route():
+    import personalization
+    return jsonify({'success': True, 'filename': personalization.export_filename(),
+                    'data': personalization.export_data(APP_VERSION)})
+
+
+@app.route('/api/personalization/import', methods=['POST'])
+def personalization_import_route():
+    import personalization
+    if not _same_origin_request():
+        return jsonify({'success': False, 'message': 'forbidden'}), 403
+    if request.content_length and request.content_length > personalization.MAX_IMAGE_BYTES * 3:
+        return jsonify({'success': False, 'message': '文件太大了'}), 413
+    try:
+        settings = personalization.import_data(request.get_json(silent=True))
+    except personalization.PersonalizationError as e:
+        return jsonify({'success': False, 'message': str(e)}), 400
+    except OSError as e:
+        return jsonify({'success': False, 'message': f'保存失败: {e}'}), 500
+    return jsonify(_personalization_payload(settings))
+
+
+@app.route('/api/personalization/reset', methods=['POST'])
+def personalization_reset_route():
+    import personalization
+    if not _same_origin_request():
+        return jsonify({'success': False, 'message': 'forbidden'}), 403
+    return jsonify(_personalization_payload(personalization.reset()))
 
 
 # ---------- 插件 ----------
@@ -2493,10 +2762,69 @@ def plugins_icon_route(plugin_id):
                                                   'X-Content-Type-Options': 'nosniff'})
 
 
+def _plugin_call_api(method: str, path: str, payload=None):
+    """插件的 ctx.call_api：在程序里直接调自己的接口（Flask 测试客户端，不走网络、不用管端口）。"""
+    with app.test_client() as client:
+        kwargs = {'base_url': 'http://127.0.0.1:5001'}
+        if payload is not None:
+            kwargs['json'] = payload
+        resp = client.open(path, method=method, **kwargs)
+        try:
+            data = resp.get_json(silent=True)
+        except Exception:
+            data = None
+        return resp.status_code, (data if data is not None else {'text': resp.get_data(as_text=True)[:2000]})
+
+
+def _plugin_llm_chat(messages, *, max_tokens: int = 300, temperature: float = 0.0, timeout: float = 30.0) -> str:
+    """插件的 ctx.llm_chat：用翻译那套大模型（网页推过来的实际地址、模型、Key、额外参数）问一句。"""
+    import requests
+    from proxy_detector import refresh_system_proxy_env
+    base_url = str(getattr(config, 'LLM_BASE_URL', '') or '').strip()
+    model = str(getattr(config, 'LLM_MODEL', '') or '').strip()
+    api_key = str(getattr(config, 'LLM_API_KEY', '') or getattr(config, 'OPENAI_API_KEY', '') or '').strip()
+    if not (base_url and model and api_key):
+        raise RuntimeError('翻译用的大模型还没配好（打开一次网页，让「API 配置」推到后台）')
+    payload = {
+        'model': model,
+        'messages': messages,
+        'temperature': temperature,
+        'max_tokens': max_tokens,
+    }
+    raw_extra = str(getattr(config, 'OPENAI_COMPAT_EXTRA_BODY_JSON', '') or '').strip()
+    if raw_extra:
+        try:
+            extra = json.loads(raw_extra)
+            if isinstance(extra, dict):
+                for key, value in extra.items():
+                    payload.setdefault(key, value)
+        except ValueError:
+            pass
+    refresh_system_proxy_env()
+    resp = requests.post(
+        base_url.rstrip('/') + '/chat/completions',
+        headers={'Authorization': f'Bearer {api_key}', 'Content-Type': 'application/json'},
+        data=json.dumps(payload, ensure_ascii=False).encode('utf-8'),
+        timeout=timeout,
+    )
+    if resp.status_code >= 400:
+        from log_tools import redact
+        raise RuntimeError(f'HTTP {resp.status_code}: ' + redact((resp.text or '')[:300], [api_key]))
+    try:
+        content = resp.json()['choices'][0]['message']['content']
+    except (ValueError, KeyError, IndexError, TypeError):
+        raise RuntimeError('模型没有返回内容')
+    if isinstance(content, list):
+        content = ''.join(str(part.get('text') or '') for part in content if isinstance(part, dict))
+    from openai_compat_client import OpenAICompatClientBase
+    return OpenAICompatClientBase.clean_response(str(content or ''))
+
+
 def _load_plugins() -> None:
     try:
         import plugin_manager
         plugin_manager.APP_VERSION = APP_VERSION
+        plugin_manager.set_host(call_api=_plugin_call_api, llm_chat=_plugin_llm_chat)
         plugin_manager.plugin_manager.load_all()
     except Exception as e:
         print(f'[插件] 加载插件失败: {e}')

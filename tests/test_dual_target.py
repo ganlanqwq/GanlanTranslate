@@ -21,7 +21,6 @@ if DOTENV_PATH.exists():
         if key and key not in os.environ:
             os.environ[key] = value
 
-has_deepl = bool(os.environ.get("DEEPL_API_KEY"))
 
 
 class TestDualTargetPipeline:
@@ -128,9 +127,9 @@ class TestDualTargetPipeline:
         p = ContextAwareTranslator(MockAPI(), target_language="ja")
         s = ContextAwareTranslator(MockAPI(), target_language="ko")
 
-        r1 = translate_with_backend(p, None, "hello", "ja",
+        r1 = translate_with_backend(p, "hello", "ja",
                                     source_language="en", context_prefix="")
-        r2 = translate_with_backend(s, None, "hello", "ko",
+        r2 = translate_with_backend(s, "hello", "ko",
                                     source_language="en", context_prefix="")
 
         assert r1 == "[ja] hello"
@@ -146,8 +145,6 @@ class TestDualTargetPipeline:
             def __init__(self):
                 self.secondary_translator = None
                 self.secondary_translation_api = None
-                self.secondary_deepl_fallback_translator = None
-                self.secondary_deepl_fallback_translation_api = None
                 self.secondary_target_language = None
 
         cfg = TranslationConfig(
@@ -179,8 +176,6 @@ class TestDualTargetPipeline:
             def __init__(self):
                 self.secondary_translator = MagicMock()
                 self.secondary_translation_api = MagicMock()
-                self.secondary_deepl_fallback_translator = MagicMock()
-                self.secondary_deepl_fallback_translation_api = MagicMock()
                 self.secondary_target_language = "ja"
 
         cfg = TranslationConfig()
@@ -208,97 +203,10 @@ class TestTranslateWithBackendCallPattern:
 
         t = ContextAwareTranslator(Mock(), target_language="ja")
         result = translate_with_backend(
-            t, None, "hello", "ja", None, False, None, "en",
+            t, "hello", "ja", None, None, "en",
             source_language="auto", context_prefix="VRChat:",
             record_history=False,
         )
         assert not result.startswith("[ERROR]")
         assert "sl=auto" in result
         assert "detected=en" in result
-
-
-@pytest.mark.integration
-@pytest.mark.skipif(not has_deepl, reason="DEEPL_API_KEY not set")
-class TestDualTargetIntegration:
-    """Real API dual-target translation tests using DeepL."""
-
-    def test_dual_target_real_translation(self):
-        from streaming_translation import (
-            ContextAwareTranslator,
-            DeepLAPI,
-            translate_with_backend,
-        )
-
-        primary_api = DeepLAPI(proxy_url=None)
-        secondary_api = DeepLAPI(proxy_url=None)
-
-        primary = ContextAwareTranslator(primary_api, target_language="JA")
-        secondary = ContextAwareTranslator(secondary_api, target_language="DE")
-
-        text = "Hello, how are you?"
-        r1 = translate_with_backend(
-            primary, None, text, "JA",
-            source_language="en", context_prefix="",
-        )
-        r2 = translate_with_backend(
-            secondary, None, text, "DE",
-            source_language="en", context_prefix="",
-        )
-
-        assert r1 and not r1.startswith("[ERROR]"), f"Primary failed: {r1}"
-        assert r2 and not r2.startswith("[ERROR]"), f"Secondary failed: {r2}"
-        assert r1 != r2, "Translations should differ"
-        assert any("\u3040" <= c <= "\u30ff" or "\u4e00" <= c <= "\u9fff" for c in r1), \
-            f"Not Japanese: {r1}"
-        assert all(ord(c) < 0x2e80 for c in r2), f"Not German: {r2}"
-
-    def test_dual_target_context_aware(self):
-        from streaming_translation import (
-            ContextAwareTranslator,
-            DeepLAPI,
-        )
-
-        primary_api = DeepLAPI(proxy_url=None)
-        secondary_api = DeepLAPI(proxy_url=None)
-
-        primary = ContextAwareTranslator(primary_api, target_language="JA",
-                                        max_context_size=3)
-        secondary = ContextAwareTranslator(secondary_api, target_language="DE",
-                                          max_context_size=3)
-
-        sentences = [
-            ("Hello!", "こんにちは！", "Hallo!"),
-            ("How are you?", "お元気ですか？", "Wie geht es dir?"),
-        ]
-
-        for src, exp_ja_hint, exp_de_hint in sentences:
-            r1 = primary.translate(src)
-            r2 = secondary.translate(src)
-            assert r1 and not r1.startswith("[ERROR]"), f"JA failed for: {src}"
-            assert r2 and not r2.startswith("[ERROR]"), f"DE failed for: {src}"
-
-        assert len(primary.get_contexts()) == len(sentences)
-        assert len(secondary.get_contexts()) == len(sentences)
-
-    def test_individual_contexts_independent(self):
-        from streaming_translation import ContextAwareTranslator, DeepLAPI
-
-        api = DeepLAPI(proxy_url=None)
-        t1 = ContextAwareTranslator(api, target_language="JA", max_context_size=3)
-        t2 = ContextAwareTranslator(api, target_language="FR", max_context_size=3)
-
-        # Vary the number of translations
-        t1.translate("Hello")
-        t1.translate("World")
-        t2.translate("Hello")
-
-        assert len(t1.get_contexts()) == 2
-        assert len(t2.get_contexts()) == 1
-
-    def test_dual_with_secondary_update(self):
-        from streaming_translation import DeepLAPI, ContextAwareTranslator
-
-        api = DeepLAPI(proxy_url=None)
-        t = ContextAwareTranslator(api, target_language="JA")
-        result = t.translate("Good morning")
-        assert result and not result.startswith("[ERROR]")

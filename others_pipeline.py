@@ -300,7 +300,6 @@ class OthersRecognitionCallback(SpeechRecognitionCallback):
                     def _do_translate():
                         return translate_with_backend(
                             translator,
-                            getattr(self.state, "deepl_fallback_translator", None),
                             text,
                             target_lang,
                             detected_source_language=src_lang,
