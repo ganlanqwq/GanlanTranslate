@@ -54,7 +54,7 @@ Also included:
 
 ### Translate screen
 
-- Press the global hotkey (default `Ctrl+Alt+F8`) or the camera button on the screen overlay to capture the VRChat window once. It works even if VRChat is covered by other windows (but not when it is minimized).
+- Press the global hotkey (default `Ctrl+Alt+F8`) or the camera button on the screen overlay to capture the VRChat window once. It works even if VRChat is covered by other windows or minimized (a minimized window is briefly restored behind all other windows without taking focus, then minimized again).
 - A vision model reads the text in the capture (Qwen OCR `qwen3.5-ocr` by default, `qwen-vl-ocr` on the international site, or any OpenAI-compatible model that can see images). A sentence that wraps onto several lines on screen is joined back into one block, then each block is labeled with its language and translated.
 - Handy for signs, menus and instructions inside worlds.
 
@@ -161,7 +161,7 @@ The key and the **International** checkbox don't match: leave **International** 
 <details>
 <summary><b>Screen capture fails / the hotkey does nothing</b></summary>
 
-- The capture doesn't work while VRChat is minimized or in exclusive fullscreen. Use windowed or borderless mode.
+- The capture doesn't work while VRChat is in exclusive fullscreen. Use windowed or borderless mode.
 - Another program may be using the hotkey. Choose a different one on the **Translate screen** page, then restart the screen mode. Without a hotkey you can still use the camera button on the overlay.
 
 </details>

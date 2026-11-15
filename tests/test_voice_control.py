@@ -49,6 +49,15 @@ def test_manifest_matches_source():
     ('起动自我翻译。', {'action': 'start', 'modes': ['self']}),          # 同音字、标点
     ('关闭所有功能', {'action': 'stop', 'modes': ['self', 'others', 'screen']}),
     ('翻译一下画面', {'action': 'screen_translate'}),
+    # 1.0.1：客气话、语气词说不说都行；「把画面翻译成中文」= 改画面语言再翻译一次
+    ('帮我翻译一下屏幕吧。', {'action': 'screen_translate'}),
+    ('请翻译画面', {'action': 'screen_translate'}),
+    ('把画面翻译一下', {'action': 'screen_translate'}),
+    ('嗯，截图翻译', {'action': 'screen_translate'}),
+    ('把画面翻译成中文', {'action': 'screen_translate', 'language': 'zh-CN'}),
+    ('Please translate the screen into Japanese.', {'action': 'screen_translate', 'language': 'ja'}),
+    ('画面语言改成英语', {'action': 'language', 'target': 'screen', 'language': 'en'}),
+    ('帮我把他人翻译改成日语', {'action': 'language', 'target': 'others', 'language': 'ja'}),
     ('主语言改成日语', {'action': 'language', 'target': 'main', 'language': 'ja'}),
     ('关闭第二语言', {'action': 'language', 'target': 'secondary', 'language': ''}),
     ('右手手腕显示画面', {'action': 'wrist', 'side': 'right', 'content': 'screen'}),
@@ -76,6 +85,23 @@ def test_partial_prefixes():
     assert not m.could_be_command(c.key('打开窗'))
     assert not m.could_be_command(c.key('左手边'))
     assert m.could_be_wake(c.key('甘')) and m.could_be_wake(c.key('甘蓝启动'))
+
+
+def test_old_builtin_table_upgraded():
+    """1.0.0 自带的口令表（保存设置时原样存下来的）当成没改过，用现在自带的。"""
+    import subprocess
+    old_source = subprocess.run(['git', 'show', 'HEAD~0:docs/plugin-voice-control/commands.py'], cwd=ROOT,
+                                capture_output=True).stdout.decode('utf-8')
+    c = _commands()
+    namespace = {}
+    if 'screen_translate_to' not in old_source:         # HEAD 里还是 1.0.0 的时候才比得了
+        exec(compile(old_source, 'commands_100', 'exec'), namespace)
+        old_table = namespace['DEFAULT_TABLE']
+        assert c.uses_default_table(old_table)
+        assert c.uses_default_table(old_table.replace('\n', '\r\n'))
+        m = c.Matcher(old_table, '')
+        assert m.match_key(c.key('把画面翻译成中文'))['language'] == 'zh-CN'
+    assert c.uses_default_table('') and not c.uses_default_table('start_others = 开工')
 
 
 def test_custom_table_and_bad_lines():
@@ -110,9 +136,16 @@ def plugin(tmp_path, monkeypatch):
     got = threading.Event()
     llm_replies = []
 
+    screen = {'updated_at': 0, 'status': 'idle', 'items': [], 'busy': False}
+
     def call_api(method, path, payload):
+        if path == '/api/subtitles':
+            return 200, {'screen': dict(screen)}
         calls.append((method, path, payload))
         got.set()
+        if path == '/api/screen-translate':
+            screen.update(updated_at=screen['updated_at'] + 1, status='error',
+                          message='VRChat 窗口最小化了，临时还原后截到的还是全黑')
         if path == '/api/status':
             return 200, {'modes': {'screen': 'running'}, 'target_language': 'ja'}
         if path == '/api/vr/wrist':
@@ -169,17 +202,43 @@ def test_wake_word_required_when_asked(plugin):
 def test_natural_language_asks_llm(plugin):
     manager, calls, wait_calls, llm_replies = plugin
     manager.save_settings('voice-control', {'mode': 'natural'})
-    assert pm.filter_source('帮我把他人翻译改成日语') == '帮我把他人翻译改成日语'   # 没说唤醒词：照常翻译
-    assert pm.filter_source('甘岚，帮我把他人翻译改成日语') == ''
+    sentence = '我觉得他人翻译应该换成日语'
+    assert pm.filter_source(sentence) == sentence                     # 没说唤醒词、也不是口令：照常翻译
+    assert pm.filter_partial_source('我觉得他') == '我觉得他'
+    assert pm.filter_source('甘岚，' + sentence) == ''
     found = wait_calls(2)
     assert ('POST', '/api/others-target-language', {'target_language': 'ja'}) in found
-    assert llm_replies and '帮我把他人翻译改成日语' in llm_replies[0][-1]['content']
+    assert llm_replies and sentence in llm_replies[0][-1]['content']
     # 唤醒词后面正好是口令：直接执行，不问大模型
     calls.clear()
     llm_replies.clear()
     assert pm.filter_source('甘岚，关闭所有功能') == ''
     assert wait_calls(1)[0] == ('POST', '/api/modes/stop', {'modes': ['self', 'others', 'screen']})
     assert not llm_replies
+    # 1.0.1：自然语言模式下，口令表里的口令不说唤醒词也执行（不问大模型）
+    calls.clear()
+    assert pm.filter_partial_source('翻译一下画') == ''
+    assert pm.filter_source('翻译一下画面') == ''
+    assert ('POST', '/api/screen-translate', None) in wait_calls(2)
+    assert not llm_replies
+    # 打开「口令前也要先说唤醒词」后就不行了
+    manager.save_settings('voice-control', {'mode': 'natural', 'fixed_need_wake': True})
+    assert pm.filter_source('翻译一下画面') == '翻译一下画面'
+    assert pm.filter_partial_source('翻译一下画') == '翻译一下画'
+
+
+def test_screen_translate_to_language_and_result_logged(plugin, capsys):
+    manager, calls, wait_calls, _ = plugin
+    assert pm.filter_source('把画面翻译成中文') == ''
+    found = wait_calls(3)
+    assert found[0] == ('POST', '/api/screen-target-language', {'target_language': 'zh-CN'})
+    assert ('POST', '/api/screen-translate', None) in found
+    deadline = time.time() + 5                                      # 截完把失败原因写进日志
+    out = ''
+    while time.time() < deadline and '没成功' not in out:
+        time.sleep(0.1)
+        out += capsys.readouterr().out
+    assert '把画面翻译成 zh-CN：没成功（VRChat 窗口最小化了' in out
 
 
 # ---------------------------------------------------------------- 宿主

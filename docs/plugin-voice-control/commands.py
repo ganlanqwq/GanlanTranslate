@@ -1,11 +1,12 @@
 """口令表的解析和匹配。
 
-比的时候先把文字「归一」：全角转半角、转小写、去掉空格和标点，汉字再转成不带声调的拼音
-（识别常把「启动」写成「起动」、把「甘岚」写成「甘蓝」，按拼音比就都算对）。
+比的时候先把文字「归一」：全角转半角、转小写、去掉空格和标点，去掉「请、帮我、一下、把、吧」这类
+客气话和语气词，汉字再转成不带声调的拼音（识别常把「启动」写成「起动」、把「甘岚」写成「甘蓝」，按拼音比就都算对）。
 口令里的 {lang} / {side} / {card} 是空位，能填的词见下面的 VOCAB。
 """
 from __future__ import annotations
 
+import hashlib
 import re
 import unicodedata
 from typing import Dict, List, Optional, Tuple
@@ -26,6 +27,7 @@ ACTIONS: Dict[str, dict] = {
     'stop_screen': {'action': 'stop', 'modes': ['screen']},
     'stop_all': {'action': 'stop', 'modes': ['self', 'others', 'screen']},
     'screen_translate': {'action': 'screen_translate'},
+    'screen_translate_to': {'action': 'screen_translate'},      # 先把画面译文语言改成 {lang}，再翻译一次
     'target': {'action': 'language', 'target': 'main'},
     'secondary': {'action': 'language', 'target': 'secondary'},
     'secondary_off': {'action': 'language', 'target': 'secondary', 'language': ''},
@@ -74,7 +76,7 @@ VOCAB: Dict[str, Dict[str, str]] = {
 
 SLOT_RE = re.compile(r'\{(lang|side|card)\}')
 
-DEFAULT_TABLE = """# 一行一个动作：动作 = 口令 | 口令 | …（# 开头是说明）。说的整句话和某个口令一样才算（不管标点、空格，同音字也算）。
+DEFAULT_TABLE = """# 一行一个动作：动作 = 口令 | 口令 | …（# 开头是说明）。说的整句话和某个口令一样才算（不管标点、空格，同音字也算；「请、帮我、麻烦、一下、把、吧、呀」这类词说不说都行）。
 # 空位：{lang} 语言（日语、英语、中文……）；{side} 左手 / 右手 / 双手；{card} 他人 / 自我 / 屏幕 / 关闭
 start_self = 启动自我翻译 | 开启自我翻译 | 打开自我翻译 | 开始自我翻译
 start_others = 启动翻译他人 | 开启翻译他人 | 打开翻译他人 | 开始翻译他人 | 启动他人翻译 | 开启他人翻译 | 打开他人翻译
@@ -84,12 +86,13 @@ stop_self = 关闭自我翻译 | 停止自我翻译 | 关掉自我翻译
 stop_others = 关闭翻译他人 | 停止翻译他人 | 关掉翻译他人 | 关闭他人翻译 | 停止他人翻译
 stop_screen = 关闭翻译画面 | 停止翻译画面 | 关掉翻译画面 | 关闭屏幕翻译 | 停止屏幕翻译
 stop_all = 关闭所有功能 | 停止所有功能 | 关闭全部功能 | 全部关闭 | 全部停止
-screen_translate = 翻译一下画面 | 翻译一下屏幕 | 翻译当前画面 | 识别画面 | 截图翻译
+screen_translate = 翻译画面 | 翻译屏幕 | 翻译一下画面 | 翻译一下屏幕 | 把画面翻译一下 | 翻译当前画面 | 翻译这个画面 | 识别画面 | 识别屏幕 | 截图翻译 | 截屏翻译
+screen_translate_to = 把画面翻译成{lang} | 把屏幕翻译成{lang} | 用{lang}翻译画面 | 翻译画面成{lang}
 target = 主语言改成{lang} | 主语言换成{lang} | 主语言设为{lang} | 翻译成{lang}
 secondary = 第二语言改成{lang} | 第二语言换成{lang} | 第二语言设为{lang}
 secondary_off = 关闭第二语言 | 取消第二语言 | 不要第二语言
-others_lang = 他人翻译成{lang} | 他人语言改成{lang}
-screen_lang = 画面翻译成{lang} | 画面语言改成{lang}
+others_lang = 他人翻译成{lang} | 他人翻译改成{lang} | 他人语言改成{lang} | 他人语言换成{lang}
+screen_lang = 画面语言改成{lang} | 画面语言换成{lang} | 画面译文改成{lang}
 wrist = {side}显示{card} | {side}手腕显示{card} | {side}卡片显示{card}
 wrist_off = 关闭{side}卡片 | 关闭{side}手腕 | {side}不显示
 # English
@@ -101,12 +104,13 @@ stop_self = stop self translation | turn off self translation
 stop_others = stop translating others | turn off translating others | stop others translation
 stop_screen = stop screen translation | turn off screen translation
 stop_all = stop everything | turn everything off | stop all
-screen_translate = translate the screen | translate screen
+screen_translate = translate the screen | translate screen | translate this screen | read the screen
+screen_translate_to = translate the screen to {lang} | translate the screen into {lang} | translate screen to {lang} | translate screen into {lang}
 target = translate to {lang} | set main language to {lang} | change main language to {lang}
 secondary = set second language to {lang} | change second language to {lang}
 secondary_off = turn off second language | no second language
 others_lang = translate others to {lang}
-screen_lang = translate screen to {lang}
+screen_lang = set screen language to {lang} | change screen language to {lang}
 wrist = show {card} on {side} | show {card} on {side} wrist
 wrist_off = hide {side} wrist | turn off {side} wrist
 # 日本語
@@ -118,7 +122,8 @@ stop_self = 自分の翻訳を停止 | 自分の翻訳をオフ
 stop_others = 相手の翻訳を停止 | 他人の翻訳を停止 | 相手の翻訳をオフ
 stop_screen = 画面翻訳を停止 | 画面の翻訳を停止 | 画面翻訳をオフ
 stop_all = 全部停止 | すべて停止
-screen_translate = 画面を翻訳して | 画面を翻訳
+screen_translate = 画面を翻訳して | 画面を翻訳 | 画面翻訳して
+screen_translate_to = 画面を{lang}に翻訳して | 画面を{lang}に翻訳
 target = {lang}に翻訳して | メイン言語を{lang}に
 secondary = 第二言語を{lang}に
 secondary_off = 第二言語をオフ
@@ -133,7 +138,8 @@ stop_self = 내 번역 중지 | 자기 번역 중지
 stop_others = 상대 번역 중지 | 다른 사람 번역 중지
 stop_screen = 화면 번역 중지
 stop_all = 전부 중지 | 모두 중지
-screen_translate = 화면 번역해 줘 | 화면 번역하기
+screen_translate = 화면 번역해 줘 | 화면 번역하기 | 화면 번역해
+screen_translate_to = 화면을 {lang}로 번역해 줘
 target = {lang}로 번역 | 주 언어를 {lang}로
 secondary = 두 번째 언어를 {lang}로
 secondary_off = 두 번째 언어 끄기
@@ -148,10 +154,46 @@ def normalize(text: str) -> str:
     return ''.join(ch for ch in text if unicodedata.category(ch)[0] in 'LNM')
 
 
+# 说不说都一样的词（只管中文和英文）：「帮我翻译一下画面吧」= 「翻译画面」，「please translate the screen」= 「translate the screen」
+_ZH_FILLERS_ANYWHERE = ('帮我', '帮忙', '麻烦', '给我', '一下', '请', '把')
+_ZH_FILLERS_START = ('那个', '嗯', '呃', '啊', '哎')
+_ZH_FILLERS_END = ('吧', '呀', '啊', '呢', '嘛', '啦', '哦', '了')
+_EN_FILLERS_START = ('pleasecanyou', 'canyouplease', 'canyou', 'couldyou', 'please', 'hey')
+_EN_FILLERS_END = ('please', 'forme', 'now')
+
+
+def _has_cjk(text: str) -> bool:
+    return any('㐀' <= ch <= '鿿' for ch in text)
+
+
+def _strip_edges(text: str, starts, ends) -> str:
+    changed = True
+    while changed and text:
+        changed = False
+        for word in starts:
+            if text.startswith(word) and len(text) > len(word):
+                text, changed = text[len(word):], True
+        for word in ends:
+            if text.endswith(word) and len(text) > len(word):
+                text, changed = text[:-len(word)], True
+    return text
+
+
+def drop_fillers(text: str) -> str:
+    """去掉客气话、语气词（text 已经 normalize 过）。"""
+    if _has_cjk(text):
+        for word in _ZH_FILLERS_ANYWHERE:
+            text = text.replace(word, '')
+        return _strip_edges(text, _ZH_FILLERS_START, _ZH_FILLERS_END)
+    if text.isascii():
+        return _strip_edges(text, _EN_FILLERS_START, _EN_FILLERS_END)
+    return text
+
+
 def key(text: str) -> str:
-    """比较用的形式：normalize 之后汉字换成拼音（不带声调）。"""
-    text = normalize(text)
-    if not text or lazy_pinyin is None or not any('㐀' <= ch <= '鿿' for ch in text):
+    """比较用的形式：normalize、去掉客气话之后，汉字换成拼音（不带声调）。"""
+    text = drop_fillers(normalize(text))
+    if not text or lazy_pinyin is None or not _has_cjk(text):
         return text
     return ''.join(lazy_pinyin(text))
 
@@ -226,9 +268,24 @@ def _keyed_vocab() -> Dict[str, Dict[str, str]]:
     return keyed
 
 
+def table_fingerprint(text: str) -> str:
+    lines = [line.strip() for line in str(text or '').splitlines() if line.strip()]
+    return hashlib.sha1('\n'.join(lines).encode('utf-8')).hexdigest()
+
+
+# 以前版本自带的口令表。保存插件设置时它会原样存下来，用户其实没改过，就当成空表、用现在自带的
+OLD_DEFAULT_TABLES = {
+    '3226b0f7e706db3a196a8b64ac295eb07aa38d88',   # 1.0.0
+}
+
+
+def uses_default_table(text: str) -> bool:
+    return not str(text or '').strip() or table_fingerprint(text) in OLD_DEFAULT_TABLES
+
+
 def parse_table(text: str) -> Tuple[List[Template], List[str]]:
-    """解析口令表，返回 (口令, 看不懂的行)。空表用默认的。"""
-    if not str(text or '').strip():
+    """解析口令表，返回 (口令, 看不懂的行)。空表、以前自带的表都用现在自带的。"""
+    if uses_default_table(text):
         text = DEFAULT_TABLE
     vocab = _keyed_vocab()
     templates: List[Template] = []
@@ -253,6 +310,10 @@ def parse_table(text: str) -> Tuple[List[Template], List[str]]:
 def build_command(action: str, slots: dict) -> Optional[dict]:
     """动作 + 空位 → 要执行的命令；缺空位返回 None。"""
     command = dict(ACTIONS[action])
+    if action == 'screen_translate_to':
+        if 'lang' not in slots:
+            return None
+        command['language'] = slots['lang']
     if command['action'] == 'language' and 'language' not in command:
         if 'lang' not in slots:
             return None

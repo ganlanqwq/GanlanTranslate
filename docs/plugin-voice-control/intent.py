@@ -9,6 +9,7 @@ MODES = ('self', 'others', 'screen')
 TARGETS = ('main', 'secondary', 'others', 'screen')
 SIDES = ('left', 'right', 'both')
 CONTENTS = ('others', 'self', 'screen', 'off')
+_LANG_CODE = re.compile(r'[A-Za-z]{2,3}(?:-[A-Za-z0-9]{2,8})*')
 
 SYSTEM_PROMPT = """You turn a spoken request into commands for "Ganlan Translate", a VRChat translation app.
 The speaker may start with the assistant's name ("{wake}"); ignore it. Reply with JSON only, no other text:
@@ -20,6 +21,8 @@ Supported commands:
   "others" (translate what other players say), "screen" (screen translation mode). "Everything" / "all features" = all three.
 - {{"action": "stop", "modes": [...]}} stop modes.
 - {{"action": "screen_translate"}} capture the game screen once and translate the text on it.
+  Add "language": "<code>" when the request names the language to translate the screen into
+  (that also becomes the screen translation language).
 - {{"action": "language", "target": "main" | "secondary" | "others" | "screen", "language": "<code>"}}
   change a target language. main = the language my speech is translated into; secondary = the second output
   language ("" turns it off); others = the language other players are translated into; screen = screen translation.
@@ -75,6 +78,9 @@ def _clean(item) -> dict | None:
         modes = list(dict.fromkeys(modes))
         return {'action': action, 'modes': modes} if modes else None
     if action == 'screen_translate':
+        language = str(item.get('language') or '').strip()
+        if language and _LANG_CODE.fullmatch(language):
+            return {'action': 'screen_translate', 'language': language}
         return {'action': 'screen_translate'}
     if action == 'language':
         target = item.get('target')
@@ -83,7 +89,7 @@ def _clean(item) -> dict | None:
             return None
         if not language and target != 'secondary':
             return None
-        if language and not re.fullmatch(r'[A-Za-z]{2,3}(?:-[A-Za-z0-9]{2,8})*', language):
+        if language and not _LANG_CODE.fullmatch(language):
             return None
         return {'action': 'language', 'target': target, 'language': language}
     if action == 'wrist':

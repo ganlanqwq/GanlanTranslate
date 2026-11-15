@@ -6,7 +6,7 @@
     "ja": "音声コントロール",
     "ko": "음성 제어"
   },
-  "version": "1.0.0",
+  "version": "1.0.1",
   "author": "甘岚",
   "description": {
     "zh-CN": "用说的话控制甘岚翻译：启动 / 关闭自我、他人、画面翻译，翻译一次画面，改主语言、第二语言，设置 VR 手腕卡片。说口令的那句话不翻译、不发聊天框。口令靠自我翻译识别，所以要开着自我翻译、VRChat 里开着麦（别人也听得到）。",
@@ -48,10 +48,10 @@
         }
       ],
       "description": {
-        "zh-CN": "指定口令：说的话和下面口令表里的一句一样才执行。自然语言：先说唤醒词，后面随便说，用「API 配置」里翻译的大模型理解（会花一点 token）。",
-        "en": "Fixed phrases: runs only when what you say matches a line in the table below. Natural language: say the wake word first, then say it any way you like; the translation LLM from API settings works out what you mean (uses a few tokens).",
-        "ja": "決まったコマンド：言った文が下のコマンド表のどれかと同じときだけ実行。自然な言葉：先にウェイクワードを言い、続けて自由に話すと、API 設定の翻訳用 LLM が意味を判断します（少しトークンを使います）。",
-        "ko": "정해진 명령어: 말한 문장이 아래 명령어 표의 한 줄과 같을 때만 실행합니다. 자연어: 먼저 호출어를 말하고 이어서 자유롭게 말하면 API 설정의 번역용 LLM이 뜻을 파악합니다(토큰을 조금 씁니다)."
+        "zh-CN": "指定口令：说的话和下面口令表里的一句一样才执行（「请、帮我、一下、把、吧」这类词说不说都行）。自然语言：先说唤醒词，后面随便说，用「API 配置」里翻译的大模型理解（会花一点 token）；口令表里的口令不说唤醒词也照样能用。",
+        "en": "Fixed phrases: runs only when what you say matches a line in the table below (words like \"please\" don't matter). Natural language: say the wake word first, then say it any way you like; the translation LLM from API settings works out what you mean (uses a few tokens). Phrases from the table still work without the wake word.",
+        "ja": "決まったコマンド：言った文が下のコマンド表のどれかと同じときだけ実行。自然な言葉：先にウェイクワードを言い、続けて自由に話すと、API 設定の翻訳用 LLM が意味を判断します（少しトークンを使います）。コマンド表のコマンドはウェイクワードなしでも使えます。",
+        "ko": "정해진 명령어: 말한 문장이 아래 명령어 표의 한 줄과 같을 때만 실행합니다. 자연어: 먼저 호출어를 말하고 이어서 자유롭게 말하면 API 설정의 번역용 LLM이 뜻을 파악합니다(토큰을 조금 씁니다). 명령어 표의 명령어는 호출어 없이도 쓸 수 있습니다."
       },
       "default": "fixed"
     },
@@ -83,10 +83,10 @@
         "ko": "명령어 앞에도 호출어 필요"
       },
       "description": {
-        "zh-CN": "打开后只有「唤醒词 + 口令」才执行，聊天时更不容易误触发。",
-        "en": "Only \"wake word + phrase\" runs, so normal conversation is less likely to trigger it.",
-        "ja": "オンにすると「ウェイクワード + コマンド」のときだけ実行し、会話中の誤動作が減ります。",
-        "ko": "켜면 「호출어 + 명령어」일 때만 실행해서 대화 중 잘못 실행되는 일이 줄어듭니다."
+        "zh-CN": "打开后只有「唤醒词 + 口令」才执行，聊天时更不容易误触发（两种方式都管）。",
+        "en": "Only \"wake word + phrase\" runs, so normal conversation is less likely to trigger it (applies to both modes).",
+        "ja": "オンにすると「ウェイクワード + コマンド」のときだけ実行し、会話中の誤動作が減ります（両方の方式に効きます）。",
+        "ko": "켜면 「호출어 + 명령어」일 때만 실행해서 대화 중 잘못 실행되는 일이 줄어듭니다(두 방식 모두 적용)."
       },
       "default": false
     },
@@ -107,7 +107,7 @@
       },
       "max_length": 20000,
       "rows": 16,
-      "default": "# 一行一个动作：动作 = 口令 | 口令 | …（# 开头是说明）。说的整句话和某个口令一样才算（不管标点、空格，同音字也算）。\n# 空位：{lang} 语言（日语、英语、中文……）；{side} 左手 / 右手 / 双手；{card} 他人 / 自我 / 屏幕 / 关闭\nstart_self = 启动自我翻译 | 开启自我翻译 | 打开自我翻译 | 开始自我翻译\nstart_others = 启动翻译他人 | 开启翻译他人 | 打开翻译他人 | 开始翻译他人 | 启动他人翻译 | 开启他人翻译 | 打开他人翻译\nstart_screen = 启动翻译画面 | 开启翻译画面 | 打开翻译画面 | 启动屏幕翻译 | 开启屏幕翻译 | 打开屏幕翻译\nstart_all = 启动所有功能 | 开启所有功能 | 打开所有功能 | 启动全部功能 | 全部启动\nstop_self = 关闭自我翻译 | 停止自我翻译 | 关掉自我翻译\nstop_others = 关闭翻译他人 | 停止翻译他人 | 关掉翻译他人 | 关闭他人翻译 | 停止他人翻译\nstop_screen = 关闭翻译画面 | 停止翻译画面 | 关掉翻译画面 | 关闭屏幕翻译 | 停止屏幕翻译\nstop_all = 关闭所有功能 | 停止所有功能 | 关闭全部功能 | 全部关闭 | 全部停止\nscreen_translate = 翻译一下画面 | 翻译一下屏幕 | 翻译当前画面 | 识别画面 | 截图翻译\ntarget = 主语言改成{lang} | 主语言换成{lang} | 主语言设为{lang} | 翻译成{lang}\nsecondary = 第二语言改成{lang} | 第二语言换成{lang} | 第二语言设为{lang}\nsecondary_off = 关闭第二语言 | 取消第二语言 | 不要第二语言\nothers_lang = 他人翻译成{lang} | 他人语言改成{lang}\nscreen_lang = 画面翻译成{lang} | 画面语言改成{lang}\nwrist = {side}显示{card} | {side}手腕显示{card} | {side}卡片显示{card}\nwrist_off = 关闭{side}卡片 | 关闭{side}手腕 | {side}不显示\n# English\nstart_self = start self translation | turn on self translation\nstart_others = start translating others | turn on translating others | start others translation\nstart_screen = start screen translation | turn on screen translation\nstart_all = start everything | turn everything on | start all\nstop_self = stop self translation | turn off self translation\nstop_others = stop translating others | turn off translating others | stop others translation\nstop_screen = stop screen translation | turn off screen translation\nstop_all = stop everything | turn everything off | stop all\nscreen_translate = translate the screen | translate screen\ntarget = translate to {lang} | set main language to {lang} | change main language to {lang}\nsecondary = set second language to {lang} | change second language to {lang}\nsecondary_off = turn off second language | no second language\nothers_lang = translate others to {lang}\nscreen_lang = translate screen to {lang}\nwrist = show {card} on {side} | show {card} on {side} wrist\nwrist_off = hide {side} wrist | turn off {side} wrist\n# 日本語\nstart_self = 自分の翻訳を開始 | 自分の翻訳をオン\nstart_others = 相手の翻訳を開始 | 他人の翻訳を開始 | 相手の翻訳をオン\nstart_screen = 画面翻訳を開始 | 画面の翻訳を開始 | 画面翻訳をオン\nstart_all = 全部開始 | すべて開始\nstop_self = 自分の翻訳を停止 | 自分の翻訳をオフ\nstop_others = 相手の翻訳を停止 | 他人の翻訳を停止 | 相手の翻訳をオフ\nstop_screen = 画面翻訳を停止 | 画面の翻訳を停止 | 画面翻訳をオフ\nstop_all = 全部停止 | すべて停止\nscreen_translate = 画面を翻訳して | 画面を翻訳\ntarget = {lang}に翻訳して | メイン言語を{lang}に\nsecondary = 第二言語を{lang}に\nsecondary_off = 第二言語をオフ\nwrist = {side}に{card}を表示\nwrist_off = {side}の表示をオフ\n# 한국어\nstart_self = 내 번역 시작 | 자기 번역 시작\nstart_others = 상대 번역 시작 | 다른 사람 번역 시작\nstart_screen = 화면 번역 시작\nstart_all = 전부 시작 | 모두 시작\nstop_self = 내 번역 중지 | 자기 번역 중지\nstop_others = 상대 번역 중지 | 다른 사람 번역 중지\nstop_screen = 화면 번역 중지\nstop_all = 전부 중지 | 모두 중지\nscreen_translate = 화면 번역해 줘 | 화면 번역하기\ntarget = {lang}로 번역 | 주 언어를 {lang}로\nsecondary = 두 번째 언어를 {lang}로\nsecondary_off = 두 번째 언어 끄기\nwrist = {side}에 {card} 표시\nwrist_off = {side} 표시 끄기\n"
+      "default": "# 一行一个动作：动作 = 口令 | 口令 | …（# 开头是说明）。说的整句话和某个口令一样才算（不管标点、空格，同音字也算；「请、帮我、麻烦、一下、把、吧、呀」这类词说不说都行）。\n# 空位：{lang} 语言（日语、英语、中文……）；{side} 左手 / 右手 / 双手；{card} 他人 / 自我 / 屏幕 / 关闭\nstart_self = 启动自我翻译 | 开启自我翻译 | 打开自我翻译 | 开始自我翻译\nstart_others = 启动翻译他人 | 开启翻译他人 | 打开翻译他人 | 开始翻译他人 | 启动他人翻译 | 开启他人翻译 | 打开他人翻译\nstart_screen = 启动翻译画面 | 开启翻译画面 | 打开翻译画面 | 启动屏幕翻译 | 开启屏幕翻译 | 打开屏幕翻译\nstart_all = 启动所有功能 | 开启所有功能 | 打开所有功能 | 启动全部功能 | 全部启动\nstop_self = 关闭自我翻译 | 停止自我翻译 | 关掉自我翻译\nstop_others = 关闭翻译他人 | 停止翻译他人 | 关掉翻译他人 | 关闭他人翻译 | 停止他人翻译\nstop_screen = 关闭翻译画面 | 停止翻译画面 | 关掉翻译画面 | 关闭屏幕翻译 | 停止屏幕翻译\nstop_all = 关闭所有功能 | 停止所有功能 | 关闭全部功能 | 全部关闭 | 全部停止\nscreen_translate = 翻译画面 | 翻译屏幕 | 翻译一下画面 | 翻译一下屏幕 | 把画面翻译一下 | 翻译当前画面 | 翻译这个画面 | 识别画面 | 识别屏幕 | 截图翻译 | 截屏翻译\nscreen_translate_to = 把画面翻译成{lang} | 把屏幕翻译成{lang} | 用{lang}翻译画面 | 翻译画面成{lang}\ntarget = 主语言改成{lang} | 主语言换成{lang} | 主语言设为{lang} | 翻译成{lang}\nsecondary = 第二语言改成{lang} | 第二语言换成{lang} | 第二语言设为{lang}\nsecondary_off = 关闭第二语言 | 取消第二语言 | 不要第二语言\nothers_lang = 他人翻译成{lang} | 他人翻译改成{lang} | 他人语言改成{lang} | 他人语言换成{lang}\nscreen_lang = 画面语言改成{lang} | 画面语言换成{lang} | 画面译文改成{lang}\nwrist = {side}显示{card} | {side}手腕显示{card} | {side}卡片显示{card}\nwrist_off = 关闭{side}卡片 | 关闭{side}手腕 | {side}不显示\n# English\nstart_self = start self translation | turn on self translation\nstart_others = start translating others | turn on translating others | start others translation\nstart_screen = start screen translation | turn on screen translation\nstart_all = start everything | turn everything on | start all\nstop_self = stop self translation | turn off self translation\nstop_others = stop translating others | turn off translating others | stop others translation\nstop_screen = stop screen translation | turn off screen translation\nstop_all = stop everything | turn everything off | stop all\nscreen_translate = translate the screen | translate screen | translate this screen | read the screen\nscreen_translate_to = translate the screen to {lang} | translate the screen into {lang} | translate screen to {lang} | translate screen into {lang}\ntarget = translate to {lang} | set main language to {lang} | change main language to {lang}\nsecondary = set second language to {lang} | change second language to {lang}\nsecondary_off = turn off second language | no second language\nothers_lang = translate others to {lang}\nscreen_lang = set screen language to {lang} | change screen language to {lang}\nwrist = show {card} on {side} | show {card} on {side} wrist\nwrist_off = hide {side} wrist | turn off {side} wrist\n# 日本語\nstart_self = 自分の翻訳を開始 | 自分の翻訳をオン\nstart_others = 相手の翻訳を開始 | 他人の翻訳を開始 | 相手の翻訳をオン\nstart_screen = 画面翻訳を開始 | 画面の翻訳を開始 | 画面翻訳をオン\nstart_all = 全部開始 | すべて開始\nstop_self = 自分の翻訳を停止 | 自分の翻訳をオフ\nstop_others = 相手の翻訳を停止 | 他人の翻訳を停止 | 相手の翻訳をオフ\nstop_screen = 画面翻訳を停止 | 画面の翻訳を停止 | 画面翻訳をオフ\nstop_all = 全部停止 | すべて停止\nscreen_translate = 画面を翻訳して | 画面を翻訳 | 画面翻訳して\nscreen_translate_to = 画面を{lang}に翻訳して | 画面を{lang}に翻訳\ntarget = {lang}に翻訳して | メイン言語を{lang}に\nsecondary = 第二言語を{lang}に\nsecondary_off = 第二言語をオフ\nwrist = {side}に{card}を表示\nwrist_off = {side}の表示をオフ\n# 한국어\nstart_self = 내 번역 시작 | 자기 번역 시작\nstart_others = 상대 번역 시작 | 다른 사람 번역 시작\nstart_screen = 화면 번역 시작\nstart_all = 전부 시작 | 모두 시작\nstop_self = 내 번역 중지 | 자기 번역 중지\nstop_others = 상대 번역 중지 | 다른 사람 번역 중지\nstop_screen = 화면 번역 중지\nstop_all = 전부 중지 | 모두 중지\nscreen_translate = 화면 번역해 줘 | 화면 번역하기 | 화면 번역해\nscreen_translate_to = 화면을 {lang}로 번역해 줘\ntarget = {lang}로 번역 | 주 언어를 {lang}로\nsecondary = 두 번째 언어를 {lang}로\nsecondary_off = 두 번째 언어 끄기\nwrist = {side}에 {card} 표시\nwrist_off = {side} 표시 끄기\n"
     }
   ]
 }

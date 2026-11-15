@@ -82,7 +82,7 @@ def screen_context_prefix(target_lang: str) -> str:
 
 
 # ---------------------------------------------------------------------------
-# 窗口采集（PrintWindow + PW_RENDERFULLCONTENT：窗口被挡住也能截到，最小化不行）
+# 窗口采集（PrintWindow + PW_RENDERFULLCONTENT：窗口被挡住也能截到；最小化时先临时还原到最底层再截）
 # ---------------------------------------------------------------------------
 
 _user32 = ctypes.windll.user32
@@ -111,6 +111,10 @@ _user32.GetWindowDC.restype = wintypes.HDC
 _user32.ReleaseDC.argtypes = [wintypes.HWND, wintypes.HDC]
 _user32.PrintWindow.argtypes = [wintypes.HWND, wintypes.HDC, wintypes.UINT]
 _user32.SetThreadDpiAwarenessContext.argtypes = [ctypes.c_void_p]
+_user32.ShowWindow.argtypes = [wintypes.HWND, ctypes.c_int]
+_user32.SetWindowPos.argtypes = [wintypes.HWND, wintypes.HWND, ctypes.c_int, ctypes.c_int,
+                                 ctypes.c_int, ctypes.c_int, wintypes.UINT]
+_user32.GetForegroundWindow.restype = wintypes.HWND
 _user32.SetThreadDpiAwarenessContext.restype = ctypes.c_void_p
 _gdi32.CreateCompatibleDC.argtypes = [wintypes.HDC]
 _gdi32.CreateCompatibleDC.restype = wintypes.HDC
@@ -120,6 +124,30 @@ _gdi32.SelectObject.argtypes = [wintypes.HDC, wintypes.HGDIOBJ]
 _gdi32.SelectObject.restype = wintypes.HGDIOBJ
 _gdi32.DeleteObject.argtypes = [wintypes.HGDIOBJ]
 _gdi32.DeleteDC.argtypes = [wintypes.HDC]
+
+
+SW_SHOWNOACTIVATE = 4
+SW_SHOWMINNOACTIVE = 7
+HWND_BOTTOM = wintypes.HWND(1)
+SWP_NOSIZE, SWP_NOMOVE, SWP_NOACTIVATE, SWP_NOOWNERZORDER = 0x0001, 0x0002, 0x0010, 0x0200
+# 最小化的窗口还原以后，等 VRChat 画出新的一帧再截（太早截到的是最小化之前留下的旧画面或黑的）
+MINIMIZED_SETTLE_SECONDS = 0.6
+MINIMIZED_WAIT_SECONDS = 2.5
+
+
+class _WINDOWPLACEMENT(ctypes.Structure):
+    _fields_ = [
+        ("length", wintypes.UINT),
+        ("flags", wintypes.UINT),
+        ("showCmd", wintypes.UINT),
+        ("ptMinPosition", wintypes.POINT),
+        ("ptMaxPosition", wintypes.POINT),
+        ("rcNormalPosition", wintypes.RECT),
+    ]
+
+
+_user32.GetWindowPlacement.argtypes = [wintypes.HWND, ctypes.POINTER(_WINDOWPLACEMENT)]
+_user32.SetWindowPlacement.argtypes = [wintypes.HWND, ctypes.POINTER(_WINDOWPLACEMENT)]
 
 
 class _BITMAPINFOHEADER(ctypes.Structure):
@@ -183,10 +211,102 @@ def _find_vrchat_window() -> Optional[int]:
     return candidates[0][2]
 
 
-def capture_vrchat_window():
-    """截 VRChat 窗口客户区，返回 PIL.Image(RGB)。"""
+def _grab_window(hwnd):
+    """PrintWindow 截一次窗口，裁成客户区，返回 PIL.Image(RGB)。"""
     from PIL import Image
 
+    win = wintypes.RECT()
+    _user32.GetWindowRect(hwnd, ctypes.byref(win))
+    width, height = win.right - win.left, win.bottom - win.top
+    if width <= 0 or height <= 0:
+        raise ScreenCaptureError("VRChat 窗口尺寸为 0")
+
+    hdc_win = _user32.GetWindowDC(hwnd)
+    mem_dc = _gdi32.CreateCompatibleDC(hdc_win)
+    bmp = _gdi32.CreateCompatibleBitmap(hdc_win, width, height)
+    try:
+        old_obj = _gdi32.SelectObject(mem_dc, bmp)
+        ok = _user32.PrintWindow(hwnd, mem_dc, PW_RENDERFULLCONTENT)
+        _gdi32.SelectObject(mem_dc, old_obj)
+        if not ok:
+            raise ScreenCaptureError("PrintWindow 失败")
+
+        bmi = _BITMAPINFO()
+        bmi.bmiHeader.biSize = ctypes.sizeof(_BITMAPINFOHEADER)
+        bmi.bmiHeader.biWidth = width
+        bmi.bmiHeader.biHeight = -height  # 自上而下
+        bmi.bmiHeader.biPlanes = 1
+        bmi.bmiHeader.biBitCount = 32
+        bmi.bmiHeader.biCompression = BI_RGB
+        buf = ctypes.create_string_buffer(width * height * 4)
+        rows = _gdi32.GetDIBits(mem_dc, bmp, 0, height, buf, ctypes.byref(bmi), DIB_RGB_COLORS)
+        if rows != height:
+            raise ScreenCaptureError("读取截图像素失败")
+    finally:
+        _gdi32.DeleteObject(bmp)
+        _gdi32.DeleteDC(mem_dc)
+        _user32.ReleaseDC(hwnd, hdc_win)
+
+    image = Image.frombuffer("RGB", (width, height), buf, "raw", "BGRX", 0, 1)
+
+    # 裁掉标题栏和边框，只留客户区
+    client = wintypes.RECT()
+    _user32.GetClientRect(hwnd, ctypes.byref(client))
+    origin = wintypes.POINT(0, 0)
+    _user32.ClientToScreen(hwnd, ctypes.byref(origin))
+    left = max(0, origin.x - win.left)
+    top = max(0, origin.y - win.top)
+    right = min(width, left + client.right)
+    bottom = min(height, top + client.bottom)
+    if right - left > 16 and bottom - top > 16:
+        image = image.crop((left, top, right, bottom))
+    return image
+
+
+def _all_black(image) -> bool:
+    return image.convert("L").getextrema()[1] < 8
+
+
+def _grab_minimized_window(hwnd):
+    """VRChat 最小化了（VR 里常这样：为了点按钮把桌面切到别的程序）：
+    不激活地还原、压到所有窗口最底下，等它画出新的一帧截下来，再按原来的样子最小化回去。
+    不抢焦点，桌面上被别的窗口挡着也截得到；VR 里戴着头显看不到这一下。"""
+    placement = _WINDOWPLACEMENT()
+    placement.length = ctypes.sizeof(_WINDOWPLACEMENT)
+    have_placement = bool(_user32.GetWindowPlacement(hwnd, ctypes.byref(placement)))
+    print("[Screen] VRChat 窗口最小化了，临时还原到最底层截一张（不抢焦点），截完再最小化")
+    _user32.ShowWindow(hwnd, SW_SHOWNOACTIVATE)
+    _user32.SetWindowPos(hwnd, HWND_BOTTOM, 0, 0, 0, 0,
+                         SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE | SWP_NOOWNERZORDER)
+    try:
+        time.sleep(MINIMIZED_SETTLE_SECONDS)
+        deadline = time.monotonic() + MINIMIZED_WAIT_SECONDS
+        last_error: Optional[ScreenCaptureError] = None
+        while True:
+            try:
+                image = _grab_window(hwnd)
+                if not _all_black(image):
+                    return image
+                last_error = ScreenCaptureError(
+                    "VRChat 窗口最小化了，临时还原后截到的还是全黑（VRChat 的桌面画面可能关掉了），"
+                    "请把 VRChat 窗口还原后再试")
+            except ScreenCaptureError as exc:
+                last_error = exc
+            if time.monotonic() >= deadline:
+                raise last_error
+            time.sleep(0.15)
+    finally:
+        # 截的这一会儿用户自己切到了 VRChat，就不要再把它最小化
+        if _user32.GetForegroundWindow() != hwnd:
+            if have_placement:
+                placement.showCmd = SW_SHOWMINNOACTIVE
+                _user32.SetWindowPlacement(hwnd, ctypes.byref(placement))
+            else:
+                _user32.ShowWindow(hwnd, SW_SHOWMINNOACTIVE)
+
+
+def capture_vrchat_window():
+    """截 VRChat 窗口客户区，返回 PIL.Image(RGB)。"""
     old_ctx = None
     try:
         old_ctx = _user32.SetThreadDpiAwarenessContext(DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2)
@@ -197,56 +317,9 @@ def capture_vrchat_window():
         if not hwnd:
             raise ScreenCaptureError("没有找到 VRChat 窗口（VRChat.exe 没在运行？）")
         if _user32.IsIconic(hwnd):
-            raise ScreenCaptureError("VRChat 窗口已最小化，最小化时截不到画面")
-
-        win = wintypes.RECT()
-        _user32.GetWindowRect(hwnd, ctypes.byref(win))
-        width, height = win.right - win.left, win.bottom - win.top
-        if width <= 0 or height <= 0:
-            raise ScreenCaptureError("VRChat 窗口尺寸为 0")
-
-        hdc_win = _user32.GetWindowDC(hwnd)
-        mem_dc = _gdi32.CreateCompatibleDC(hdc_win)
-        bmp = _gdi32.CreateCompatibleBitmap(hdc_win, width, height)
-        try:
-            old_obj = _gdi32.SelectObject(mem_dc, bmp)
-            ok = _user32.PrintWindow(hwnd, mem_dc, PW_RENDERFULLCONTENT)
-            _gdi32.SelectObject(mem_dc, old_obj)
-            if not ok:
-                raise ScreenCaptureError("PrintWindow 失败")
-
-            bmi = _BITMAPINFO()
-            bmi.bmiHeader.biSize = ctypes.sizeof(_BITMAPINFOHEADER)
-            bmi.bmiHeader.biWidth = width
-            bmi.bmiHeader.biHeight = -height  # 自上而下
-            bmi.bmiHeader.biPlanes = 1
-            bmi.bmiHeader.biBitCount = 32
-            bmi.bmiHeader.biCompression = BI_RGB
-            buf = ctypes.create_string_buffer(width * height * 4)
-            rows = _gdi32.GetDIBits(mem_dc, bmp, 0, height, buf, ctypes.byref(bmi), DIB_RGB_COLORS)
-            if rows != height:
-                raise ScreenCaptureError("读取截图像素失败")
-        finally:
-            _gdi32.DeleteObject(bmp)
-            _gdi32.DeleteDC(mem_dc)
-            _user32.ReleaseDC(hwnd, hdc_win)
-
-        image = Image.frombuffer("RGB", (width, height), buf, "raw", "BGRX", 0, 1)
-
-        # 裁掉标题栏和边框，只留客户区
-        client = wintypes.RECT()
-        _user32.GetClientRect(hwnd, ctypes.byref(client))
-        origin = wintypes.POINT(0, 0)
-        _user32.ClientToScreen(hwnd, ctypes.byref(origin))
-        left = max(0, origin.x - win.left)
-        top = max(0, origin.y - win.top)
-        right = min(width, left + client.right)
-        bottom = min(height, top + client.bottom)
-        if right - left > 16 and bottom - top > 16:
-            image = image.crop((left, top, right, bottom))
-
-        lo, hi = image.convert("L").getextrema()
-        if hi < 8:
+            return _grab_minimized_window(hwnd)
+        image = _grab_window(hwnd)
+        if _all_black(image):
             raise ScreenCaptureError("截到的画面全黑（VRChat 可能是独占全屏，请改成窗口或无边框）")
         return image
     finally:
@@ -363,7 +436,7 @@ def recognize_text(image) -> list[str]:
         else:
             print(f"[Screen] 识别模型「{model}」返回了空内容（不支持图片的模型常这样）")
         if _looks_blank(image):
-            print("[Screen] 截到的画面几乎是一种颜色（VRChat 窗口可能最小化了，或是独占全屏）")
+            print("[Screen] 截到的画面几乎是一种颜色（VRChat 可能是独占全屏，或者画面本来就是一片纯色）")
     return blocks
 
 

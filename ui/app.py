@@ -75,7 +75,7 @@ except ImportError:  # pragma: no cover
 from resource_path import get_resource_path
 
 # 版本号：网页页脚和「详情」页显示，和 installer.nsi 的 APP_VERSION 保持一致
-APP_VERSION = '1.1.2'
+APP_VERSION = '1.1.3'
 # 「软件信息」页的链接（1.1.2）
 GITHUB_REPO_URL = 'https://github.com/ganlanqwq/GanlanTranslate'
 GITHUB_RELEASES_URL = GITHUB_REPO_URL + '/releases/latest'

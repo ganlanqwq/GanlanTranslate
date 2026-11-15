@@ -1,7 +1,8 @@
 """语音控制：用说的话控制甘岚翻译（启停模式、翻译画面、改译文语言、VR 手腕卡片）。
 
 - 指定口令：说的整句话和口令表里某一句一样（不管标点、空格，同音字也算）才执行，不用大模型。
-- 自然语言：先说唤醒词，后面的话交给「API 配置」里翻译用的大模型理解意思。
+- 自然语言：先说唤醒词，后面的话交给「API 配置」里翻译用的大模型理解意思。口令表里的口令不说唤醒词也能用
+  （打开「口令前也要先说唤醒词」后两种方式都要先说唤醒词）。
 
 口令那句话不翻译、不发聊天框（filter_source 返回 ""），说到一半的半句也不显示、不发（filter_partial_source）。
 真正去做的事放在插件自己的线程里（启停模式要等好几秒，不能卡住识别）。
@@ -61,7 +62,9 @@ def _rebuild():
     matcher = commands.Matcher(ctx.settings.get('phrases') or '', wake)
     _matcher = matcher
     if mode == 'natural':
-        how = f'自然语言（先说「{wake}」）' if wake else '自然语言（没填唤醒词，不会触发）'
+        how = f'自然语言（先说「{wake}」）' if wake else '自然语言（没填唤醒词，只认口令表）'
+        if not need_wake:
+            how += '，口令表里的口令直接说也行'
     else:
         how = '指定口令' + (f'（先说「{wake}」）' if need_wake and wake else '')
     ctx.log(f'{how}，口令 {len(matcher.templates)} 条')
@@ -82,7 +85,12 @@ def filter_source(text):
     said_wake, rest = matcher.strip_wake(k)
     if mode == 'natural':
         if not said_wake:
-            return None
+            # 没说唤醒词：整句正好是口令也执行（不用问大模型），除非要求口令前也先说唤醒词
+            command = None if need_wake else matcher.match_key(k)
+            if command is None:
+                return None
+            _jobs.put(('run', text, [command]))
+            return ''
         command = matcher.match_key(rest) if rest else None
         if command is not None:
             _jobs.put(('run', text, [command]))
@@ -110,7 +118,11 @@ def filter_partial_source(text):
         return None
     mode, _wake, need_wake = _settings()
     if mode == 'natural' or need_wake:
-        return '' if matcher.could_be_wake(k) else None
+        if matcher.could_be_wake(k):           # 唤醒词开头（自然语言模式下后面整句都是命令）
+            return ''
+        if mode == 'natural' and not need_wake:
+            return '' if matcher.could_be_command(k) else None
+        return None
     said_wake, rest = matcher.strip_wake(k)
     if said_wake and not rest:
         return ''
@@ -179,7 +191,14 @@ def _execute(command: dict) -> None:
     elif action == 'stop':
         _result(f'关闭{_names(command["modes"])}', ctx.call_api('POST', '/api/modes/stop', {'modes': command['modes']}))
     elif action == 'screen_translate':
-        _screen_translate()
+        language = command.get('language') or ''
+        if language:
+            path, field = LANGUAGE_PATHS['screen']
+            response = ctx.call_api('POST', path, {field: language})
+            if not (response.get('success') and response.get('http_status', 200) < 400):
+                _result(f'画面译文语言改成 {language}', response)
+                return
+        _screen_translate(language)
     elif action == 'language':
         target, language = command['target'], command.get('language') or ''
         path, field = LANGUAGE_PATHS[target]
@@ -200,8 +219,15 @@ def _mode_status(mode: str) -> str:
         return ''
 
 
-def _screen_translate() -> None:
-    """翻译一次画面。屏幕模式没开就先开，等它跑起来再截。"""
+def _screen_state() -> dict:
+    try:
+        return ctx.call_api('GET', '/api/subtitles').get('screen') or {}
+    except Exception:
+        return {}
+
+
+def _screen_translate(language: str = '') -> None:
+    """翻译一次画面。屏幕模式没开就先开，等它跑起来再截；截完把结果（或失败原因）写进日志。"""
     if _mode_status('screen') != 'running':
         ctx.log('屏幕模式没开，先启动它')
         response = ctx.call_api('POST', '/api/modes/start', {'modes': ['screen']})
@@ -211,4 +237,22 @@ def _screen_translate() -> None:
         deadline = time.time() + 20
         while time.time() < deadline and _mode_status('screen') != 'running':
             time.sleep(0.5)
-    _result('翻译一次画面', ctx.call_api('POST', '/api/screen-translate'))
+    before = _screen_state().get('updated_at') or 0
+    label = f'把画面翻译成 {language}' if language else '翻译一次画面'
+    response = ctx.call_api('POST', '/api/screen-translate')
+    if not (response.get('success') and response.get('http_status', 200) < 400):
+        _result(label, response)
+        return
+    deadline = time.time() + 60
+    while time.time() < deadline:
+        time.sleep(0.5)
+        state = _screen_state()
+        if state.get('busy') or (state.get('updated_at') or 0) == before:
+            continue
+        if state.get('status') == 'error':
+            ctx.log(f'{label}：没成功（{state.get("message") or "未知原因"}）')
+        else:
+            count = len(state.get('items') or [])
+            ctx.log(f'{label}：好了，' + (f'{count} 段' if count else (state.get('message') or '画面里没有文字')))
+        return
+    ctx.log(f'{label}：已经开始，等了一分钟还没出结果')
